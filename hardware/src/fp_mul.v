@@ -159,7 +159,7 @@ module fp_mul #(
    wire [2*MAN_W-2:0]       man_norm = man_reg[2*MAN_W-2:0] << lzc;
 
    wire [EXP_W-1:0]         exp_adjust = man_reg[2*MAN_W-1]? exponent_reg + 1'b1:
-                                                             exponent_reg - {{(EXP_W-$clog2(2*MAN_W+1)){1'b0}}, lzc};
+                                                             exponent_reg - {{(EXP_W-$clog2(2*MAN_W)){1'b0}}, lzc};
    wire [MAN_W+EXTRA-1:0]   man_adjust = man_reg[2*MAN_W-1]? {man_reg[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_reg[MAN_W-EXTRA:0]}:
                                                              {man_norm[2*MAN_W-2 -: MAN_W+EXTRA-1], |man_norm[MAN_W-EXTRA-1:0]};
 
