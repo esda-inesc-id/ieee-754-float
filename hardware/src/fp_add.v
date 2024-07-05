@@ -164,7 +164,7 @@ module fp_add #(
          A_Exponent_reg2 <= A_Exponent_reg;
          A_Mantissa_reg2 <= A_Mantissa_inv;
 
-         B_Mantissa_reg2 <= {B_Mantissa_in[STICKY_BITS-2 +: MAN_W+EXTRA-1], |B_Mantissa_in[STICKY_BITS-3:0]};
+         B_Mantissa_reg2 <= {B_Mantissa_in[STICKY_BITS-2 +: MAN_W+EXTRA-1], sticky_bit};
 
          subtract_reg <= subtract;
 
@@ -214,9 +214,9 @@ module fp_add #(
    wire                     res_sign = subtract_reg2? ~A_sign_reg3 ^ carry_reg: A_sign_reg3;
    wire                     res_inv  = carry_reg & subtract_reg2;
 
-   // Normalize
    wire [MAN_W+EXTRA-1:0]   Temp_inv = {(MAN_W+EXTRA){res_inv}} ^ Temp_reg;
 
+   // Normalize
    wire [$clog2(MAN_W+EXTRA+1)-1:0] lzc_int;
    clz #(
          .DATA_W(MAN_W+EXTRA)
