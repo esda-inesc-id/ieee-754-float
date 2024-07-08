@@ -44,9 +44,9 @@ ASIC_DIR ?=hardware/asic/$(ASIC_NODE)
 XILINX ?=1
 INTEL ?=1
 
-VLINE:="V$(VERSION)"
-$(CORE_NAME)_version.txt:
-ifeq ($(VERSION),)
-	$(error "variable VERSION is not set")
-endif
-	echo $(VLINE) > version.txt
+#VLINE:="V$(VERSION)"
+#$(CORE_NAME)_version.txt:
+#ifeq ($(VERSION),)
+#	$(error "variable VERSION is not set")
+#endif
+#	echo $(VLINE) > version.txt
