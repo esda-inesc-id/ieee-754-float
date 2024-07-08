@@ -170,7 +170,7 @@ module fp_mac #(
    wire [ACC_W+STICKY_BITS-1:0] B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> diff_exp;
 
    // Sticky
-   wire                     sticky_bit = |B_man_in[STICKY_BITS-1:0];
+   wire                     sticky_bit = |B_man_in[STICKY_BITS:0];
 
    // pipeline stage 3
    reg [EXP_W-1:0]          A_exp_reg;
