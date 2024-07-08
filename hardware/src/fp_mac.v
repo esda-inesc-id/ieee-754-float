@@ -144,13 +144,15 @@ module fp_mac #(
       end
    end
 
-   localparam ACC_W = 2*MAN_W+GUARD_W;
+   localparam ACC_W = 2*MAN_W+GUARD_W+1;
    localparam STICKY_BITS = 2*BIAS-1;
 
    // Accumulation in 2's Complement
-   wire [EXP_W-1:0]         A_exp_int  = mul_exp_reg;
-   wire [2*MAN_W-1:0]       A_man_int_ = (mul_man_reg ^ {(2*MAN_W){mul_sign_reg}}) + mul_sign_reg;
-   wire [ACC_W-1:0]         A_man_int  = {{GUARD_W{A_man_int[2*MAN_W-1]}}, A_man_int};
+   wire [2*MAN_W:0]         mul_man_c_ = ({1'b0, mul_man_reg} ^ {(2*MAN_W+1){mul_sign_reg}});
+   wire [ACC_W-1:0]         mul_man_c  = {{GUARD_W{mul_man_c_[2*MAN_W-1]}}, mul_man_c_};
+
+   wire [EXP_W-1:0]         A_exp_int = done_int2? mul_exp_reg: acc_exp_reg2;
+   wire [ACC_W-1:0]         A_man_int = done_int2? mul_man_c: acc_man_reg2;
 
    wire [EXP_W-1:0]         B_exp_int = acc_exp_reg;
    wire [ACC_W-1:0]         B_man_int = acc_man_reg;
@@ -163,12 +165,20 @@ module fp_mac #(
    wire [EXP_W-1:0]         B_exp = comp? B_exp_int: A_exp_int;
    wire [ACC_W-1:0]         B_man = comp? B_man_int: A_man_int;
 
+   // Align significants
+   wire [EXP_W-1:0]         diff_exp = A_exp - B_exp;
+   wire [ACC_W+STICKY_BITS-1:0] B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> diff_exp;
+
+   // Sticky
+   wire                     sticky_bit = |B_man_in[STICKY_BITS-1:0];
+
    // pipeline stage 3
    reg [EXP_W-1:0]          A_exp_reg;
    reg [ACC_W-1:0]          A_man_reg;
 
-   reg [EXP_W-1:0]          B_exp_reg;
    reg [ACC_W-1:0]          B_man_reg;
+
+   reg                      cin;
 
    reg                      done_int3;
    always @(posedge clk) begin
@@ -176,72 +186,52 @@ module fp_mac #(
          A_exp_reg <= {EXP_W{1'b0}};
          A_man_reg <= {ACC_W{1'b0}};
 
-         B_exp_reg <= {EXP_W{1'b0}};
          B_man_reg <= {ACC_W{1'b0}};
+
+         cin <= 1'b0;
 
          done_int3 <= 1'b0;
       end else begin
          A_exp_reg <= A_exp;
          A_man_reg <= A_man;
 
-         B_exp_reg <= B_exp;
-         B_man_reg <= B_man;
+         B_man_reg <= {B_man_in[STICKY_BITS+1 +: ACC_W-1], sticky_bit};
+
+         cin <= mul_sign_reg;
 
          done_int3 <= done_int2;
       end
    end
 
-   // Align significants
-   wire [EXP_W-1:0]         diff_exp = A_exp_reg - B_exp_reg;
-   wire [ACC_W+STICKY_BITS-1:0] B_man_in = {B_man_reg, {STICKY_BITS{1'b0}}} >> diff_exp;
-
-   // Sticky
-   wire                     sticky_bit = |B_man_in[STICKY_BITS-1:0];
+   // Accumulation
+   wire [ACC_W:0]           acc_man = {A_man_reg[ACC_W-1], A_man_reg} + {B_man_reg[ACC_W-1], B_man_reg} + cin;
 
    // pipeline stage 4
-   reg [EXP_W-1:0]          A_exp_reg2;
-   reg [ACC_W-1:0]          A_man_reg2;
+   wire                     rst_acc  = (done_int & ~done_int2) | (done_int2 & ~done_int3);
+   wire [EXP_W-1:0]         acc_exp_ = rst_acc? {{(EXP_W-1){1'b0}}, 1'b1}: A_exp_reg;
+   wire [ACC_W:0]           acc_man_ = rst_acc? {(ACC_W+1){1'b0}}: acc_man;
 
-   reg [ACC_W-1:0]          B_man_reg2;
+   reg [EXP_W-1:0]          acc_exp_reg, acc_exp_reg2;
+   reg [ACC_W:0]            acc_man_reg, acc_man_reg2;
 
    reg                      done_int4;
-   always @(posedge clk) begin
-      if (rst) begin
-         A_exp_reg2 <= {EXP_W{1'b0}};
-         A_man_reg2 <= {ACC_W{1'b0}};
-
-         B_man_reg2 <= {ACC_W{1'b0}};
-
-         done_int4 <= 1'b0;
-      end else begin
-         A_exp_reg2 <= A_exp_reg;
-         A_man_reg2 <= A_man_reg;
-
-         B_man_reg2 <= {B_man_in[STICKY_BITS +: ACC_W-1], sticky_bit};
-
-         done_int4 <= done_int3;
-      end
-   end
-
-   // Accumulation
-   wire [ACC_W:0]           acc_man = {A_man_reg2[ACC_W-1], A_man_reg2} + {B_man_reg2[ACC_W-1], B_man_reg2};
-
-   // pipeline stage 5
-   reg [EXP_W-1:0]          acc_exp_reg;
-   reg [ACC_W:0]            acc_man_reg;
-
-   reg                      done_int5;
    always @(posedge clk) begin
       if (rst) begin
          acc_exp_reg <= {EXP_W{1'b0}};
          acc_man_reg <= {(ACC_W+1){1'b0}};
 
-         done_int5 <= 1'b0;
-      end else begin
-         acc_exp_reg <= A_exp_reg2;
-         acc_man_reg <= acc_man;
+         acc_exp_reg2 <= {EXP_W{1'b0}};
+         acc_man_reg2 <= {(ACC_W+1){1'b0}};
 
-         done_int5 <= done_int4;
+         done_int4 <= 1'b0;
+      end else begin
+         acc_exp_reg <= acc_exp_;
+         acc_man_reg <= acc_man_;
+
+         acc_exp_reg2 <= acc_exp_reg;
+         acc_man_reg2 <= acc_man_reg;
+
+         done_int4 <= done_int3;
       end
    end
 
@@ -251,7 +241,7 @@ module fp_mac #(
 
    // Normalize
    localparam LZC_W  = $clog2(ACC_W+1);
-   localparam OFFSET = GUARD_W+2; // 2 -> 1 for the carry from the accumulator and 1 for the 2's Complement
+   localparam OFFSET = GUARD_W+4; // 3 -> 1 for the carry from the accumulator, 1 for the extra integer bit and 1 for the 2's Complement
 
    wire [LZC_W-1:0]         lzc_int;
    clz #(
@@ -266,19 +256,19 @@ module fp_mac #(
    wire [LZC_W-1:0]         lzc = ({{(EXP_W-LZC_W){1'b0}}, lzc_int} > acc_exp_reg)? acc_exp_reg[LZC_W-1:0]: lzc_int;
    wire [LZC_W-1:0]         lzc_inv = ~lzc;
 
-   wire [EXP_W-1:0]         exp_norm = acc_exp_reg + {{(EXP_W-LZC_W){lzc_inv[LZC_W-1]}}, lzc_inv} + OFFSET[EXP_W-1:0];
+   wire [EXP_W-1:0]         exp_norm = acc_exp_reg + {{(EXP_W-LZC_W){lzc_inv[LZC_W-1]}}, lzc_inv} + OFFSET;
    wire [ACC_W:0]           man_norm = res_inv[ACC_W]? res_inv: res_inv << lzc;
 
    wire [EXP_W-1:0]         exp_adjust = res_inv[ACC_W]? acc_exp_reg: exp_norm;
    wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[ACC_W -: MAN_W+EXTRA-1], |man_norm[ACC_W-(MAN_W-EXTRA-1):0]};
 
-   // pipeline stage 6
+   // pipeline stage 5
    reg                      res_sign_reg;
 
    reg [EXP_W-1:0]          exp_adjust_reg;
    reg [MAN_W+EXTRA-1:0]    man_adjust_reg;
 
-   reg                      done_int6;
+   reg                      done_int5, done_int6, done_int7;
    always @(posedge clk) begin
       if (rst) begin
          res_sign_reg <= 1'b0;
@@ -286,14 +276,18 @@ module fp_mac #(
          exp_adjust_reg <= {EXP_W{1'b0}};
          man_adjust_reg <= {(MAN_W+EXTRA){1'b0}};
 
+         done_int5 <= 1'b0;
          done_int6 <= 1'b0;
+         done_int7 <= 1'b0;
       end else begin
          res_sign_reg <= res_sign;
 
          exp_adjust_reg <= exp_adjust;
          man_adjust_reg <= man_adjust;
 
+         done_int5 <= done_int4;
          done_int6 <= done_int5;
+         done_int7 <= done_int6;
       end
    end
 
@@ -321,13 +315,13 @@ module fp_mac #(
 
 `ifdef SPECIAL_CASES
    wire [DATA_W-1:0]        res_in  = special? res_special: {Sign, Exponent, Fraction};
-   wire                     done_in = special? start: done_int3;
+   wire                     done_in = special? start: done_int7 & ~done_int6;
 `else
    wire [DATA_W-1:0]        res_in  = {Sign, Exponent, Fraction};
-   wire                     done_in = done_int3;
+   wire                     done_in = done_int7 & ~done_int6;
 `endif
 
-   // pipeline stage 7
+   // pipeline stage 6
    always @(posedge clk) begin
       if (rst) begin
          res <= {DATA_W{1'b0}};
