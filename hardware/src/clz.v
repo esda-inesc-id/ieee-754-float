@@ -8,7 +8,7 @@ module clz #(
    output reg [$clog2(DATA_W+1)-1:0] data_out
    );
 
-  localparam BIT_W = $clog2(DATA_W+1);
+   localparam BIT_W = $clog2(DATA_W+1);
 
    integer                         i;
 

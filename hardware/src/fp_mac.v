@@ -237,29 +237,29 @@ module fp_mac #(
 
    // Convert final result to sign-magnitude
    wire                     res_sign = acc_man_reg[ACC_W];
-   wire [ACC_W:0]           res_inv  = (acc_man_reg ^ {(ACC_W+1){acc_man_reg[ACC_W]}}) + acc_man_reg[ACC_W];
 
    // Normalize
-   localparam LZC_W  = $clog2(ACC_W+1);
+   localparam LSC_W  = $clog2(ACC_W+2);
    localparam OFFSET = GUARD_W+4; // 3 -> 1 for the carry from the accumulator, 1 for the extra integer bit and 1 for the 2's Complement
 
-   wire [LZC_W-1:0]         lzc_int;
-   clz #(
+   wire [LSC_W-1:0]         lsc_int;
+   cls #(
          .DATA_W(ACC_W+1)
          )
-   clz0
+   cls0
      (
-      .data_in  (res_inv),
-      .data_out (lzc_int)
+      .data_in  (acc_man_reg),
+      .symbol   (res_sign),
+      .data_out (lsc_int)
       );
 
-   wire [LZC_W-1:0]         lzc = ({{(EXP_W-LZC_W){1'b0}}, lzc_int} > acc_exp_reg)? acc_exp_reg[LZC_W-1:0]: lzc_int;
-   wire [LZC_W-1:0]         lzc_inv = ~lzc;
+   wire [LSC_W-1:0]         lsc = ({{(EXP_W-LSC_W){1'b0}}, lsc_int} > acc_exp_reg)? acc_exp_reg[LSC_W-1:0]: lsc_int;
+   wire [LSC_W-1:0]         lsc_inv = ~lsc;
 
-   wire [EXP_W-1:0]         exp_norm = acc_exp_reg + {{(EXP_W-LZC_W){lzc_inv[LZC_W-1]}}, lzc_inv} + OFFSET;
-   wire [ACC_W:0]           man_norm = res_inv[ACC_W]? res_inv: res_inv << lzc;
+   wire [EXP_W-1:0]         exp_norm = acc_exp_reg + {{(EXP_W-LSC_W){lsc_inv[LSC_W-1]}}, lsc_inv} + OFFSET;
+   wire [ACC_W:0]           man_norm = acc_man_reg << lsc;
 
-   wire [EXP_W-1:0]         exp_adjust = res_inv[ACC_W]? acc_exp_reg: exp_norm;
+   wire [EXP_W-1:0]         exp_adjust = exp_norm;
    wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[ACC_W -: MAN_W+EXTRA-1], |man_norm[ACC_W-(MAN_W-EXTRA-1):0]};
 
    // pipeline stage 5
@@ -302,7 +302,7 @@ module fp_mac #(
      (
       .exponent     (exp_adjust_reg),
       .mantissa     (man_adjust_reg),
-      .cin          (1'b0),
+      .cin          (res_sign_reg),
 
       .exponent_rnd (exp_adjust_rnd),
       .mantissa_rnd (man_adjust_rnd)
