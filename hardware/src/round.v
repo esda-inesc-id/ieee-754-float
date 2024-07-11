@@ -15,15 +15,17 @@ module round #(
    output [DATA_W-1:0]  mantissa_rnd
    );
 
+   wire [DATA_W-1:0]    mantissa_inv = {DATA_W{cin}} ^ mantissa[DATA_W+3-1 -: DATA_W];
+
    // Round
-   wire                 man_lsb = mantissa[3];
-   wire                 guard_bit = mantissa[2];
-   wire                 round_bit = mantissa[1];
+   wire                 man_lsb    = mantissa[3];
+   wire                 guard_bit  = mantissa[2];
+   wire                 round_bit  = mantissa[1];
    wire                 sticky_bit = mantissa[0];
 
-   wire                 round = guard_bit & ((man_lsb ^ cin) | round_bit | sticky_bit);
+   wire                 round = guard_bit & (man_lsb | round_bit | sticky_bit);
 
-   wire [DATA_W:0]      mantissa_rnd_int = {1'b0, mantissa[DATA_W+3-1 -: DATA_W]} + round + cin;
+   wire [DATA_W:0]      mantissa_rnd_int = {1'b0, mantissa_inv} + round + cin;
 
    // Normalize
    wire                 norm = mantissa_rnd_int[DATA_W];

@@ -174,14 +174,12 @@ module fp_add #(
 
    // Addition
    wire [MAN_W+EXTRA:0]     Temp = A_Mantissa_reg2 + {1'b0, B_Mantissa_reg2} + {{(MAN_W+EXTRA){1'b0}}, subtract_reg};
-   wire                     carry = Temp[MAN_W+EXTRA];
 
    // pipeline stage 3
    reg                      A_sign_reg3;
    reg [EXP_W-1:0]          A_Exponent_reg3;
 
-   reg [MAN_W+EXTRA-1:0]    Temp_reg;
-   reg                      carry_reg;
+   reg [MAN_W+EXTRA:0]      Temp_reg;
 
    reg                      subtract_reg2;
 
@@ -191,8 +189,7 @@ module fp_add #(
          A_sign_reg3 <= 1'b0;
          A_Exponent_reg3 <= {EXP_W{1'b0}};
 
-         Temp_reg <= {(MAN_W+EXTRA){1'b0}};
-         carry_reg <= 1'b0;
+         Temp_reg <= {(MAN_W+EXTRA+1){1'b0}};
 
          subtract_reg2 <= 1'b0;
 
@@ -201,8 +198,7 @@ module fp_add #(
          A_sign_reg3 <= A_sign_reg2;
          A_Exponent_reg3 <= A_Exponent_reg2;
 
-         Temp_reg <= Temp[MAN_W+EXTRA-1:0];
-         carry_reg <= carry;
+         Temp_reg <= Temp;
 
          subtract_reg2 <= subtract_reg;
 
@@ -211,28 +207,32 @@ module fp_add #(
    end
 
    // Compute result sign
-   wire                     res_sign = subtract_reg2? ~A_sign_reg3 ^ carry_reg: A_sign_reg3;
-   wire                     res_inv  = carry_reg & subtract_reg2;
-
-   wire [MAN_W+EXTRA-1:0]   Temp_inv = {(MAN_W+EXTRA){res_inv}} ^ Temp_reg;
+   wire                     res_sign = subtract_reg2? ~A_sign_reg3 ^ Temp_reg[MAN_W+EXTRA]: A_sign_reg3;
+   wire                     res_inv  = subtract_reg2 & Temp_reg[MAN_W+EXTRA];
 
    // Normalize
-   wire [$clog2(MAN_W+EXTRA+1)-1:0] lzc_int;
-   clz #(
-         .DATA_W(MAN_W+EXTRA)
+   localparam LSC_W  = $clog2(MAN_W+EXTRA+2);
+   localparam OFFSET = 2; // 2 -> 1 for the carry from the adder and 1 for the 2's Complement
+
+   wire [LSC_W-1:0]         lsc_int;
+   cls #(
+         .DATA_W(MAN_W+EXTRA+1)
          )
-   clz0
+   cls0
      (
-      .data_in  (Temp_inv),
-      .data_out (lzc_int)
+      .data_in  (Temp_reg),
+      .symbol   (res_inv),
+      .data_out (lsc_int)
       );
 
-   wire [$clog2(MAN_W+EXTRA+1)-1:0] lzc = ({{(EXP_W-$clog2(MAN_W+EXTRA+1)){1'b0}}, lzc_int} > A_Exponent_reg3)? A_Exponent_reg3[$clog2(MAN_W+EXTRA+1)-1:0]: lzc_int;
+   wire [LSC_W-1:0]         lsc = ({{(EXP_W-LSC_W){1'b0}}, lsc_int} > A_Exponent_reg3)? A_Exponent_reg3[LSC_W-1:0]: lsc_int;
+   wire [LSC_W-1:0]         lsc_inv = ~lsc;
 
-   wire [EXP_W-1:0]         exp_adjust = (carry_reg & ~subtract_reg2)? A_Exponent_reg3 + 1'b1:
-                                                                       A_Exponent_reg3 - {{(EXP_W-$clog2(MAN_W+EXTRA+1)){1'b0}}, lzc};
-   wire [MAN_W+EXTRA-1:0]   man_adjust = (carry_reg & ~subtract_reg2)? {1'b1, Temp_reg[MAN_W+EXTRA-1:2], |Temp_reg[1:0]}:
-                                                                       Temp_inv << lzc;
+   wire [EXP_W-1:0]         exp_norm = A_Exponent_reg3 + {{(EXP_W-LSC_W){lsc_inv[LSC_W-1]}}, lsc_inv} + OFFSET;
+   wire [MAN_W+EXTRA:0]     man_norm = Temp_reg << lsc;
+
+   wire [EXP_W-1:0]         exp_adjust = exp_norm;
+   wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[MAN_W+EXTRA:2], |man_norm[1:0]};
 
    // pipeline stage 4
    reg                      res_sign_reg;
