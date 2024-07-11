@@ -15,7 +15,7 @@ module round #(
    output [DATA_W-1:0]  mantissa_rnd
    );
 
-   wire [DATA_W+3-1:0]  mantissa_inv = {(DATA_W+3){cin}} ^ mantissa;
+   wire [DATA_W-1:0]    mantissa_inv = {DATA_W{cin}} ^ mantissa[DATA_W+3-1 -: DATA_W];
 
    // Round
    wire                 man_lsb    = mantissa[3];
@@ -25,7 +25,7 @@ module round #(
 
    wire                 round = guard_bit & (man_lsb | round_bit | sticky_bit);
 
-   wire [DATA_W:0]      mantissa_rnd_int = {1'b0, mantissa_inv[DATA_W+3-1 -: DATA_W]} + round + cin;
+   wire [DATA_W:0]      mantissa_rnd_int = {1'b0, mantissa_inv} + round + cin;
 
    // Normalize
    wire                 norm = mantissa_rnd_int[DATA_W];
