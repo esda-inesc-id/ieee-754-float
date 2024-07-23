@@ -163,7 +163,9 @@ module fp_div #(
    end
 
    // Normalize
-   wire [$clog2(MAN_W+EXTRA+1)-1:0] lzc_int;
+   localparam LSC_W = $clog2(MAN_W+EXTRA+1);
+
+   wire [LSC_W-1:0] lzc_int;
    clz #(
          .DATA_W(MAN_W+EXTRA)
          )
@@ -173,9 +175,9 @@ module fp_div #(
       .data_out (lzc_int)
       );
 
-   wire [$clog2(MAN_W+EXTRA+1)-1:0] lzc = ({{(EXP_W-$clog2(MAN_W+EXTRA+1)){1'b0}}, lzc_int} > Temp_Exponent_reg)? Temp_Exponent_reg[$clog2(MAN_W+EXTRA+1)-1:0]: lzc_int;
+   wire [LSC_W-1:0]         lzc = ({{(EXP_W-LSC_W){1'b0}}, lzc_int} > Temp_Exponent_reg)? Temp_Exponent_reg[LSC_W-1:0]: lzc_int;
 
-   wire [EXP_W-1:0]         exp_adjust = Temp_Exponent_reg - {{(EXP_W-$clog2(MAN_W+EXTRA+1)){1'b0}}, lzc};
+   wire [EXP_W-1:0]         exp_adjust = Temp_Exponent_reg - {{(EXP_W-LSC_W){1'b0}}, lzc};
    wire [MAN_W+EXTRA-1:0]   man_adjust = Temp_Mantissa_reg << lzc;
 
    // pipeline stage 3

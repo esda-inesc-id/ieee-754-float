@@ -147,24 +147,27 @@ module fp_mul #(
    end
 
    // Normalize
-   wire [$clog2(2*MAN_W)-1:0] lzc_int;
+   localparam LSC_W  = $clog2(2*MAN_W+1);
+   localparam OFFSET = 2; // 2 -> 1 for the carry from the adder and 1 for the 2's Complement
+
+   wire [LSC_W-1:0] lzc_int;
    clz #(
-         .DATA_W(2*MAN_W-1)
+         .DATA_W(2*MAN_W)
          )
    clz0
      (
-      .data_in  (man_reg[2*MAN_W-2:0]),
+      .data_in  (man_reg),
       .data_out (lzc_int)
       );
 
-   wire [$clog2(2*MAN_W)-1:0] lzc = ({{(EXP_W-$clog2(2*MAN_W)){1'b0}}, lzc_int} > exponent_reg)? exponent_reg[$clog2(2*MAN_W)-1:0]: lzc_int;
+   wire [LSC_W-1:0]         lzc = ({{(EXP_W-LSC_W){1'b0}}, lzc_int} > exponent_reg)? exponent_reg[LSC_W-1:0]: lzc_int;
+   wire [LSC_W-1:0]         lzc_inv = ~lzc;
 
-   wire [2*MAN_W-2:0]       man_norm = man_reg[2*MAN_W-2:0] << lzc;
+   wire [EXP_W-1:0]         exp_norm = exponent_reg + {{(EXP_W-LSC_W){lzc_inv[LSC_W-1]}}, lzc_inv[LSC_W-1:0]} + OFFSET;
+   wire [2*MAN_W-1:0]       man_norm = man_reg << lzc;
 
-   wire [EXP_W-1:0]         exp_adjust = man_reg[2*MAN_W-1]? exponent_reg + 1'b1:
-                                                             exponent_reg - {{(EXP_W-$clog2(2*MAN_W)){1'b0}}, lzc};
-   wire [MAN_W+EXTRA-1:0]   man_adjust = man_reg[2*MAN_W-1]? {man_reg[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_reg[MAN_W-EXTRA:0]}:
-                                                             {man_norm[2*MAN_W-2 -: MAN_W+EXTRA-1], |man_norm[MAN_W-EXTRA-1:0]};
+   wire [EXP_W-1:0]         exp_adjust = exp_norm;
+   wire [MAN_W+EXTRA-1:0]   man_adjust = {man_reg[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_reg[MAN_W-EXTRA:0]};
 
    // pipeline stage 3
    reg                      res_sign_reg2;
