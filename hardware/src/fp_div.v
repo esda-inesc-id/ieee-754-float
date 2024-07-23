@@ -72,16 +72,19 @@ module fp_div #(
 `endif
 
    // Unpack
-   wire                     A_sub = ~|op_a[DATA_W-2 -: EXP_W];
-   wire                     B_sub = ~|op_b[DATA_W-2 -: EXP_W];
+   wire                     A_nsub = |op_a[DATA_W-2 -: EXP_W];
+   wire                     B_nsub = |op_b[DATA_W-2 -: EXP_W];
+
+   wire                     A_sub = ~A_nsub;
+   wire                     B_sub = ~B_nsub;
 
    wire                     A_sign     = op_a[DATA_W-1];
    wire [EXP_W-1:0]         A_Exponent = {op_a[DATA_W-2 -: EXP_W-1], A_sub | op_a[DATA_W-EXP_W-1]};
-   wire [MAN_W-1:0]         A_Mantissa = {~A_sub, op_a[MAN_W-2:0]};
+   wire [MAN_W-1:0]         A_Mantissa = {A_nsub, op_a[MAN_W-2:0]};
 
    wire                     B_sign     = op_b[DATA_W-1];
    wire [EXP_W-1:0]         B_Exponent = {op_b[DATA_W-2 -: EXP_W-1], B_sub | op_b[DATA_W-EXP_W-1]};
-   wire [MAN_W-1:0]         B_Mantissa = {~B_sub, op_b[MAN_W-2:0]};
+   wire [MAN_W-1:0]         B_Mantissa = {B_nsub, op_b[MAN_W-2:0]};
 
    // pipeline stage 1
    reg                      A_sign_reg;

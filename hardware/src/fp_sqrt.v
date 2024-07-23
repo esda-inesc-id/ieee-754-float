@@ -25,11 +25,13 @@ module fp_sqrt #(
    localparam EXTRA = 3;
 
    // Unpack
-   wire                     A_sub = ~|op[DATA_W-2 -: EXP_W];
+   wire                     A_nsub = |op_a[DATA_W-2 -: EXP_W];
 
-   wire [MAN_W-1:0]         A_Mantissa = {~A_sub, op[MAN_W-2:0]};
-   wire [EXP_W-1:0]         A_Exponent = {op[DATA_W-2 -: EXP_W-1], A_sub | op[DATA_W-EXP_W-1]};
+   wire                     A_sub = ~A_nsub;
+
    wire                     A_sign = op[DATA_W-1];
+   wire [EXP_W-1:0]         A_Exponent = {op[DATA_W-2 -: EXP_W-1], A_sub | op[DATA_W-EXP_W-1]};
+   wire [MAN_W-1:0]         A_Mantissa = {A_nsub, op[MAN_W-2:0]};
 
    // pipeline stage 1
    reg                      A_sign_reg;
