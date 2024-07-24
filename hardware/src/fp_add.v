@@ -231,10 +231,10 @@ module fp_add #(
    wire [LSC_W-1:0]         lsc = ({{(EXP_W-LSC_W){1'b0}}, lsc_int} > A_Exponent_reg3)? A_Exponent_reg3[LSC_W-1:0]: lsc_int;
    wire [LSC_W-1:0]         lsc_inv = ~lsc;
 
-   wire [EXP_W-1:0]         exp_norm = A_Exponent_reg3 + {{(EXP_W-LSC_W){lsc_inv[LSC_W-1]}}, lsc_inv} + OFFSET;
+   wire [EXP_W:0]           exp_norm = {1'b0, A_Exponent_reg3} + {{(EXP_W+1-LSC_W){lsc_inv[LSC_W-1]}}, lsc_inv} + OFFSET;
    wire [MAN_W+EXTRA:0]     man_norm = Temp_reg << lsc;
 
-   wire [EXP_W-1:0]         exp_adjust = exp_norm;
+   wire [EXP_W:0]           exp_adjust = exp_norm;
    wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[MAN_W+EXTRA:2], |man_norm[1:0]};
 
    // pipeline stage 4
@@ -242,7 +242,7 @@ module fp_add #(
 
    reg                      res_inv_reg;
 
-   reg [EXP_W-1:0]          exp_adjust_reg;
+   reg [EXP_W:0]            exp_adjust_reg;
    reg [MAN_W+EXTRA-1:0]    man_adjust_reg;
 
    reg                      done_int4;
@@ -252,7 +252,7 @@ module fp_add #(
 
          res_inv_reg <= 1'b0;
 
-         exp_adjust_reg <= {EXP_W{1'b0}};
+         exp_adjust_reg <= {(EXP_W+1){1'b0}};
          man_adjust_reg <= {(MAN_W+EXTRA){1'b0}};
 
          done_int4 <= 1'b0;

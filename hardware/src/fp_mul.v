@@ -121,19 +121,19 @@ module fp_mul #(
 
    // Multiplication
    wire                     res_sign = A_sign_reg ^ B_sign_reg;
-   wire [EXP_W-1:0]         exponent = A_Exponent_reg + B_Exponent_reg - BIAS;
+   wire [EXP_W:0]           exponent = {1'b', A_Exponent_reg} + {1'b0, B_Exponent_reg} - BIAS;
    wire [2*MAN_W-1:0]       man = A_Mantissa_reg * B_Mantissa_reg;
 
    // pipeline stage 2
    reg                      res_sign_reg;
-   reg [EXP_W-1:0]          exponent_reg;
+   reg [EXP_W:0]            exponent_reg;
    reg [2*MAN_W-1:0]        man_reg;
 
    reg                      done_int2;
    always @(posedge clk) begin
       if (rst) begin
          res_sign_reg <= 1'b0;
-         exponent_reg <= {EXP_W{1'b0}};
+         exponent_reg <= {(EXP_W+1){1'b0}};
          man_reg <= {(2*MAN_W){1'b0}};
 
          done_int2 <= 1'b0;
@@ -160,19 +160,19 @@ module fp_mul #(
       .data_out (lzc_int)
       );
 
-   wire [LSC_W-1:0]         lzc = ({{(EXP_W-LSC_W){1'b0}}, lzc_int} > exponent_reg)? exponent_reg[LSC_W-1:0]: lzc_int;
+   wire [LSC_W-1:0]         lzc = ({{(EXP_W+1-LSC_W){1'b0}}, lzc_int} > exponent_reg)? exponent_reg[LSC_W-1:0]: lzc_int;
    wire [LSC_W-1:0]         lzc_inv = ~lzc;
 
-   wire [EXP_W-1:0]         exp_norm = exponent_reg + {{(EXP_W-LSC_W){lzc_inv[LSC_W-1]}}, lzc_inv[LSC_W-1:0]} + OFFSET;
+   wire [EXP_W:0]           exp_norm = exponent_reg + {{(EXP_W+1-LSC_W){lzc_inv[LSC_W-1]}}, lzc_inv[LSC_W-1:0]} + OFFSET;
    wire [2*MAN_W-1:0]       man_norm = man_reg << lzc;
 
-   wire [EXP_W-1:0]         exp_adjust = exp_norm;
+   wire [EXP_W:0]           exp_adjust = exp_norm;
    wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_norm[MAN_W-EXTRA:0]};
 
    // pipeline stage 3
    reg                      res_sign_reg2;
 
-   reg [EXP_W-1:0]          exp_adjust_reg;
+   reg [EXP_W:0]            exp_adjust_reg;
    reg [MAN_W+EXTRA-1:0]    man_adjust_reg;
 
    reg                      done_int3;
@@ -180,7 +180,7 @@ module fp_mul #(
       if (rst) begin
          res_sign_reg2 <= 1'b0;
 
-         exp_adjust_reg <= {EXP_W{1'b0}};
+         exp_adjust_reg <= {(EXP_W+1){1'b0}};
          man_adjust_reg <= {(MAN_W+EXTRA){1'b0}};
 
          done_int3 <= 1'b0;

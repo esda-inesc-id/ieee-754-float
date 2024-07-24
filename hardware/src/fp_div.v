@@ -116,7 +116,7 @@ module fp_div #(
 
    // Division
    wire                     Temp_sign = A_sign_reg ^ B_sign_reg;
-   wire [EXP_W-1:0]         Temp_Exponent = A_Exponent_reg - B_Exponent_reg + BIAS;
+   wire [EXP_W:0]           Temp_Exponent = {1'b0, A_Exponent_reg} - {1'b0, B_Exponent_reg} + BIAS;
    wire [2*MAN_W+EXTRA-1:0] Temp_Mantissa; // = A_Mantissa_reg / B_Mantissa_reg;
    wire                     div_en = ~start_int & ~rst;
    wire                     div_done;
@@ -148,12 +148,12 @@ module fp_div #(
 
    // pipeline stage 2
    reg                      Temp_sign_reg;
-   reg [EXP_W-1:0]          Temp_Exponent_reg;
+   reg [EXP_W:0]            Temp_Exponent_reg;
    reg [MAN_W+EXTRA-1:0]    Temp_Mantissa_reg;
    always @(posedge clk) begin
       if (rst) begin
          Temp_sign_reg <= 1'b0;
-         Temp_Exponent_reg <= {EXP_W{1'b0}};
+         Temp_Exponent_reg <= {(EXP_W+1){1'b0}};
          Temp_Mantissa_reg <= {(MAN_W+EXTRA){1'b0}};
       end else begin
          Temp_sign_reg <= Temp_sign;
@@ -175,21 +175,21 @@ module fp_div #(
       .data_out (lzc_int)
       );
 
-   wire [LSC_W-1:0]         lzc = ({{(EXP_W-LSC_W){1'b0}}, lzc_int} > Temp_Exponent_reg)? Temp_Exponent_reg[LSC_W-1:0]: lzc_int;
+   wire [LSC_W-1:0]         lzc = ({{(EXP_W+1-LSC_W){1'b0}}, lzc_int} > Temp_Exponent_reg)? Temp_Exponent_reg[LSC_W-1:0]: lzc_int;
 
-   wire [EXP_W-1:0]         exp_adjust = Temp_Exponent_reg - {{(EXP_W-LSC_W){1'b0}}, lzc};
+   wire [EXP_W:0]           exp_adjust = Temp_Exponent_reg - {{(EXP_W+1-LSC_W){1'b0}}, lzc};
    wire [MAN_W+EXTRA-1:0]   man_adjust = Temp_Mantissa_reg << lzc;
 
    // pipeline stage 3
    reg                      Temp_sign_reg2;
 
-   reg [EXP_W-1:0]          exp_adjust_reg;
+   reg [EXP_W:0]            exp_adjust_reg;
    reg [MAN_W+EXTRA-1:0]    man_adjust_reg;
    always @(posedge clk) begin
       if (rst) begin
          Temp_sign_reg2 <= 1'b0;
 
-         exp_adjust_reg <= {EXP_W{1'b0}};
+         exp_adjust_reg <= {(EXP_W+1){1'b0}};
          man_adjust_reg <= {(MAN_W+EXTRA){1'b0}};
       end else begin
          Temp_sign_reg2 <= Temp_sign_reg;
