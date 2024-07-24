@@ -29,6 +29,7 @@ module fp_mac_tb;
    wire [DATA_W-1:0] res_;
 
    real              acc;
+   real              acc_in;
 
    function [DATA_W-1:0] float2bin;
       input real     x;
@@ -150,10 +151,14 @@ module fp_mac_tb;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
          acc <= 0.0;
-      end else if (start) begin
-         acc <= acc + op_a * op_b;
+      end else begin
+         acc <= acc_in;
       end
    end
+
+   assign acc_in = start? acc + op_a * op_b:
+                    done? 0.0:
+                          acc;
 
    // Clock
    always #(clk_per/2) clk = ~clk;
