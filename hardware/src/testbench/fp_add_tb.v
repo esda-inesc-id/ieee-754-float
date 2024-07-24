@@ -145,9 +145,13 @@ module fp_add_tb;
       op_b = 19.0;
 
       #clk_per;
+      op_a = 4.0;
+      op_b = -3.0;
+
+      #clk_per;
       start = 0;
 
-      while (~done) #clk_per;
+      while (done) #clk_per;
 
       #clk_per $finish;
    end

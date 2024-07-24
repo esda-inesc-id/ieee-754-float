@@ -25,7 +25,7 @@ module fp_sqrt #(
    localparam EXTRA = 3;
 
    // Unpack
-   wire                     A_nsub = |op_a[DATA_W-2 -: EXP_W];
+   wire                     A_nsub = |op[DATA_W-2 -: EXP_W];
 
    wire                     A_sub = ~A_nsub;
 
@@ -49,7 +49,7 @@ module fp_sqrt #(
       end
    end
 
-   // Division
+   // Square root
    wire                     Temp_sign = A_sign_reg;
    wire [EXP_W-1:0]         Temp_Exponent = (A_Exponent_reg >> 1) + (BIAS >> 1);
    wire [MAN_W+EXTRA-1:0]   Temp_Mantissa; // = sqrt(A_Mantissa_reg);

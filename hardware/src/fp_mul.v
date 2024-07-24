@@ -167,7 +167,7 @@ module fp_mul #(
    wire [2*MAN_W-1:0]       man_norm = man_reg << lzc;
 
    wire [EXP_W-1:0]         exp_adjust = exp_norm;
-   wire [MAN_W+EXTRA-1:0]   man_adjust = {man_reg[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_reg[MAN_W-EXTRA:0]};
+   wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_norm[MAN_W-EXTRA:0]};
 
    // pipeline stage 3
    reg                      res_sign_reg2;
