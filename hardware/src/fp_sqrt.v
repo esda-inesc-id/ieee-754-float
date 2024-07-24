@@ -51,7 +51,7 @@ module fp_sqrt #(
 
    // Square root
    wire                     Temp_sign = A_sign_reg;
-   wire [EXP_W-1:0]         Temp_Exponent = (A_Exponent_reg >> 1) + (BIAS >> 1);
+   wire [EXP_W-1:0]         Temp_Exponent = ((A_Exponent_reg - BIAS) >> 1) + BIAS;
    wire [MAN_W+EXTRA-1:0]   Temp_Mantissa; // = sqrt(A_Mantissa_reg);
    wire                     sqrt_done;
    int_sqrt # (

@@ -165,7 +165,7 @@ module fp_div #(
    // Normalize
    localparam LSC_W = $clog2(MAN_W+EXTRA+1);
 
-   wire [LSC_W-1:0] lzc_int;
+   wire [LSC_W-1:0]         lzc_int;
    clz #(
          .DATA_W(MAN_W+EXTRA)
          )
