@@ -64,8 +64,7 @@ module fp_add #(
    wire [DATA_W-1:0]        res_special = (op_a_nan | op_b_nan)? `NAN:
                                           (op_a_inf & op_b_inf)? ((op_a[DATA_W-1] ^ op_b[DATA_W-1])? `NAN:
                                                                                                      `INF(op_a[DATA_W-1])):
-                                                       op_b_inf? ((op_a[DATA_W-1] ^ op_b[DATA_W-1])? `INF(~op_b[DATA_W-1]):
-                                                                                                     `INF(op_b[DATA_W-1])):
+                                                       op_b_inf? `INF(op_b[DATA_W-1]):
                                                                  `INF(op_a[DATA_W-1]);
 
    wire                     start_int = start & ~special;
@@ -271,6 +270,7 @@ module fp_add #(
    // Round
    wire [EXP_W-1:0]         exp_adjust_rnd;
    wire [MAN_W-1:0]         man_adjust_rnd;
+   wire                     round;
    round #(
            .DATA_W (MAN_W),
            .EXP_W  (EXP_W)
@@ -282,13 +282,16 @@ module fp_add #(
       .cin          (res_inv_reg),
 
       .exponent_rnd (exp_adjust_rnd),
-      .mantissa_rnd (man_adjust_rnd)
+      .mantissa_rnd (man_adjust_rnd),
+      .round        (round)
       );
+
+   wire                     nzero = |man_adjust_reg[MAN_W+EXTRA-1:3] | round;
 
    // Pack
    wire [MAN_W-2:0]         Fraction = man_adjust_rnd[MAN_W-2:0];
    wire [EXP_W-1:0]         Exponent = man_adjust_rnd[MAN_W-1]? exp_adjust_rnd: {EXP_W{1'b0}};
-   wire                     Sign     = res_sign_reg;
+   wire                     Sign     = nzero & res_sign_reg;
 
 `ifdef SPECIAL_CASES
    wire [DATA_W-1:0]        res_in  = special? res_special: {Sign, Exponent, Fraction};

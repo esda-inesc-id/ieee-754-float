@@ -12,7 +12,8 @@ module round #(
    input                cin,
 
    output [EXP_W-1:0]   exponent_rnd,
-   output [DATA_W-1:0]  mantissa_rnd
+   output [DATA_W-1:0]  mantissa_rnd,
+   output               round
    );
 
    wire [DATA_W-1:0]    mantissa_inv = {DATA_W{cin}} ^ mantissa[DATA_W+3-1 -: DATA_W];
@@ -23,7 +24,7 @@ module round #(
    wire                 round_bit  = mantissa[1];
    wire                 sticky_bit = mantissa[0];
 
-   wire                 round = guard_bit & (man_lsb | round_bit | sticky_bit);
+   assign round = guard_bit & (man_lsb | round_bit | sticky_bit);
 
    wire [DATA_W:0]      mantissa_rnd_int = {1'b0, mantissa_inv} + round + cin;
 
