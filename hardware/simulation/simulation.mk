@@ -21,3 +21,13 @@ $(FPU_HW_DIR)/src/round.v
 
 VSRC+=$(FPU_HW_DIR)/src/testbench/fp_add_tb.v
 endif
+
+ifeq ($(TEST),div)
+VSRC=$(FPU_HW_DIR)/src/fp_div.v \
+$(DIV_DIR)/hardware/src/div_subshift.v \
+$(FPU_HW_DIR)/src/fp_special.v \
+$(FPU_HW_DIR)/src/clz.v \
+$(FPU_HW_DIR)/src/round.v
+
+VSRC+=$(FPU_HW_DIR)/src/testbench/fp_div_tb.v
+endif

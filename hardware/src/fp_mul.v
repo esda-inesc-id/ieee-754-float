@@ -121,7 +121,7 @@ module fp_mul #(
 
    // Multiplication
    wire                     res_sign = A_sign_reg ^ B_sign_reg;
-   wire [EXP_W:0]           exponent = {1'b', A_Exponent_reg} + {1'b0, B_Exponent_reg} - BIAS;
+   wire [EXP_W:0]           exponent = {1'b0, A_Exponent_reg} + {1'b0, B_Exponent_reg} - BIAS;
    wire [2*MAN_W-1:0]       man = A_Mantissa_reg * B_Mantissa_reg;
 
    // pipeline stage 2

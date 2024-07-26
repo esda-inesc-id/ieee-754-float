@@ -19,6 +19,11 @@ module fp_add_tb;
    real op_a;
    real op_b;
 
+   reg  raw = 0;
+
+   reg [DATA_W-1:0] op_a_raw;
+   reg [DATA_W-1:0] op_b_raw;
+
    real res;
 
    // Auxilary signals
@@ -153,11 +158,45 @@ module fp_add_tb;
 
       while (done) #clk_per;
 
+      #clk_per;
+      op_a_raw = 'b00000000000000000000000000000000;
+      op_b_raw = 'b10000000000000000000000000000000;
+      raw = 1;
+      start = 1;
+
+      #clk_per;
+      start = 0;
+
+      while (~done) #clk_per;
+      while (done) #clk_per;
+
+      #clk_per;
+      op_a_raw = 'b00000000000000000000000000000000;
+      op_b_raw = 'b11111111100000000000000000000000;
+      start = 1;
+
+      #clk_per;
+      start = 0;
+
+      while (~done) #clk_per;
+      while (done) #clk_per;
+
+      #clk_per;
+      op_a_raw = 'b00000000000000000000000000000001;
+      op_b_raw = 'b10000000000000000000000000000001;
+      start = 1;
+
+      #clk_per;
+      start = 0;
+
+      while (~done) #clk_per;
+      while (done) #clk_per;
+
       #clk_per $finish;
    end
 
-   assign op_a_ = float2bin(op_a);
-   assign op_b_ = float2bin(op_b);
+   assign op_a_ = raw? op_a_raw: float2bin(op_a);
+   assign op_b_ = raw? op_b_raw: float2bin(op_b);
    assign res   = bin2float(res_);
 
    // Clock
