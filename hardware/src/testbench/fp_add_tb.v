@@ -192,6 +192,17 @@ module fp_add_tb;
       while (~done) #clk_per;
       while (done) #clk_per;
 
+      #clk_per;
+      op_a_raw = 'b10001011111011000110111001010100;
+      op_b_raw = 'b00000110111001111010011111101000;
+      start = 1;
+
+      #clk_per;
+      start = 0;
+
+      while (~done) #clk_per;
+      while (done) #clk_per;
+
       #clk_per $finish;
    end
 
