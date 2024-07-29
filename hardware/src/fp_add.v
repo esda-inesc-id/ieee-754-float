@@ -228,9 +228,9 @@ module fp_add #(
       );
 
    wire [LSC_W-1:0]         lsc = ({{(EXP_W-LSC_W){1'b0}}, lsc_int} > A_Exponent_reg3)? A_Exponent_reg3[LSC_W-1:0]: lsc_int;
-   wire [LSC_W-1:0]         lsc_inv = ~lsc;
+   wire [LSC_W:0]           lsc_inv = ~{1'b0, lsc};
 
-   wire [EXP_W:0]           exp_norm = {1'b0, A_Exponent_reg3} + {{(EXP_W+1-LSC_W){lsc_inv[LSC_W-1]}}, lsc_inv} + OFFSET;
+   wire [EXP_W:0]           exp_norm = {1'b0, A_Exponent_reg3} + {{(EXP_W-LSC_W){lsc_inv[LSC_W]}}, lsc_inv} + OFFSET;
    wire [MAN_W+EXTRA:0]     man_norm = Temp_reg << lsc;
 
    wire [EXP_W:0]           exp_adjust = exp_norm;

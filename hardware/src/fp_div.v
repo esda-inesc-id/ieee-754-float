@@ -117,11 +117,11 @@ module fp_div #(
    // Division
    wire                     Temp_sign = A_sign_reg ^ B_sign_reg;
    wire [EXP_W:0]           Temp_Exponent = {1'b0, A_Exponent_reg} - {1'b0, B_Exponent_reg} + BIAS;
-   wire [2*MAN_W+EXTRA-1:0] Temp_Mantissa; // = A_Mantissa_reg / B_Mantissa_reg;
+   wire [2*MAN_W-1:0]       Temp_Mantissa; // = A_Mantissa_reg / B_Mantissa_reg;
    wire                     div_en = ~start_int & ~rst;
    wire                     div_done;
    div_subshift # (
-                   .DATA_W(2*MAN_W+EXTRA)
+                   .DATA_W(2*MAN_W)
                    )
    div_subshift (
                  .clk       (clk),
@@ -130,8 +130,8 @@ module fp_div #(
                  .sign      (1'b0),
                  .done      (div_done),
 
-                 .dividend  ({1'b0, A_Mantissa, {(MAN_W+EXTRA-1){1'b0}}}),
-                 .divisor   ({{(MAN_W+EXTRA){1'b0}}, B_Mantissa}),
+                 .dividend  ({A_Mantissa, {MAN_W{1'b0}}}),
+                 .divisor   ({{MAN_W{1'b0}}, B_Mantissa}),
                  .quotient  (Temp_Mantissa),
                  .remainder ()
                  );
@@ -149,25 +149,26 @@ module fp_div #(
    // pipeline stage 2
    reg                      Temp_sign_reg;
    reg [EXP_W:0]            Temp_Exponent_reg;
-   reg [MAN_W+EXTRA-1:0]    Temp_Mantissa_reg;
+   reg [2*MAN_W-1:0]        Temp_Mantissa_reg;
    always @(posedge clk) begin
       if (rst) begin
          Temp_sign_reg <= 1'b0;
          Temp_Exponent_reg <= {(EXP_W+1){1'b0}};
-         Temp_Mantissa_reg <= {(MAN_W+EXTRA){1'b0}};
+         Temp_Mantissa_reg <= {(2*MAN_W){1'b0}};
       end else begin
          Temp_sign_reg <= Temp_sign;
          Temp_Exponent_reg <= Temp_Exponent;
-         Temp_Mantissa_reg <= Temp_Mantissa[MAN_W+EXTRA-1:0];
+         Temp_Mantissa_reg <= Temp_Mantissa;
       end
    end
 
    // Normalize
-   localparam LSC_W = $clog2(MAN_W+EXTRA+1);
+   localparam LSC_W = $clog2(2*MAN_W+1);
+   localparam OFFSET = 24; // 24 -> 23 for the left shift and 1 for the 2's Complement
 
    wire [LSC_W-1:0]         lzc_int;
    clz #(
-         .DATA_W(MAN_W+EXTRA)
+         .DATA_W(2*MAN_W)
          )
    clz0
      (
@@ -176,9 +177,13 @@ module fp_div #(
       );
 
    wire [LSC_W-1:0]         lzc = ({{(EXP_W+1-LSC_W){1'b0}}, lzc_int} > Temp_Exponent_reg)? Temp_Exponent_reg[LSC_W-1:0]: lzc_int;
+   wire [LSC_W:0]           lzc_inv = ~{1'b0, lzc};
 
-   wire [EXP_W:0]           exp_adjust = Temp_Exponent_reg - {{(EXP_W+1-LSC_W){1'b0}}, lzc};
-   wire [MAN_W+EXTRA-1:0]   man_adjust = Temp_Mantissa_reg << lzc;
+   wire [EXP_W:0]           exp_norm = Temp_Exponent_reg + {{(EXP_W-LSC_W){lzc_inv[LSC_W]}}, lzc_inv} + OFFSET;
+   wire [2*MAN_W-1:0]       man_norm = Temp_Mantissa_reg << lzc;
+
+   wire [EXP_W:0]           exp_adjust = exp_norm;
+   wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_norm[MAN_W-EXTRA:0]};
 
    // pipeline stage 3
    reg                      Temp_sign_reg2;
@@ -202,6 +207,7 @@ module fp_div #(
    // Round
    wire [EXP_W-1:0]         exp_adjust_rnd;
    wire [MAN_W-1:0]         man_adjust_rnd;
+   wire                     round;
    round #(
            .DATA_W (MAN_W),
            .EXP_W  (EXP_W)
@@ -213,13 +219,16 @@ module fp_div #(
       .cin          (1'b0),
 
       .exponent_rnd (exp_adjust_rnd),
-      .mantissa_rnd (man_adjust_rnd)
+      .mantissa_rnd (man_adjust_rnd),
+      .round        (round)
       );
+
+   wire                     nzero = |man_adjust_reg[MAN_W+EXTRA-1:3] | round;
 
    // Pack
    wire [MAN_W-2:0]         Fraction = man_adjust_rnd[MAN_W-2:0];
    wire [EXP_W-1:0]         Exponent = man_adjust_rnd[MAN_W-1]? exp_adjust_rnd: {EXP_W{1'b0}};
-   wire                     Sign = Temp_sign_reg2;
+   wire                     Sign     = nzero & Temp_sign_reg2;
 
 `ifdef SPECIAL_CASES
    wire [DATA_W-1:0]        res_in  = special? res_special: {Sign, Exponent, Fraction};
