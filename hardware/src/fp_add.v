@@ -175,7 +175,7 @@ module fp_add #(
    end
 
    // Addition
-   wire [MAN_W+EXTRA:0]     Temp = {1'b1, A_Mantissa_reg2} + {1'b0, B_Mantissa_reg2} + {{(MAN_W+EXTRA){1'b0}}, subtract_reg};
+   wire [MAN_W+EXTRA:0]     Temp = {subtract_reg, A_Mantissa_reg2} + {1'b0, B_Mantissa_reg2} + {{(MAN_W+EXTRA){1'b0}}, subtract_reg};
 
    // pipeline stage 3
    reg                      A_sign_reg3;
