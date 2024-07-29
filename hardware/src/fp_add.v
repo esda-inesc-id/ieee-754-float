@@ -138,12 +138,12 @@ module fp_add #(
 
    // Invert OpA if subtraction
    wire                     subtract = A_sign_reg ^ B_sign_reg;
-   wire [MAN_W+EXTRA:0]     A_Mantissa_inv = {(MAN_W+EXTRA+1){subtract}} ^ {1'b0, A_Mantissa_reg, {EXTRA{1'b0}}};
+   wire [MAN_W+EXTRA-1:0]   A_Mantissa_inv = {(MAN_W+EXTRA){subtract}} ^ {A_Mantissa_reg, {EXTRA{1'b0}}};
 
    // pipeline stage 2
    reg                      A_sign_reg2;
    reg [EXP_W-1:0]          A_Exponent_reg2;
-   reg [MAN_W+EXTRA:0]      A_Mantissa_reg2;
+   reg [MAN_W+EXTRA-1:0]    A_Mantissa_reg2;
 
    reg [MAN_W+EXTRA-1:0]    B_Mantissa_reg2;
 
@@ -154,7 +154,7 @@ module fp_add #(
       if (rst) begin
          A_sign_reg2 <= 1'b0;
          A_Exponent_reg2 <= {EXP_W{1'b0}};
-         A_Mantissa_reg2 <= {(MAN_W+EXTRA+1){1'b0}};
+         A_Mantissa_reg2 <= {(MAN_W+EXTRA){1'b0}};
 
          B_Mantissa_reg2 <= {(MAN_W+EXTRA){1'b0}};
 
@@ -175,7 +175,7 @@ module fp_add #(
    end
 
    // Addition
-   wire [MAN_W+EXTRA:0]     Temp = A_Mantissa_reg2 + {1'b0, B_Mantissa_reg2} + {{(MAN_W+EXTRA){1'b0}}, subtract_reg};
+   wire [MAN_W+EXTRA:0]     Temp = {1'b1, A_Mantissa_reg2} + {1'b0, B_Mantissa_reg2} + {{(MAN_W+EXTRA){1'b0}}, subtract_reg};
 
    // pipeline stage 3
    reg                      A_sign_reg3;

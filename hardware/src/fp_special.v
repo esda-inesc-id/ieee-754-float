@@ -21,11 +21,12 @@ module fp_special #(
 
    wire                exp_all_ones = &exponent;
    wire                exp_zero = ~|exponent;
-   wire                man_zero = ~|mantissa;
+   wire                man_nzero = |mantissa;
+   wire                man_zero = ~man_nzero;
 
-   assign nan        = exp_all_ones & ~man_zero;
+   assign nan        = exp_all_ones & man_nzero;
    assign infinite   = exp_all_ones & man_zero;
    assign zero       = exp_zero & man_zero;
-   assign sub_normal = exp_zero & ~man_zero;
+   assign sub_normal = exp_zero & man_nzero;
 
 endmodule

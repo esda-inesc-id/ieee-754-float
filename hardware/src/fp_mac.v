@@ -152,13 +152,13 @@ module fp_mac #(
 
    // Accumulation in 2's Complement
    wire [2*MAN_W:0]         mul_man_c_ = ({1'b0, mul_man_reg} ^ {(2*MAN_W+1){mul_sign_reg}});
-   wire [ACC_W-1:0]         mul_man_c  = {{GUARD_W{mul_man_c_[2*MAN_W-1]}}, mul_man_c_};
+   wire [ACC_W:0]           mul_man_c  = {{(GUARD_W+1){mul_man_c_[2*MAN_W]}}, mul_man_c_};
 
    wire [EXP_W:0]           A_exp_int = done_int2? mul_exp_reg: acc_exp_reg2;
-   wire [ACC_W-1:0]         A_man_int = done_int2? mul_man_c: acc_man_reg2;
+   wire [ACC_W:0]           A_man_int = done_int2? mul_man_c: acc_man_reg2;
 
    wire [EXP_W:0]           B_exp_int = acc_exp_reg;
-   wire [ACC_W-1:0]         B_man_int = acc_man_reg;
+   wire [ACC_W:0]           B_man_int = acc_man_reg;
 
    wire                     comp = (A_exp_int >= B_exp_int)? 1'b1 : 1'b0;
 
@@ -170,16 +170,16 @@ module fp_mac #(
 
    // Align significants
    wire [EXP_W:0]           diff_exp = A_exp - B_exp;
-   wire [ACC_W+STICKY_BITS-1:0] B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> diff_exp;
+   wire [ACC_W+STICKY_BITS:0] B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> diff_exp;
 
    // Sticky
    wire                     sticky_bit = |B_man_in[STICKY_BITS:0];
 
    // pipeline stage 3
    reg [EXP_W:0]            A_exp_reg;
-   reg [ACC_W-1:0]          A_man_reg;
+   reg [ACC_W:0]            A_man_reg;
 
-   reg [ACC_W-1:0]          B_man_reg;
+   reg [ACC_W:0]            B_man_reg;
 
    reg                      cin;
 
@@ -187,9 +187,9 @@ module fp_mac #(
    always @(posedge clk) begin
       if (rst) begin
          A_exp_reg <= {(EXP_W+1){1'b0}};
-         A_man_reg <= {ACC_W{1'b0}};
+         A_man_reg <= {(ACC_W+1){1'b0}};
 
-         B_man_reg <= {ACC_W{1'b0}};
+         B_man_reg <= {(ACC_W+1){1'b0}};
 
          cin <= 1'b0;
 
@@ -198,7 +198,7 @@ module fp_mac #(
          A_exp_reg <= A_exp;
          A_man_reg <= A_man;
 
-         B_man_reg <= {B_man_in[STICKY_BITS+1 +: ACC_W-1], sticky_bit};
+         B_man_reg <= {B_man_in[STICKY_BITS+1 +: ACC_W], sticky_bit};
 
          cin <= mul_sign_reg;
 
@@ -207,7 +207,7 @@ module fp_mac #(
    end
 
    // Accumulation
-   wire [ACC_W:0]           acc_man = {A_man_reg[ACC_W-1], A_man_reg} + {B_man_reg[ACC_W-1], B_man_reg} + cin;
+   wire [ACC_W:0]           acc_man = A_man_reg + B_man_reg + cin;
 
    // pipeline stage 4
    wire                     rst_acc  = (done_int & ~done_int2) | (done_int2 & ~done_int3);
