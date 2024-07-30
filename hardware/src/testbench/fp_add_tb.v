@@ -96,22 +96,18 @@ module fp_add_tb;
       #clk_per;
       op_a = 5.0;
       op_b = -4.0;
-      start = 1;
 
       #clk_per;
       op_a = -4.0;
       op_b = 5.0;
-      start = 1;
 
       #clk_per;
       op_a = 4.0;
       op_b = -5.0;
-      start = 1;
 
       #clk_per;
       op_a = 2.0;
       op_b = 3.0;
-      start = 1;
 
       #clk_per;
       op_a = 4.0;

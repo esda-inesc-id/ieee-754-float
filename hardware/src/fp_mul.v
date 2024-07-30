@@ -146,7 +146,7 @@ module fp_mul #(
       end
    end
 
-   localparam EXP_MIN = 1;
+   localparam EXP_MIN = 0;
 
    // Normalize
    localparam LSC_W  = $clog2(2*MAN_W+1);
@@ -162,17 +162,17 @@ module fp_mul #(
       .data_out (lzc)
       );
 
-   wire [EXP_W+1:0]         exp_diff = EXP_MIN - {exponent_reg[EXP_W], exponent_reg} + lzc;
+   wire [EXP_W+1:0]         exp_diff  = EXP_MIN - {exponent_reg[EXP_W], exponent_reg} + lzc;
+   wire [EXP_W+1:0]         exp_diff2 = EXP_MIN - {exponent_reg[EXP_W], exponent_reg};
+   wire [EXP_W+1:0]         exp_diff2_1 = (~exp_diff2) + 1'b1;
 
-   wire [EXP_W+1:0]         lshift = exp_diff[EXP_W+1]? lzc: exp_diff;
+   wire [EXP_W+1:0]         lshift = exp_diff[EXP_W+1]? lzc: exp_diff2_1;
    wire [EXP_W+1:0]         lshift_inv = ~lshift;
 
-   wire [EXP_W+1:0]         exp_diff2 = EXP_MIN - {exponent_reg[EXP_W], exponent_reg};
-
    wire [EXP_W:0]           exp_norm = exp_diff2[EXP_W+1]? exponent_reg + lshift_inv + OFFSET:
-                                                          1'b0;
+                                                           1'b0;
    wire [2*MAN_W-1:0]       man_norm = exp_diff2[EXP_W+1]? man_reg << lshift:
-                                                          man_reg >> diff_exp;
+                                                           man_reg >> exp_diff2;
 
    wire [EXP_W:0]           exp_adjust = exp_norm;
    wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_norm[MAN_W-EXTRA:0]};
@@ -212,13 +212,13 @@ module fp_mul #(
            )
    round0
      (
-      .exponent     (exp_adjust_reg),
-      .mantissa     (man_adjust_reg),
-      .cin          (1'b0),
+      .exponent_i (exp_adjust_reg),
+      .mantissa_i (man_adjust_reg),
+      .cin        (1'b0),
 
-      .exponent_rnd (exp_adjust_rnd),
-      .mantissa_rnd (man_adjust_rnd),
-      .round        (round)
+      .exponent_o (exp_adjust_rnd),
+      .mantissa_o (man_adjust_rnd),
+      .round      (round)
       );
 
    wire                     nzero = |man_adjust_reg[MAN_W+EXTRA-1:3] | round;

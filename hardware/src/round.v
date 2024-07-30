@@ -7,16 +7,16 @@ module round #(
                parameter EXP_W = 8
                )
   (
-   input [EXP_W:0]      exponent,
-   input [DATA_W+3-1:0] mantissa,
+   input [EXP_W:0]      exponent_i,
+   input [DATA_W+3-1:0] mantissa_i,
    input                cin,
 
-   output [EXP_W-1:0]   exponent_rnd,
-   output [DATA_W-1:0]  mantissa_rnd,
+   output [EXP_W-1:0]   exponent_o,
+   output [DATA_W-1:0]  mantissa_o,
    output               round
    );
 
-   wire [DATA_W-1:0]    mantissa_inv = {DATA_W{cin}} ^ mantissa[DATA_W+3-1 -: DATA_W];
+   wire [DATA_W-1:0]    mantissa_inv = {DATA_W{cin}} ^ mantissa_i[DATA_W+3-1 -: DATA_W];
 
    // Round
    wire                 man_lsb    = mantissa_inv[3];
@@ -33,26 +33,26 @@ module round #(
    // Normalize
    wire                 norm = mantissa_rnd_int[DATA_W];
 
-   wire                 exp_max = &exponent[EXP_W-1:1];
+   wire                 exp_max = &exponent_i[EXP_W-1:1];
 
-   wire [EXP_W:0]       exponent_norm = exp_max & exponent[0]? exponent: exponent + 1'b1;
+   wire [EXP_W:0]       exponent_norm = exp_max & exponent_i[0]? exponent_i: exponent_i + 1'b1;
    wire [DATA_W-1:0]    mantissa_norm = exp_max? 1'b0: mantissa_rnd_int[DATA_W:1];
 
-   wire [EXP_W:0]       exponent_rnd_ = norm? exponent_norm: exponent;
+   wire [EXP_W:0]       exponent_rnd_ = norm? exponent_norm: exponent_i;
    wire [DATA_W-1:0]    mantissa_rnd_ = norm? mantissa_norm: mantissa_rnd_int[DATA_W-1:0];
 
-   wire [EXP_W:0]       exponent_rnd_int = norm? exponent_norm:
-                                                 exponent;
-   wire [DATA_W-1:0]    mantissa_rnd_int = norm? mantissa_norm:
-                                                 mantissa_rnd_int[DATA_W-1:0];
+   wire [EXP_W:0]       exponent_rnd = norm? exponent_norm:
+                                             exponent_i;
+   wire [DATA_W-1:0]    mantissa_rnd = norm? mantissa_norm:
+                                             mantissa_rnd_int[DATA_W-1:0];
 
    localparam EXP_MAX = {{(EXP_W-1){1'b1}}, 1'b0};
 
-   wire [EXP_W:0]       exp_diff = EXP_MAX - exponent_rnd_int;
+   wire [EXP_W:0]       exp_diff = EXP_MAX - exponent_rnd;
 
-   assign exponent_rnd = exp_diff[EXP_W]? {EXP_W{1'b1}}:
-                                          exponent_rnd_int[EXP_W-1:0];
-   assign mantissa_rnd = exp_diff[EXP_W]? 1'b0:
-                                          mantissa_rnd_int;
+   assign exponent_o = exp_diff[EXP_W]? {EXP_W{1'b1}}:
+                                        exponent_rnd[EXP_W-1:0];
+   assign mantissa_o = exp_diff[EXP_W]? 1'b0:
+                                        mantissa_rnd;
 
 endmodule
