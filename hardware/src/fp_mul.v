@@ -146,25 +146,33 @@ module fp_mul #(
       end
    end
 
+   localparam EXP_MIN = 1;
+
    // Normalize
    localparam LSC_W  = $clog2(2*MAN_W+1);
    localparam OFFSET = 2; // 2 -> 1 for the carry from the adder and 1 for the 2's Complement
 
-   wire [LSC_W-1:0] lzc_int;
+   wire [LSC_W-1:0] lzc;
    clz #(
          .DATA_W(2*MAN_W)
          )
    clz0
      (
       .data_in  (man_reg),
-      .data_out (lzc_int)
+      .data_out (lzc)
       );
 
-   wire [LSC_W-1:0]         lzc = ({{(EXP_W+1-LSC_W){1'b0}}, lzc_int} > exponent_reg)? exponent_reg[LSC_W-1:0]: lzc_int;
-   wire [LSC_W:0]           lzc_inv = ~{1'b0, lzc};
+   wire [EXP_W+1:0]         exp_diff = EXP_MIN - {exponent_reg[EXP_W], exponent_reg} + lzc;
 
-   wire [EXP_W:0]           exp_norm = exponent_reg + {{(EXP_W-LSC_W){lzc_inv[LSC_W]}}, lzc_inv} + OFFSET;
-   wire [2*MAN_W-1:0]       man_norm = man_reg << lzc;
+   wire [EXP_W+1:0]         lshift = exp_diff[EXP_W+1]? lzc: exp_diff;
+   wire [EXP_W+1:0]         lshift_inv = ~lshift;
+
+   wire [EXP_W+1:0]         exp_diff2 = EXP_MIN - {exponent_reg[EXP_W], exponent_reg};
+
+   wire [EXP_W:0]           exp_norm = exp_diff2[EXP_W+1]? exponent_reg + lshift_inv + OFFSET:
+                                                          1'b0;
+   wire [2*MAN_W-1:0]       man_norm = exp_diff2[EXP_W+1]? man_reg << lshift:
+                                                          man_reg >> diff_exp;
 
    wire [EXP_W:0]           exp_adjust = exp_norm;
    wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_norm[MAN_W-EXTRA:0]};
