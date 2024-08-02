@@ -26,7 +26,6 @@ module fp_add #(
    localparam MAN_W = DATA_W-EXP_W;
    localparam BIAS = 2**(EXP_W-1)-1;
    localparam EXTRA = 3;
-   localparam STICKY_BITS = 2*BIAS-1;
 
    // Special cases
 `ifdef SPECIAL_CASES
@@ -129,9 +128,12 @@ module fp_add #(
       end
    end
 
+   localparam STICKY_BITS = MAN_W+2;
+
    // Align significants
    wire [EXP_W-1:0]         diff_Exponent = A_Exponent_reg - B_Exponent_reg;
-   wire [MAN_W+STICKY_BITS-1:0] B_Mantissa_in = {B_Mantissa_reg, {STICKY_BITS{1'b0}}} >> diff_Exponent;
+   wire [EXP_W-1:0]         rshift = (diff_Exponent > STICKY_BITS)? STICKY_BITS: diff_Exponent;
+   wire [MAN_W+STICKY_BITS-1:0] B_Mantissa_in = {B_Mantissa_reg, {STICKY_BITS{1'b0}}} >> rshift;
 
    // Sticky
    wire                     sticky_bit = |B_Mantissa_in[STICKY_BITS-3:0];
@@ -277,13 +279,13 @@ module fp_add #(
            )
    round0
      (
-      .exponent     (exp_adjust_reg),
-      .mantissa     (man_adjust_reg),
-      .cin          (res_inv_reg),
+      .exponent_i (exp_adjust_reg),
+      .mantissa_i (man_adjust_reg),
+      .cin        (res_inv_reg),
 
-      .exponent_rnd (exp_adjust_rnd),
-      .mantissa_rnd (man_adjust_rnd),
-      .round        (round)
+      .exponent_o (exp_adjust_rnd),
+      .mantissa_o (man_adjust_rnd),
+      .round      (round)
       );
 
    wire                     nzero = |man_adjust_reg[MAN_W+EXTRA-1:3] | round;

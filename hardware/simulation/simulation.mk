@@ -1,5 +1,7 @@
 include $(FPU_DIR)/hardware/hardware.mk
 
+INCLUDE+=$(incdir) $(FPU_HW_DIR)/src/testbench
+
 DEFINE+=$(defmacro)VCD
 
 VSRC+=$(FPU_HW_DIR)/testbench/fpu_tb.v

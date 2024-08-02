@@ -153,13 +153,13 @@ module fp_sqrt #(
            )
    round0
      (
-      .exponent     (exp_adjust_reg),
-      .mantissa     (man_adjust_reg),
-      .cin          (1'b0),
+      .exponent_i (exp_adjust_reg),
+      .mantissa_i (man_adjust_reg),
+      .cin        (1'b0),
 
-      .exponent_rnd (exp_adjust_rnd),
-      .mantissa_rnd (man_adjust_rnd),
-      .round        (round)
+      .exponent_o (exp_adjust_rnd),
+      .mantissa_o (man_adjust_rnd),
+      .round      (round)
       );
 
    wire                     nzero = |man_adjust_reg[MAN_W+EXTRA-1:3] | round;
