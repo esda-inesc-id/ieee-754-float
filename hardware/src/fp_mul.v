@@ -171,24 +171,20 @@ module fp_mul #(
    wire [EXP_W+1:0]         lshift_inv = ~lshift;
 
    wire [EXP_W+1:0]         rshift = (exp_diff2 > RSHIFT_LIM)? RSHIFT_LIM: exp_diff2;
+   wire [2*MAN_W+RSHIFT_LIM-1:0] man_rsht = {man_reg, {RSHIFT_LIM{1'b0}}} >> rshift;
 
    wire [EXP_W+1:0]         exp_norm = exp_diff2[EXP_W+1]? exponent_reg + lshift_inv + OFFSET:
                                                            1'b0;
-   wire [2*MAN_W+RSHIFT_LIM-1:0] man_rsht = {man_reg, {RSHIFT_LIM{1'b0}}} >> rshift;
    wire [2*MAN_W-1:0]       man_norm = exp_diff2[EXP_W+1]? man_reg << lshift:
                                                            {man_rsht[2*MAN_W+RSHIFT_LIM-1:RSHIFT_LIM+1], |man_rsht[RSHIFT_LIM:0]};
 
-   wire                     ovf = ~exponent_reg[EXP_W+1] & exponent_reg[EXP_W];
-
-   wire [EXP_W:0]           exp_adjust = ovf? {(EXP_W+1){1'b1}}:
-                                              exp_norm[EXP_W:0];
-   wire [MAN_W+EXTRA-1:0]   man_adjust = ovf? {1'b1, {(MAN_W+EXTRA-1){1'b0}}}:
-                                              {man_norm[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_norm[MAN_W-EXTRA:0]};
+   wire [EXP_W+1:0]         exp_adjust = exp_norm;
+   wire [MAN_W+EXTRA-1:0]   man_adjust = {man_norm[2*MAN_W-1 -: MAN_W+EXTRA-1], |man_norm[MAN_W-EXTRA:0]};
 
    // pipeline stage 3
    reg                      res_sign_reg2;
 
-   reg [EXP_W:0]            exp_adjust_reg;
+   reg [EXP_W+1:0]          exp_adjust_reg;
    reg [MAN_W+EXTRA-1:0]    man_adjust_reg;
 
    reg                      done_int3;
@@ -196,7 +192,7 @@ module fp_mul #(
       if (rst) begin
          res_sign_reg2 <= 1'b0;
 
-         exp_adjust_reg <= {(EXP_W+1){1'b0}};
+         exp_adjust_reg <= {(EXP_W+2){1'b0}};
          man_adjust_reg <= {(MAN_W+EXTRA){1'b0}};
 
          done_int3 <= 1'b0;
