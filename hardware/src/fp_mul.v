@@ -13,8 +13,25 @@ module fp_mul #(
     input                   start,
     output reg              done,
 
-    input [DATA_W-1:0]      op_a,
-    input [DATA_W-1:0]      op_b,
+    input                   op_a_sign,
+    input [EXP_W-1:0]       op_a_exp,
+    input [MAN_W-1:0]       op_a_man,
+
+`ifdef SPECIAL_CASES
+    input                   op_a_nan,
+    input                   op_a_inf,
+    input                   op_a_zero,
+`endif
+
+    input                   op_b_sign,
+    input [EXP_W-1:0]       op_b_exp,
+    input [MAN_W-1:0]       op_b_man,
+
+`ifdef SPECIAL_CASES
+    input                   op_b_nan,
+    input                   op_b_inf,
+    input                   op_b_zero,
+`endif
 
     output                  overflow,
     output                  underflow,
@@ -29,61 +46,25 @@ module fp_mul #(
 
    // Special cases
 `ifdef SPECIAL_CASES
-   wire                     op_a_nan, op_a_inf, op_a_zero, op_a_sub;
-   fp_special #(
-                .DATA_W(DATA_W),
-                .EXP_W(EXP_W)
-                )
-   special_op_a
-     (
-      .data_in    (op_a),
-
-      .nan        (op_a_nan),
-      .infinite   (op_a_inf),
-      .zero       (op_a_zero),
-      .sub_normal (op_a_sub)
-      );
-
-   wire                     op_b_nan, op_b_inf, op_b_zero, op_b_sub;
-   fp_special #(
-                .DATA_W(DATA_W),
-                .EXP_W(EXP_W)
-                )
-   special_op_b
-     (
-      .data_in    (op_b),
-
-      .nan        (op_b_nan),
-      .infinite   (op_b_inf),
-      .zero       (op_b_zero),
-      .sub_normal (op_b_sub)
-      );
 
    wire                     special = op_a_nan | op_a_inf | op_b_nan | op_b_inf;
    wire [DATA_W-1:0]        res_special = (op_a_nan | op_b_nan)? `NAN:
                                           (op_a_inf & op_b_inf)? `NAN:
                                         (op_a_zero | op_b_zero)? `NAN:
-                                                                 `INF(op_b[DATA_W-1] ^ op_b[DATA_W-1]);
+                                                                 `INF(op_a_sign ^ op_b_sign);
 
    wire                     start_int = start & ~special;
 `else
    wire                     start_int = start;
 `endif
 
-   // Unpack
-   wire                     A_nsub = |op_a[DATA_W-2 -: EXP_W];
-   wire                     B_nsub = |op_b[DATA_W-2 -: EXP_W];
+   wire                     A_sign     = op_a_sign;
+   wire [EXP_W-1:0]         A_Exponent = op_a_exp;
+   wire [MAN_W-1:0]         A_Mantissa = op_a_man;
 
-   wire                     A_sub = ~A_nsub;
-   wire                     B_sub = ~B_nsub;
-
-   wire                     A_sign     = op_a[DATA_W-1];
-   wire [EXP_W-1:0]         A_Exponent = {op_a[DATA_W-2 -: EXP_W-1], A_sub | op_a[DATA_W-EXP_W-1]};
-   wire [MAN_W-1:0]         A_Mantissa = {A_nsub, op_a[MAN_W-2:0]};
-
-   wire                     B_sign     = op_b[DATA_W-1];
-   wire [EXP_W-1:0]         B_Exponent = {op_b[DATA_W-2 -: EXP_W-1], B_sub | op_b[DATA_W-EXP_W-1]};
-   wire [MAN_W-1:0]         B_Mantissa = {B_nsub, op_b[MAN_W-2:0]};
+   wire                     B_sign     = op_b_sign;
+   wire [EXP_W-1:0]         B_Exponent = op_b_exp;
+   wire [MAN_W-1:0]         B_Mantissa = op_b_man;
 
    // pipeline stage 1
    reg                      A_sign_reg;
