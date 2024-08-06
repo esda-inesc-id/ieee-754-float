@@ -1,7 +1,5 @@
 `timescale 1ns / 1ps
 
-`include "fp_defs.vh"
-
 module ieee754_pack
   #(
     parameter DATA_W = 32,
@@ -14,11 +12,11 @@ module ieee754_pack
     input                   start,
     output reg              done,
 
+    input                   inv,
+
     input                   sign_i,
     input [EXP_W+1:0]       exp_i,
     input [MAN_W+EXTRA-1:0] man_i,
-
-    input                   inv,
 
     output reg [DATA_W-1:0] data_o
     );

@@ -42,3 +42,16 @@ $(FPU_HW_DIR)/src/round.v
 
 VSRC+=$(FPU_HW_DIR)/src/testbench/fp_div_tb.v
 endif
+
+ifeq ($(TEST),ieee754_mul)
+VSRC=$(FPU_HW_DIR)/src/ieee754_mul.v \
+$(FPU_HW_DIR)/src/fp_special.v \
+$(FPU_HW_DIR)/src/ieee754_unpack.v \
+$(FPU_HW_DIR)/src/fp_mul.v \
+$(FPU_HW_DIR)/src/clz.v \
+$(FPU_HW_DIR)/src/norm.v \
+$(FPU_HW_DIR)/src/round.v \
+$(FPU_HW_DIR)/src/ieee754_pack.v
+
+VSRC+=$(FPU_HW_DIR)/src/testbench/ieee754_mul_tb.v
+endif

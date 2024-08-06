@@ -6,19 +6,19 @@ module norm
     parameter EXP_W = 8
     )
    (
-    input                  clk,
-    input                  rst,
+    input                        clk,
+    input                        rst,
 
-    input                  start,
-    output reg             done,
+    input                        start,
+    output reg                   done,
 
-    input                  sign_i,
-    input [EXP_W+1:0]      exp_i,
-    input [2*MAN_W-1:0]    man_i,
+    input                        sign_i,
+    input [EXP_W+1:0]            exp_i,
+    input [2*MAN_W-1:0]          man_i,
 
-    output reg             sign_o,
-    output reg [EXP_W+1:0] exp_o,
-    output reg [MAN_W-1:0] man_o
+    output reg                   sign_o,
+    output reg [EXP_W+1:0]       exp_o,
+    output reg [MAN_W+EXTRA-1:0] man_o
     );
 
    localparam MAN_W = DATA_W-EXP_W;
