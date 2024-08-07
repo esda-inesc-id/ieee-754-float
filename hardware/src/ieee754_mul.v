@@ -94,8 +94,10 @@ module ieee754_mul
    wire                 mul_sign;
    wire [EXP_W+1:0]     mul_exp;
    wire [2*MAN_W-1:0]   mul_man;
+`ifdef SPECIAL_CASES
    wire                 mul_special;
    wire [DATA_W-1:0]    mul_res_special;
+`endif
    assign start_mul = done_unpack0;
    fp_mul
      #(
@@ -138,14 +140,17 @@ module ieee754_mul
         .res_man     (mul_man)
         );
 
+`ifdef SPECIAL_CASES
    wire                 special_int = mul_special;
    wire [DATA_W-1:0]    res_special_int = mul_res_special;
+`endif
 
    wire                 start_norm;
    wire                 done_norm;
    wire                 norm_sign;
    wire [EXP_W+1:0]     norm_exp;
    wire [MAN_W+EXTRA-1:0] norm_man;
+   wire                   norm_inv;
    assign start_norm = done_mul;
    norm
      #(
@@ -163,10 +168,12 @@ module ieee754_mul
         .sign_i   (mul_sign),
         .exp_i    (mul_exp),
         .man_i    (mul_man),
+        .inv_i    (1'b0),
 
         .sign_o   (norm_sign),
         .exp_o    (norm_exp),
-        .man_o    (norm_man)
+        .man_o    (norm_man),
+        .inv_o    (norm_inv)
         );
 
    wire                start_pack;
@@ -185,7 +192,7 @@ module ieee754_mul
         .start    (start_pack),
         .done     (done),
 
-        .inv      (1'b0),
+        .inv      (norm_inv),
 
         .sign_i   (norm_sign),
         .exp_i    (norm_exp),

@@ -15,10 +15,12 @@ module norm
     input                        sign_i,
     input [EXP_W+1:0]            exp_i,
     input [2*MAN_W-1:0]          man_i,
+    input                        inv_i,
 
     output reg                   sign_o,
     output reg [EXP_W+1:0]       exp_o,
-    output reg [MAN_W+EXTRA-1:0] man_o
+    output reg [MAN_W+EXTRA-1:0] man_o,
+    output reg                   inv_o
     );
 
    localparam MAN_W = DATA_W-EXP_W;
@@ -33,12 +35,13 @@ module norm
    localparam OFFSET = 2; // 2 -> 1 for the sign and 1 for the 2's Complement
 
    wire [LSC_W-1:0] lzc;
-   clz #(
+   cls #(
          .DATA_W(2*MAN_W)
          )
-   clz0
+   cls0
      (
       .data_in  (man_i),
+      .symbol   (inv_i),
       .data_out (lzc)
       );
 
@@ -66,11 +69,15 @@ module norm
          exp_o <= {(EXP_W+2){1'b0}};
          man_o <= {(MAN_W+EXTRA){1'b0}};
 
+         inv_o <= 1'b0;
+
          done <= 1'b0;
       end else begin
          sign_o <= sign_i;
          exp_o <= exp_adjust;
          man_o <= man_adjust;
+
+         inv_o <= inv_i;
 
          done <= start;
       end
