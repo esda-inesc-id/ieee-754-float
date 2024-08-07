@@ -94,6 +94,8 @@ module ieee754_mul
    wire                 mul_sign;
    wire [EXP_W+1:0]     mul_exp;
    wire [2*MAN_W-1:0]   mul_man;
+   wire                 mul_special;
+   wire [DATA_W-1:0]    mul_res_special;
    assign start_mul = done_unpack0;
    fp_mul
      #(
@@ -102,36 +104,42 @@ module ieee754_mul
        )
    mul0
        (
-        .clk        (clk),
-        .rst        (rst),
+        .clk         (clk),
+        .rst         (rst),
 
-        .start      (start_mul),
-        .done       (done_mul),
+        .start       (start_mul),
+        .done        (done_mul),
 
-        .op_a_sign  (op_a_sign),
-        .op_a_exp   (op_a_exp),
-        .op_a_man   (op_a_man),
-
-`ifdef SPECIAL_CASES
-        .op_a_nan   (op_a_nan),
-        .op_a_inf   (op_a_inf),
-        .op_a_zero  (op_a_zero),
-`endif
-
-        .op_b_sign  (op_b_sign),
-        .op_b_exp   (op_b_exp),
-        .op_b_man   (op_b_man),
+        .op_a_sign   (op_a_sign),
+        .op_a_exp    (op_a_exp),
+        .op_a_man    (op_a_man),
 
 `ifdef SPECIAL_CASES
-        .op_b_nan   (op_b_nan),
-        .op_b_inf   (op_b_inf),
-        .op_b_zero  (op_b_zero),
+        .op_a_nan    (op_a_nan),
+        .op_a_inf    (op_a_inf),
+        .op_a_zero   (op_a_zero),
 `endif
 
-        .res_sign   (mul_sign),
-        .res_exp    (mul_exp),
-        .res_man    (mul_man)
+        .op_b_sign   (op_b_sign),
+        .op_b_exp    (op_b_exp),
+        .op_b_man    (op_b_man),
+
+`ifdef SPECIAL_CASES
+        .op_b_nan    (op_b_nan),
+        .op_b_inf    (op_b_inf),
+        .op_b_zero   (op_b_zero),
+
+        .special     (mul_special),
+        .res_special (mul_res_special),
+`endif
+
+        .res_sign    (mul_sign),
+        .res_exp     (mul_exp),
+        .res_man     (mul_man)
         );
+
+   wire                 special_int = mul_special;
+   wire [DATA_W-1:0]    res_special_int = mul_res_special;
 
    wire                 start_norm;
    wire                 done_norm;
@@ -162,6 +170,7 @@ module ieee754_mul
         );
 
    wire                start_pack;
+   wire [DATA_W-1:0]   res_int;
    assign start_pack = done_norm;
    ieee754_pack
      #(
@@ -182,7 +191,27 @@ module ieee754_mul
         .exp_i    (norm_exp),
         .man_i    (norm_man),
 
-        .data_o   (res)
+        .data_o   (res_int)
         );
+
+   reg                 special, norm_special;
+   reg [DATA_W-1:0]    res_special, norm_res_special;
+   always @(posedge clk) begin
+      if (rst) begin
+         norm_special <= 1'b0;
+         special <= 1'b0;
+
+         norm_res_special <= {DATA_W{1'b0}};
+         res_special <= {DATA_W{1'b0}};
+      end else begin
+         norm_special <= special_int;
+         special <= norm_special;
+
+         norm_res_special <= res_special_int;
+         res_special <= norm_res_special;
+      end
+   end
+
+   assign res = special? res_special: res_int;
 
 endmodule

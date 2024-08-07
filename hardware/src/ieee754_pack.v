@@ -37,7 +37,7 @@ module ieee754_pack
      (
       .exponent_i (exp_i),
       .mantissa_i (man_i),
-      .cin        (inv),
+      .inv        (inv),
 
       .exponent_o (exp_rnd),
       .mantissa_o (man_rnd),

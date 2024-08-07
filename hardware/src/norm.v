@@ -44,7 +44,7 @@ module norm
 
    wire [EXP_W+1:0]        exp_diff  = EXP_MIN - exp_i + lzc;
    wire [EXP_W+1:0]        exp_diff2 = EXP_MIN - exp_i;
-   wire [EXP_W+1:0]        exp_diff2_1 = (~exp_diff2) + 1'b1;
+   wire [EXP_W+1:0]        exp_diff2_1 = exp_i - EXP_MIN;
 
    wire [EXP_W+1:0]        lshift = exp_diff[EXP_W+1]? lzc: exp_diff2_1;
    wire [EXP_W+1:0]        lshift_inv = ~lshift;
@@ -68,7 +68,7 @@ module norm
 
          done <= 1'b0;
       end else begin
-         sign_o <= sign_o;
+         sign_o <= sign_i;
          exp_o <= exp_adjust;
          man_o <= man_adjust;
 
