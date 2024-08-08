@@ -1,7 +1,5 @@
 `timescale 1ns / 1ps
 
-`include "fp_defs.vh"
-
 module ieee754_add
   #(
     parameter DATA_W = 32,
@@ -95,6 +93,7 @@ module ieee754_add
    wire [EXP_W-1:0]     add_exp;
    wire [MAN_W+EXTRA:0] add_man;
    wire                 add_inv;
+   wire [EXP_W-1:0]     add_offset;
 `ifdef SPECIAL_CASES
    wire                 add_special;
    wire [DATA_W-1:0]    add_res_special;
@@ -139,7 +138,8 @@ module ieee754_add
         .res_sign    (add_sign),
         .res_exp     (add_exp),
         .res_man     (add_man),
-        .res_inv     (add_inv)
+        .res_inv     (add_inv),
+        .offset      (add_offset)
         );
 
 `ifdef SPECIAL_CASES
@@ -171,6 +171,7 @@ module ieee754_add
         .exp_i    ({2'd0, add_exp}),
         .man_i    ({add_man, {(MAN_W-EXTRA-1){1'b0}}}),
         .inv_i    (add_inv),
+        .offset   ({2'd0, add_offset}),
 
         .sign_o   (norm_sign),
         .exp_o    (norm_exp),

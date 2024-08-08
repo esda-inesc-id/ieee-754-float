@@ -1,7 +1,5 @@
 `timescale 1ns / 1ps
 
-`include "fp_defs.vh"
-
 module ieee754_mul
   #(
     parameter DATA_W = 32,
@@ -94,6 +92,7 @@ module ieee754_mul
    wire                 mul_sign;
    wire [EXP_W+1:0]     mul_exp;
    wire [2*MAN_W-1:0]   mul_man;
+   wire [EXP_W+1:0]     mul_offset;
 `ifdef SPECIAL_CASES
    wire                 mul_special;
    wire [DATA_W-1:0]    mul_res_special;
@@ -137,7 +136,8 @@ module ieee754_mul
 
         .res_sign    (mul_sign),
         .res_exp     (mul_exp),
-        .res_man     (mul_man)
+        .res_man     (mul_man),
+        .offset      (mul_offset)
         );
 
 `ifdef SPECIAL_CASES
@@ -169,6 +169,7 @@ module ieee754_mul
         .exp_i    (mul_exp),
         .man_i    (mul_man),
         .inv_i    (1'b0),
+        .offset   (mul_offset),
 
         .sign_o   (norm_sign),
         .exp_o    (norm_exp),

@@ -38,7 +38,8 @@ module fp_mul #(
 
     output reg               res_sign,
     output reg [EXP_W+1:0]   res_exp,
-    output reg [2*MAN_W-1:0] res_man
+    output reg [2*MAN_W-1:0] res_man,
+    output [EXP_W+1:0]       offset
     );
 
    localparam MAN_W = DATA_W-EXP_W;
@@ -143,5 +144,7 @@ module fp_mul #(
          done <= done_int;
       end
    end
+
+   assign offset = 2; // 2 -> 1 for the sign and 1 for the 2's Complement
 
 endmodule

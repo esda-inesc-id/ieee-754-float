@@ -39,7 +39,8 @@ module fp_add #(
     output                     res_sign,
     output reg [EXP_W-1:0]     res_exp,
     output reg [MAN_W+EXTRA:0] res_man,
-    output                     res_inv
+    output                     res_inv,
+    output [EXP_W-1:0]         offset
     );
 
    localparam MAN_W = DATA_W-EXP_W;
@@ -217,5 +218,7 @@ module fp_add #(
    // Compute result sign
    assign res_sign = subtract_reg2? ~A_sign_reg3 ^ res_man[MAN_W+EXTRA]: A_sign_reg3;
    assign res_inv  = subtract_reg2 & res_man[MAN_W+EXTRA];
+
+   assign offset = 2; // 2 -> 1 for the sign and 1 for the 2's Complement
 
 endmodule

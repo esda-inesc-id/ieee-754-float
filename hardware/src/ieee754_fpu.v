@@ -1,7 +1,5 @@
 `timescale 1ns / 1ps
 
-`include "fp_defs.vh"
-
 module ieee754_fpu
   #(
     parameter DATA_W = 32,

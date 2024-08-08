@@ -16,6 +16,7 @@ module norm
     input [EXP_W+1:0]            exp_i,
     input [2*MAN_W-1:0]          man_i,
     input                        inv_i,
+    input [EXP_W+1:0]            offset,
 
     output reg                   sign_o,
     output reg [EXP_W+1:0]       exp_o,
@@ -32,7 +33,6 @@ module norm
 
    // Normalize
    localparam LSC_W  = $clog2(2*MAN_W+1);
-   localparam OFFSET = 2; // 2 -> 1 for the sign and 1 for the 2's Complement
 
    wire [LSC_W-1:0] lzc;
    cls #(
@@ -55,7 +55,7 @@ module norm
    wire [EXP_W+1:0]        rshift = (exp_diff2 > RSHIFT_LIM)? RSHIFT_LIM: exp_diff2;
    wire [2*MAN_W+RSHIFT_LIM-1:0] man_rsht = {man_i, {RSHIFT_LIM{1'b0}}} >> rshift;
 
-   wire [EXP_W+1:0]        exp_norm = exp_diff2[EXP_W+1]? exp_i + lshift_inv + OFFSET:
+   wire [EXP_W+1:0]        exp_norm = exp_diff2[EXP_W+1]? exp_i + lshift_inv + offset:
                                                           1'b0;
    wire [2*MAN_W-1:0]      man_norm = exp_diff2[EXP_W+1]? man_i << lshift:
                                                           {man_rsht[2*MAN_W+RSHIFT_LIM-1:RSHIFT_LIM+1], |man_rsht[RSHIFT_LIM:0]};

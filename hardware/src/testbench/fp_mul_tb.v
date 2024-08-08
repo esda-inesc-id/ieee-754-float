@@ -1,7 +1,5 @@
 `timescale 1ns / 1ps
 
-`include "fp_defs.vh"
-
 module fp_mul_tb;
    parameter DATA_W = 32;
    parameter EXP_W = 8;
