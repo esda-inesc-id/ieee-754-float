@@ -1,11 +1,8 @@
 `timescale 1ns / 1ps
 
-`include "fp_defs.vh"
-
-module fp_mac_tb;
+module ieee754_add_tb;
    parameter DATA_W = 32;
    parameter EXP_W = 8;
-   parameter GUARD_W = 0;
 
    parameter BIAS = 2**(EXP_W-1)-1;
 
@@ -20,6 +17,11 @@ module fp_mac_tb;
    real op_a;
    real op_b;
 
+   reg  raw = 0;
+
+   reg [DATA_W-1:0] op_a_raw;
+   reg [DATA_W-1:0] op_b_raw;
+
    real res;
 
    // Auxilary signals
@@ -28,39 +30,14 @@ module fp_mac_tb;
 
    wire [DATA_W-1:0] res_;
 
-   real              acc;
+`include "functions.vh"
 
-   function [DATA_W-1:0] float2bin;
-      input real     x;
-      reg [63:0]     x_d;
-
-      begin
-         x_d = $realtobits(x);
-         float2bin[DATA_W-1] = x_d[63];
-         float2bin[DATA_W-2 -: EXP_W] = x_d[62 -: 11] - 1023 + BIAS;
-         float2bin[DATA_W-EXP_W-2 -: DATA_W-EXP_W-1] = x_d[63-12 -: DATA_W-EXP_W-1];
-      end
-   endfunction
-
-   function real bin2float;
-      input [DATA_W-1:0] x;
-      reg [63:0]         x_d;
-
-      begin
-         x_d[63] = x[DATA_W-1];
-         x_d[62 -: 11] = x[DATA_W-2 -: EXP_W] - BIAS + 1023;
-         x_d[63-12 -: 52] = {x[DATA_W-EXP_W-2 -: DATA_W-EXP_W-1], {(52-(DATA_W-EXP_W-1)){1'b0}}};
-         bin2float = $bitstoreal(x_d);
-      end
-   endfunction
-
-   fp_mac
+   ieee754_add
      #(
        .DATA_W  (DATA_W),
-       .EXP_W   (EXP_W),
-       .GUARD_W (GUARD_W)
+       .EXP_W   (EXP_W)
        )
-   mac
+   ieee754_add0
      (
       .clk   (clk),
       .rst   (rst),
@@ -76,8 +53,10 @@ module fp_mac_tb;
 
    initial begin
 
-      $dumpfile("fp_mac.vcd");
+`ifdef VCD
+      $dumpfile("ieee754_add.vcd");
       $dumpvars();
+`endif
 
       start = 0;
 
@@ -88,9 +67,25 @@ module fp_mac_tb;
       rst = 0;
 
       #clk_per;
+      op_a = -5.0;
+      op_b = 4.0;
+      start = 1;
+
+      #clk_per;
+      op_a = 5.0;
+      op_b = -4.0;
+
+      #clk_per;
+      op_a = -4.0;
+      op_b = 5.0;
+
+      #clk_per;
+      op_a = 4.0;
+      op_b = -5.0;
+
+      #clk_per;
       op_a = 2.0;
       op_b = 3.0;
-      start = 1;
 
       #clk_per;
       op_a = 4.0;
@@ -129,31 +124,38 @@ module fp_mac_tb;
       op_b = 19.0;
 
       #clk_per;
+      op_a = 4.0;
+      op_b = -3.0;
+
+      #clk_per;
+      op_a_raw = 'b00000000000000000000000000000000;
+      op_b_raw = 'b10000000000000000000000000000000;
+      raw = 1;
+
+      #clk_per;
+      op_a_raw = 'b00000000000000000000000000000000;
+      op_b_raw = 'b11111111100000000000000000000000;
+
+      #clk_per;
+      op_a_raw = 'b00000000000000000000000000000001;
+      op_b_raw = 'b10000000000000000000000000000001;
+
+      #clk_per;
+      op_a_raw = 'b10001011111011000110111001010100;
+      op_b_raw = 'b00000110111001111010011111101000;
+
+      #clk_per;
       start = 0;
 
       while (~done) #clk_per;
-
-      if (res == acc) begin
-         $display("Test passed!");
-      end else begin
-         $display("Test Failed!");
-      end
+      while (done) #clk_per;
 
       #clk_per $finish;
    end
 
-   assign op_a_ = float2bin(op_a);
-   assign op_b_ = float2bin(op_b);
+   assign op_a_ = raw? op_a_raw: float2bin(op_a);
+   assign op_b_ = raw? op_b_raw: float2bin(op_b);
    assign res   = bin2float(res_);
-
-   // Accumulator
-   always @(posedge clk, posedge rst) begin
-      if (rst) begin
-         acc <= 0.0;
-      end else if (start) begin
-         acc <= acc + op_a * op_b;
-      end
-   end
 
    // Clock
    always #(clk_per/2) clk = ~clk;

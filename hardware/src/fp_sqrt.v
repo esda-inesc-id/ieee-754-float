@@ -25,11 +25,13 @@ module fp_sqrt #(
    localparam EXTRA = 3;
 
    // Unpack
-   wire                     A_sub = ~|op[DATA_W-2 -: EXP_W];
+   wire                     A_nsub = |op[DATA_W-2 -: EXP_W];
 
-   wire [MAN_W-1:0]         A_Mantissa = {~A_sub, op[MAN_W-2:0]};
-   wire [EXP_W-1:0]         A_Exponent = {op[DATA_W-2 -: EXP_W-1], A_sub | op[DATA_W-EXP_W-1]};
+   wire                     A_sub = ~A_nsub;
+
    wire                     A_sign = op[DATA_W-1];
+   wire [EXP_W-1:0]         A_Exponent = {op[DATA_W-2 -: EXP_W-1], A_sub | op[DATA_W-EXP_W-1]};
+   wire [MAN_W-1:0]         A_Mantissa = {A_nsub, op[MAN_W-2:0]};
 
    // pipeline stage 1
    reg                      A_sign_reg;
@@ -47,7 +49,7 @@ module fp_sqrt #(
       end
    end
 
-   // Division
+   // Square root
    wire                     Temp_sign = A_sign_reg;
    wire [EXP_W-1:0]         Temp_Exponent = ((A_Exponent_reg - BIAS) >> 1) + BIAS;
    wire [MAN_W+EXTRA-1:0]   Temp_Mantissa; // = sqrt(A_Mantissa_reg);
@@ -99,7 +101,9 @@ module fp_sqrt #(
    end
 
    // Normalize
-   wire [$clog2(MAN_W+EXTRA+1)-1:0] lzc_int;
+   localparam LSC_W = $clog2(MAN_W+EXTRA+1);
+
+   wire [LSC_W-1:0] lzc_int;
    clz #(
          .DATA_W(MAN_W+EXTRA)
          )
@@ -109,9 +113,9 @@ module fp_sqrt #(
       .data_out (lzc_int)
       );
 
-   wire [$clog2(MAN_W+EXTRA+1)-1:0] lzc = ({{(EXP_W-$clog2(MAN_W+EXTRA+1)){1'b0}}, lzc_int} > Temp_Exponent_reg)? Temp_Exponent_reg[$clog2(MAN_W+EXTRA+1)-1:0]: lzc_int;
+   wire [LSC_W-1:0]         lzc = ({{(EXP_W-LSC_W){1'b0}}, lzc_int} > Temp_Exponent_reg)? Temp_Exponent_reg[LSC_W-1:0]: lzc_int;
 
-   wire [EXP_W-1:0]         exp_adjust = Temp_Exponent_reg - {{(EXP_W-$clog2(MAN_W+EXTRA+1)){1'b0}}, lzc};
+   wire [EXP_W-1:0]         exp_adjust = Temp_Exponent_reg - {{(EXP_W-LSC_W){1'b0}}, lzc};
    wire [MAN_W+EXTRA-1:0]   man_adjust = Temp_Mantissa_reg << lzc;
 
    // pipeline stage 3
@@ -142,24 +146,28 @@ module fp_sqrt #(
    // Round
    wire [EXP_W-1:0]         exp_adjust_rnd;
    wire [MAN_W-1:0]         man_adjust_rnd;
+   wire                     round;
    round #(
            .DATA_W (MAN_W),
            .EXP_W  (EXP_W)
            )
    round0
      (
-      .exponent     (exp_adjust_reg),
-      .mantissa     (man_adjust_reg),
-      .cin          (1'b0),
+      .exponent_i (exp_adjust_reg),
+      .mantissa_i (man_adjust_reg),
+      .cin        (1'b0),
 
-      .exponent_rnd (exp_adjust_rnd),
-      .mantissa_rnd (man_adjust_rnd)
+      .exponent_o (exp_adjust_rnd),
+      .mantissa_o (man_adjust_rnd),
+      .round      (round)
       );
+
+   wire                     nzero = |man_adjust_reg[MAN_W+EXTRA-1:3] | round;
 
    // Pack
    wire [MAN_W-2:0]         Fraction = man_adjust_rnd[MAN_W-2:0];
    wire [EXP_W-1:0]         Exponent = man_adjust_rnd[MAN_W-1]? exp_adjust_rnd: {EXP_W{1'b0}};
-   wire                     Sign = Temp_sign_reg2;
+   wire                     Sign     = nzero & Temp_sign_reg2;
 
    // pipeline stage 4
    always @(posedge clk) begin

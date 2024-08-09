@@ -7,20 +7,39 @@ module fp_div #(
                 parameter EXP_W = 8
                 )
    (
-    input                   clk,
-    input                   rst,
+    input                    clk,
+    input                    rst,
 
-    input                   start,
-    output reg              done,
+    input                    start,
+    output                   done,
 
-    input [DATA_W-1:0]      op_a,
-    input [DATA_W-1:0]      op_b,
+    input                    op_a_sign,
+    input [EXP_W-1:0]        op_a_exp,
+    input [MAN_W-1:0]        op_a_man,
 
-    output                  overflow,
-    output                  underflow,
-    output                  exception,
+`ifdef SPECIAL_CASES
+    input                    op_a_nan,
+    input                    op_a_inf,
+    input                    op_a_zero,
+`endif
 
-    output reg [DATA_W-1:0] res
+    input                    op_b_sign,
+    input [EXP_W-1:0]        op_b_exp,
+    input [MAN_W-1:0]        op_b_man,
+
+`ifdef SPECIAL_CASES
+    input                    op_b_nan,
+    input                    op_b_inf,
+    input                    op_b_zero,
+
+    output reg               special,
+    output reg [DATA_W-1:0]  res_special,
+`endif
+
+    output reg               res_sign,
+    output reg [EXP_W+1:0]   res_exp,
+    output reg [2*MAN_W-1:0] res_man,
+    output [EXP_W+1:0]       offset
     );
 
    localparam MAN_W = DATA_W-EXP_W;
@@ -29,112 +48,84 @@ module fp_div #(
 
    // Special cases
 `ifdef SPECIAL_CASES
-   wire                     op_a_nan, op_a_inf, op_a_zero, op_a_sub;
-   fp_special #(
-                .DATA_W(DATA_W),
-                .EXP_W(EXP_W)
-                )
-   special_op_a
-     (
-      .data_in    (op_a),
-
-      .nan        (op_a_nan),
-      .infinite   (op_a_inf),
-      .zero       (op_a_zero),
-      .sub_normal (op_a_sub)
-      );
-
-   wire                     op_b_nan, op_b_inf, op_b_zero, op_b_sub;
-   fp_special #(
-                .DATA_W(DATA_W),
-                .EXP_W(EXP_W)
-                )
-   special_op_b
-     (
-      .data_in    (op_b),
-
-      .nan        (op_b_nan),
-      .infinite   (op_b_inf),
-      .zero       (op_b_zero),
-      .sub_normal (op_b_sub)
-      );
-
-   wire                     special = op_a_nan | op_a_inf | op_b_nan | op_b_inf | op_b_zero;
-   wire [DATA_W-1:0]        res_special = (op_a_nan | op_b_nan)? `NAN:
-                                                       op_b_inf? (op_a_inf? `NAN: {DATA_W{1'b0}}):
-                                         (op_a_inf & op_b_zero)? `NAN:
-                                        (op_a_zero & op_b_zero)? `NAN:
-                                                                 `INF(op_a[DATA_W-1] ^ op_b[DATA_W-1]);
-
-   wire                     start_int = start & ~special;
-`else
-   wire                     start_int = start;
+   wire                     special_int = op_a_nan | op_a_inf | op_b_nan | op_b_inf | op_b_zero;
+   wire [DATA_W-1:0]        res_special_int = (op_a_nan | op_b_nan)? `NAN:
+                                                           op_b_inf? (op_a_inf? `NAN: {DATA_W{1'b0}}):
+                                             (op_a_inf & op_b_zero)? `NAN:
+                                            (op_a_zero & op_b_zero)? `NAN:
+                                                                     `INF(op_a_sign ^ op_b_sign);
 `endif
 
-   // Unpack
-   wire                     A_sub = ~|op_a[DATA_W-2 -: EXP_W];
-   wire                     B_sub = ~|op_b[DATA_W-2 -: EXP_W];
+   wire                     A_sign     = op_a_sign;
+   wire [EXP_W-1:0]         A_Exponent = op_a_exp;
+   wire [MAN_W-1:0]         A_Mantissa = op_a_man;
 
-   wire                     A_sign     = op_a[DATA_W-1];
-   wire [EXP_W-1:0]         A_Exponent = {op_a[DATA_W-2 -: EXP_W-1], A_sub | op_a[DATA_W-EXP_W-1]};
-   wire [MAN_W-1:0]         A_Mantissa = {~A_sub, op_a[MAN_W-2:0]};
-
-   wire                     B_sign     = op_b[DATA_W-1];
-   wire [EXP_W-1:0]         B_Exponent = {op_b[DATA_W-2 -: EXP_W-1], B_sub | op_b[DATA_W-EXP_W-1]};
-   wire [MAN_W-1:0]         B_Mantissa = {~B_sub, op_b[MAN_W-2:0]};
+   wire                     B_sign     = op_b_sign;
+   wire [EXP_W-1:0]         B_Exponent = op_b_exp;
+   wire [MAN_W-1:0]         B_Mantissa = op_b_man;
 
    // pipeline stage 1
    reg                      A_sign_reg;
    reg [EXP_W-1:0]          A_Exponent_reg;
-   reg [MAN_W-1:0]          A_Mantissa_reg;
 
    reg                      B_sign_reg;
    reg [EXP_W-1:0]          B_Exponent_reg;
-   reg [MAN_W-1:0]          B_Mantissa_reg;
+
+`ifdef SPECIAL_CASES
+   reg                       special_reg;
+   reg [DATA_W-1:0]          res_special_reg;
+`endif
    always @(posedge clk) begin
       if (rst) begin
          A_sign_reg <= 1'b0;
          A_Exponent_reg <= {EXP_W{1'b0}};
-         A_Mantissa_reg <= {MAN_W{1'b0}};
 
          B_sign_reg <= 1'b0;
          B_Exponent_reg <= {EXP_W{1'b0}};
-         B_Mantissa_reg <= {MAN_W{1'b0}};
+
+`ifdef SPECIAL_CASES
+         special_reg <= 1'b0;
+         res_special_reg <= {DATA_W{1'b0}};
+`endif
       end else begin
          A_sign_reg <= A_sign;
          A_Exponent_reg <= A_Exponent;
-         A_Mantissa_reg <= A_Mantissa;
 
          B_sign_reg <= B_sign;
          B_Exponent_reg <= B_Exponent;
-         B_Mantissa_reg <= B_Mantissa;
+
+`ifdef SPECIAL_CASES
+         special_reg <= special_int;
+         res_special_reg <= res_special_int;
+`endif
       end
    end
 
    // Division
    wire                     Temp_sign = A_sign_reg ^ B_sign_reg;
-   wire [EXP_W-1:0]         Temp_Exponent = A_Exponent_reg - B_Exponent_reg + BIAS;
-   wire [2*MAN_W+EXTRA-1:0] Temp_Mantissa; // = A_Mantissa_reg / B_Mantissa_reg;
-   wire                     div_en = ~start_int & ~rst;
+   wire [EXP_W+1:0]         Temp_Exponent = {2'd0, A_Exponent_reg} - {2'd0, B_Exponent_reg} + BIAS;
+   wire [2*MAN_W-1:0]       Temp_Mantissa; // = A_Mantissa_reg / B_Mantissa_reg;
+   wire [2*MAN_W-1:0]       remainder;
+   wire                     div_en = ~start & ~rst;
    wire                     div_done;
-   div_subshift # (
-                   .DATA_W(2*MAN_W+EXTRA)
-                   )
-   div_subshift (
-                 .clk       (clk),
+   div_subshift #(
+                  .DATA_W(2*MAN_W)
+                  )
+   div_subshift
+     (
+      .clk       (clk),
 
-                 .en        (div_en),
-                 .sign      (1'b0),
-                 .done      (div_done),
+      .en        (div_en),
+      .sign      (1'b0),
+      .done      (div_done),
 
-                 .dividend  ({1'b0, A_Mantissa, {(MAN_W+EXTRA-1){1'b0}}}),
-                 .divisor   ({{(MAN_W+EXTRA){1'b0}}, B_Mantissa}),
-                 .quotient  (Temp_Mantissa),
-                 .remainder ()
-                 );
+      .dividend  ({A_Mantissa, {MAN_W{1'b0}}}),
+      .divisor   ({{MAN_W{1'b0}}, B_Mantissa}),
+      .quotient  (Temp_Mantissa),
+      .remainder (remainder)
+      );
 
    reg                      div_done_reg;
-   wire                     done_int = div_done & ~div_done_reg;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
          div_done_reg <= 1'b1;
@@ -143,101 +134,31 @@ module fp_div #(
       end
    end
 
+   assign done = div_done & ~div_done_reg;
+
    // pipeline stage 2
-   reg                      Temp_sign_reg;
-   reg [EXP_W-1:0]          Temp_Exponent_reg;
-   reg [MAN_W+EXTRA-1:0]    Temp_Mantissa_reg;
    always @(posedge clk) begin
       if (rst) begin
-         Temp_sign_reg <= 1'b0;
-         Temp_Exponent_reg <= {EXP_W{1'b0}};
-         Temp_Mantissa_reg <= {(MAN_W+EXTRA){1'b0}};
-      end else begin
-         Temp_sign_reg <= Temp_sign;
-         Temp_Exponent_reg <= Temp_Exponent;
-         Temp_Mantissa_reg <= Temp_Mantissa[MAN_W+EXTRA-1:0];
-      end
-   end
-
-   // Normalize
-   wire [$clog2(MAN_W+EXTRA+1)-1:0] lzc_int;
-   clz #(
-         .DATA_W(MAN_W+EXTRA)
-         )
-   clz0
-     (
-      .data_in  (Temp_Mantissa_reg),
-      .data_out (lzc_int)
-      );
-
-   wire [$clog2(MAN_W+EXTRA+1)-1:0] lzc = ({{(EXP_W-$clog2(MAN_W+EXTRA+1)){1'b0}}, lzc_int} > Temp_Exponent_reg)? Temp_Exponent_reg[$clog2(MAN_W+EXTRA+1)-1:0]: lzc_int;
-
-   wire [EXP_W-1:0]         exp_adjust = Temp_Exponent_reg - {{(EXP_W-$clog2(MAN_W+EXTRA+1)){1'b0}}, lzc};
-   wire [MAN_W+EXTRA-1:0]   man_adjust = Temp_Mantissa_reg << lzc;
-
-   // pipeline stage 3
-   reg                      Temp_sign_reg2;
-
-   reg [EXP_W-1:0]          exp_adjust_reg;
-   reg [MAN_W+EXTRA-1:0]    man_adjust_reg;
-   always @(posedge clk) begin
-      if (rst) begin
-         Temp_sign_reg2 <= 1'b0;
-
-         exp_adjust_reg <= {EXP_W{1'b0}};
-         man_adjust_reg <= {(MAN_W+EXTRA){1'b0}};
-      end else begin
-         Temp_sign_reg2 <= Temp_sign_reg;
-
-         exp_adjust_reg <= exp_adjust;
-         man_adjust_reg <= man_adjust;
-      end
-   end
-
-   // Round
-   wire [EXP_W-1:0]         exp_adjust_rnd;
-   wire [MAN_W-1:0]         man_adjust_rnd;
-   round #(
-           .DATA_W (MAN_W),
-           .EXP_W  (EXP_W)
-           )
-   round0
-     (
-      .exponent     (exp_adjust_reg),
-      .mantissa     (man_adjust_reg),
-      .cin          (1'b0),
-
-      .exponent_rnd (exp_adjust_rnd),
-      .mantissa_rnd (man_adjust_rnd)
-      );
-
-   // Pack
-   wire [MAN_W-2:0]         Fraction = man_adjust_rnd[MAN_W-2:0];
-   wire [EXP_W-1:0]         Exponent = man_adjust_rnd[MAN_W-1]? exp_adjust_rnd: {EXP_W{1'b0}};
-   wire                     Sign = Temp_sign_reg2;
+         res_sign <= 1'b0;
+         res_exp <= {(EXP_W+2){1'b0}};
+         res_man <= {(2*MAN_W){1'b0}};
 
 `ifdef SPECIAL_CASES
-   wire [DATA_W-1:0]        res_in  = special? res_special: {Sign, Exponent, Fraction};
-   wire                     done_in = special? start: done_int;
-`else
-   wire [DATA_W-1:0]        res_in  = {Sign, Exponent, Fraction};
-   wire                     done_in = done_int;
+         special <= 1'b0;
+         res_special <= {DATA_W{1'b0}};
 `endif
-
-   // pipeline stage 4
-   always @(posedge clk) begin
-      if (rst) begin
-         res <= {DATA_W{1'b0}};
-         done <= 1'b0;
       end else begin
-         res <= res_in;
-         done <= done_in;
+         res_sign <= Temp_sign;
+         res_exp <= Temp_Exponent;
+         res_man <= {Temp_Mantissa[2*MAN_W-1:1], Temp_Mantissa[0] | |remainder};
+
+`ifdef SPECIAL_CASES
+         special <= special_reg;
+         res_special <= res_special_reg;
+`endif
       end
    end
 
-   // Not implemented yet!
-   assign overflow = 1'b0;
-   assign underflow = 1'b0;
-   assign exception = 1'b0;
+   assign offset = 24; // 24 -> 23 for the left shift and 1 for the 2's Complement
 
 endmodule

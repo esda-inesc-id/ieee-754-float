@@ -1,10 +1,9 @@
 `timescale 1ns / 1ps
 
-`include "fp_defs.vh"
-
-module fp_add_tb;
+module ieee754_mac_tb;
    parameter DATA_W = 32;
    parameter EXP_W = 8;
+   parameter GUARD_W = 0;
 
    parameter BIAS = 2**(EXP_W-1)-1;
 
@@ -27,36 +26,18 @@ module fp_add_tb;
 
    wire [DATA_W-1:0] res_;
 
-   function [DATA_W-1:0] float2bin;
-      input real     x;
-      reg [63:0]     x_d;
+   real              acc;
+   real              acc_in;
 
-      begin
-         x_d = $realtobits(x);
-         float2bin[DATA_W-1] = x_d[63];
-         float2bin[DATA_W-2 -: EXP_W] = x_d[62 -: 11] - 1023 + BIAS;
-         float2bin[DATA_W-EXP_W-2 -: DATA_W-EXP_W-1] = x_d[63-12 -: DATA_W-EXP_W-1];
-      end
-   endfunction
+`include "functions.vh"
 
-   function real bin2float;
-      input [DATA_W-1:0] x;
-      reg [63:0]         x_d;
-
-      begin
-         x_d[63] = x[DATA_W-1];
-         x_d[62 -: 11] = x[DATA_W-2 -: EXP_W] - BIAS + 1023;
-         x_d[63-12 -: 52] = {x[DATA_W-EXP_W-2 -: DATA_W-EXP_W-1], {(52-(DATA_W-EXP_W-1)){1'b0}}};
-         bin2float = $bitstoreal(x_d);
-      end
-   endfunction
-
-   fp_add
+   ieee754_mac
      #(
        .DATA_W  (DATA_W),
-       .EXP_W   (EXP_W)
+       .EXP_W   (EXP_W),
+       .GUARD_W (GUARD_W)
        )
-   add
+   ieee754_mac0
      (
       .clk   (clk),
       .rst   (rst),
@@ -72,8 +53,10 @@ module fp_add_tb;
 
    initial begin
 
-      $dumpfile("fp_add.vcd");
+`ifdef VCD
+      $dumpfile("ieee754_mac.vcd");
       $dumpvars();
+`endif
 
       start = 0;
 
@@ -82,26 +65,6 @@ module fp_add_tb;
       rst = 1;
       #(100*clk_per);
       rst = 0;
-
-      #clk_per;
-      op_a = -5.0;
-      op_b = 4.0;
-      start = 1;
-
-      #clk_per;
-      op_a = 5.0;
-      op_b = -4.0;
-      start = 1;
-
-      #clk_per;
-      op_a = -4.0;
-      op_b = 5.0;
-      start = 1;
-
-      #clk_per;
-      op_a = 4.0;
-      op_b = -5.0;
-      start = 1;
 
       #clk_per;
       op_a = 2.0;
@@ -149,12 +112,31 @@ module fp_add_tb;
 
       while (~done) #clk_per;
 
+      if (res == acc) begin
+         $display("Test passed!");
+      end else begin
+         $display("Test Failed!");
+      end
+
       #clk_per $finish;
    end
 
    assign op_a_ = float2bin(op_a);
    assign op_b_ = float2bin(op_b);
    assign res   = bin2float(res_);
+
+   // Accumulator
+   always @(posedge clk, posedge rst) begin
+      if (rst) begin
+         acc <= 0.0;
+      end else begin
+         acc <= acc_in;
+      end
+   end
+
+   assign acc_in = start? acc + op_a * op_b:
+                    done? 0.0:
+                          acc;
 
    // Clock
    always #(clk_per/2) clk = ~clk;
