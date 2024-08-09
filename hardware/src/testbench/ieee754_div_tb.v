@@ -230,7 +230,6 @@ module ieee754_div_tb;
       #clk_per;
       op_a_raw = 'b00000000111111111111111111111111;
       op_b_raw = 'b00000000000000000000000000000001;
-      raw = 1;
       start = 1;
 
       #clk_per;
@@ -241,7 +240,6 @@ module ieee754_div_tb;
       #clk_per;
       op_a_raw = 'b00000000111111111111111111111111;
       op_b_raw = 'b00000000111111111111111111111111;
-      raw = 1;
       start = 1;
 
       #clk_per;
@@ -252,7 +250,6 @@ module ieee754_div_tb;
       #clk_per;
       op_a_raw = 'b00000000000000000000000000000001;
       op_b_raw = 'b00000000000000000000000000000001;
-      raw = 1;
       start = 1;
 
       #clk_per;
@@ -263,7 +260,6 @@ module ieee754_div_tb;
       #clk_per;
       op_a_raw = 'b00000000000000000000000000000000;
       op_b_raw = 'b10000000000000000000000000000000;
-      raw = 1;
       start = 1;
 
       #clk_per;
@@ -300,6 +296,7 @@ module ieee754_div_tb;
       start = 0;
 
       while (~done) #clk_per;
+      while (done) #clk_per;
 
       #clk_per $finish;
    end

@@ -128,140 +128,60 @@ module ieee754_mul_tb;
       op_b = -3.0;
 
       #clk_per;
-      start = 0;
-
-      while (done) #clk_per;
-
-      #clk_per;
       op_a_raw = 'b00000000000000000000000000000001;
       op_b_raw = 'b00000000111111111111111111111111;
       raw = 1;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b00000000111111111111111111111111;
       op_b_raw = 'b00000000000000000000000000000001;
-      raw = 1;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b00000000111111111111111111111111;
       op_b_raw = 'b00000000111111111111111111111111;
-      raw = 1;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b00000000000000000000000000000001;
       op_b_raw = 'b00000000000000000000000000000001;
-      raw = 1;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b00000000000000000000000000000000;
       op_b_raw = 'b10000000000000000000000000000000;
-      raw = 1;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b00000000000000000000000000000000;
       op_b_raw = 'b11111111100000000000000000000000;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b00000000000000000000000000000001;
       op_b_raw = 'b10000000000000000000000000000001;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b00000000000000000000000000000000;
       op_b_raw = 'b01000000000000000000000000000000;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b00011110011111111111111111111111;
       op_b_raw = 'b00011110011111111111111111111111;
-      raw = 1;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b00111111111111111111111111111111;
       op_b_raw = 'b00000000000000000000000000000001;
-      raw = 1;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b01000000011111111111111111111111;
       op_b_raw = 'b00000000000000000000000000000001;
-      raw = 1;
-      start = 1;
-
-      #clk_per;
-      start = 0;
-
-      while (~done) #clk_per;
 
       #clk_per;
       op_a_raw = 'b01111111011111111111111111111111;
       op_b_raw = 'b01111111011111111111111111111111;
-      raw = 1;
       start = 1;
 
       #clk_per;
       start = 0;
 
       while (~done) #clk_per;
-
-      #(20*clk_per);
+      while (done) #clk_per;
 
       #clk_per $finish;
    end
