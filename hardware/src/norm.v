@@ -34,7 +34,7 @@ module norm
    // Normalize
    localparam LSC_W  = $clog2(2*MAN_W+1);
 
-   wire [LSC_W-1:0] lzc;
+   wire [LSC_W-1:0] lsc;
    cls #(
          .DATA_W(2*MAN_W)
          )
@@ -42,14 +42,14 @@ module norm
      (
       .data_in  (man_i),
       .symbol   (inv_i),
-      .data_out (lzc)
+      .data_out (lsc)
       );
 
-   wire [EXP_W+1:0]        exp_diff  = EXP_MIN - exp_i + lzc;
+   wire [EXP_W+1:0]        exp_diff  = EXP_MIN - exp_i + lsc;
    wire [EXP_W+1:0]        exp_diff2 = EXP_MIN - exp_i;
    wire [EXP_W+1:0]        exp_diff2_1 = exp_i - EXP_MIN;
 
-   wire [EXP_W+1:0]        lshift = exp_diff[EXP_W+1]? lzc: exp_diff2_1;
+   wire [EXP_W+1:0]        lshift = exp_diff[EXP_W+1]? lsc: exp_diff2_1;
    wire [EXP_W+1:0]        lshift_inv = ~lshift;
 
    wire [EXP_W+1:0]        rshift = (exp_diff2 > RSHIFT_LIM)? RSHIFT_LIM: exp_diff2;

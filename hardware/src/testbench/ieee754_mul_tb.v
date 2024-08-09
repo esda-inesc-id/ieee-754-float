@@ -53,8 +53,10 @@ module ieee754_mul_tb;
 
    initial begin
 
+`ifdef VCD
       $dumpfile("ieee754_mul.vcd");
       $dumpvars();
+`endif
 
       start = 0;
 

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module fp_mac_tb;
+module ieee754_mac_tb;
    parameter DATA_W = 32;
    parameter EXP_W = 8;
    parameter GUARD_W = 0;
@@ -31,13 +31,13 @@ module fp_mac_tb;
 
 `include "functions.vh"
 
-   fp_mac
+   ieee754_mac
      #(
        .DATA_W  (DATA_W),
        .EXP_W   (EXP_W),
        .GUARD_W (GUARD_W)
        )
-   mac
+   ieee754_mac0
      (
       .clk   (clk),
       .rst   (rst),
@@ -53,8 +53,10 @@ module fp_mac_tb;
 
    initial begin
 
-      $dumpfile("fp_mac.vcd");
+`ifdef VCD
+      $dumpfile("ieee754_mac.vcd");
       $dumpvars();
+`endif
 
       start = 0;
 
