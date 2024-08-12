@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-`include "fp_defs.vh"
+`include "ieee754_defs.vh"
 
 module fp_div #(
                 parameter DATA_W = 32,
