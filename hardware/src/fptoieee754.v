@@ -97,20 +97,18 @@ module fptoieee754
    wire                        zero;
    assign zero = ~|sig_i;
 
-   wire [EXP_W-1:0]     exp_int;
+   wire [EXP_W-1:0]            exp_int;
    assign exp_int = zero? {EXP_W{1'b0}}: exp_int_;
 
-   localparam RES_W = `MAN_W+EXTRA;
-
-   wire [RES_W-1:0]            sig_shift, sig_int_, sig_int;
+   wire [`MAN_W+`EXTRA-1:0]    sig_shift, sig_int_, sig_int;
    generate
       if (`MAN_W > FP_MAN_W) begin
-         assign sig_int_ = {sig_norm, {(RES_W-FP_MAN_W){1'b0}}};
+         assign sig_int_ = {sig_norm, {(`MAN_W+`EXTRA-FP_MAN_W){1'b0}}};
       end else begin
 `ifdef ROUNDING
-         assign sig_int_ = {sig_norm[FP_MAN_W-1 -: RES_W-1], |sig_norm[FP_MAN_W-1-(RES_W-1):0]};
+         assign sig_int_ = {sig_norm[FP_MAN_W-1 -: `MAN_W+`EXTRA-1], |sig_norm[FP_MAN_W-1-(`MAN_W+`EXTRA-1):0]};
 `else
-         assign sig_int_ = sig_norm[FP_MAN_W-1 -: RES_W];
+         assign sig_int_ = sig_norm[FP_MAN_W-1 -: `MAN_W+`EXTRA];
 `endif
       end
    endgenerate
@@ -120,19 +118,19 @@ module fptoieee754
          assign sig_int = sig_int_;
       end else begin
 `ifdef SUBNORMALS
-         wire [RES_W-1:0]      sig_shift_;
+         wire [`MAN_W+`EXTRA-1:0]      sig_shift_;
          assign sig_shift_ = sig_int_ >> shift;
 
 `ifdef ROUNDING
          wire                  sticky;
          assign sticky = |(sig_int_ & mask);
 
-         assign sig_shift = {sig_shift_[RES_W-1:1], sig_shift_[0] | sticky};
+         assign sig_shift = {sig_shift_[`MAN_W+`EXTRA-1:1], sig_shift_[0] | sticky};
 `else
          assign sig_shift = sig_shift_;
 `endif
 `else
-         assign sig_shift = {RES_W{1'b0}};
+         assign sig_shift = {(`MAN_W+`EXTRA){1'b0}};
 `endif
 
          assign sig_int = underflow? sig_shift:
@@ -144,14 +142,14 @@ module fptoieee754
    // pipeline stage 1
    reg                         sign_int_reg;
    reg [EXP_W-1:0]             exp_int_reg;
-   wire [RES_W-1:0]            sig_int_reg;
+   reg [`MAN_W+`EXTRA-1:0]     sig_int_reg;
 
    reg                         done_reg;
    always @(posedge clk) begin
       if (rst) begin
          sign_int_reg <= 1'b0;
          exp_int_reg  <= {EXP_W{1'b0}};
-         sig_int_reg  <= {RES_W{1'b0}};
+         sig_int_reg  <= {(`MAN_W+`EXTRA){1'b0}};
 
          done_reg <= 1'b0;
       end else begin
@@ -165,7 +163,7 @@ module fptoieee754
 
    wire                        sign_f;
    wire [EXP_W-1:0]            exp_f;
-   wire [MAN_W-1:0]            sig_f;
+   wire [`MAN_W-1:0]           sig_f;
    wire                        done_f;
 `ifdef ROUNDING
    wire [EXP_W-1:0]            exp_f_;
@@ -178,7 +176,7 @@ module fptoieee754
      (
       .exponent     (exp_int_reg),
       .mantissa     (sig_int_reg),
-      .cin          (1'b0),
+      .inv          (1'b0),
 
       .exponent_rnd (exp_f_),
       .mantissa_rnd (sig_f_)
