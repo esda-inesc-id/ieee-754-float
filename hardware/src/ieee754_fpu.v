@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "ieee754_defs.vh"
+
 `define FUNCT_W 2
 
 module ieee754_fpu
@@ -22,16 +24,13 @@ module ieee754_fpu
     output [DATA_W-1:0]  res
     );
 
-   localparam MAN_W = DATA_W-EXP_W;
-   localparam EXTRA = 3;
-
    wire                  add = ~funct[1];
    wire                  mul = funct[1] & ~funct[0];
    wire                  div = funct[1] & funct[0];
 
    wire                  op_a_sign;
    wire [EXP_W-1:0]      op_a_exp;
-   wire [MAN_W-1:0]      op_a_man;
+   wire [`MAN_W-1:0]     op_a_man;
    wire                  op_a_nan;
    wire                  op_a_inf;
    wire                  op_a_zero;
@@ -64,7 +63,7 @@ module ieee754_fpu
 
    wire                  op_b_sign;
    wire [EXP_W-1:0]      op_b_exp;
-   wire [MAN_W-1:0]      op_b_man;
+   wire [`MAN_W-1:0]     op_b_man;
    wire                  op_b_nan;
    wire                  op_b_inf;
    wire                  op_b_zero;
@@ -100,12 +99,12 @@ module ieee754_fpu
    wire                  op_b_sign_int = op_b_sign ^ funct[0];
    wire                  add_sign;
    wire [EXP_W-1:0]      add_exp;
-   wire [MAN_W+EXTRA:0]  add_man;
-   wire                  add_inv;
-   wire [EXP_W-1:0]      add_offset;
+   wire [`MAN_W+`EXTRA:0] add_man;
+   wire                   add_inv;
+   wire [EXP_W-1:0]       add_offset;
 `ifdef SPECIAL_CASES
-   wire                  add_special;
-   wire [DATA_W-1:0]     add_res_special;
+   wire                   add_special;
+   wire [DATA_W-1:0]      add_res_special;
 `endif
    fp_add
      #(
@@ -150,15 +149,15 @@ module ieee754_fpu
         .offset      (add_offset)
         );
 
-   wire                  start_mul = done_unpack0 & mul;
-   wire                  done_mul;
-   wire                  mul_sign;
-   wire [EXP_W+1:0]      mul_exp;
-   wire [2*MAN_W-1:0]    mul_man;
-   wire [EXP_W+1:0]      mul_offset;
+   wire                   start_mul = done_unpack0 & mul;
+   wire                   done_mul;
+   wire                   mul_sign;
+   wire [EXP_W+1:0]       mul_exp;
+   wire [2*`MAN_W-1:0]    mul_man;
+   wire [EXP_W+1:0]       mul_offset;
 `ifdef SPECIAL_CASES
-   wire                  mul_special;
-   wire [DATA_W-1:0]     mul_res_special;
+   wire                   mul_special;
+   wire [DATA_W-1:0]      mul_res_special;
 `endif
    fp_mul
      #(
@@ -202,15 +201,15 @@ module ieee754_fpu
         .offset      (mul_offset)
         );
 
-   wire                  start_div = done_unpack0 & div;
-   wire                  done_div;
-   wire                  div_sign;
-   wire [EXP_W+1:0]      div_exp;
-   wire [2*MAN_W-1:0]    div_man;
-   wire [EXP_W+1:0]      div_offset;
+   wire                   start_div = done_unpack0 & div;
+   wire                   done_div;
+   wire                   div_sign;
+   wire [EXP_W+1:0]       div_exp;
+   wire [2*`MAN_W-1:0]    div_man;
+   wire [EXP_W+1:0]       div_offset;
 `ifdef SPECIAL_CASES
-   wire                  div_special;
-   wire [DATA_W-1:0]     div_res_special;
+   wire                   div_special;
+   wire [DATA_W-1:0]      div_res_special;
 `endif
    fp_div
      #(
@@ -255,42 +254,42 @@ module ieee754_fpu
         );
 
 `ifdef SPECIAL_CASES
-   wire                  special_int = add? add_special:
-                                       mul? mul_special:
-                                            div_special;
-   wire [DATA_W-1:0]     res_special_int = add? add_res_special:
-                                           mul? mul_res_special:
-                                                div_res_special;
+   wire                   special_int = add? add_special:
+                                        mul? mul_special:
+                                             div_special;
+   wire [DATA_W-1:0]      res_special_int = add? add_res_special:
+                                            mul? mul_res_special:
+                                                 div_res_special;
 `endif
 
-   wire                  done_norm;
-   wire                  start_norm = add? done_add:
-                                      mul? done_mul:
-                                           done_div;
+   wire                   done_norm;
+   wire                   start_norm = add? done_add:
+                                       mul? done_mul:
+                                            done_div;
 
-   wire                  op_sign = add? add_sign:
-                                   mul? mul_sign:
-                                        div_sign;
+   wire                   op_sign = add? add_sign:
+                                    mul? mul_sign:
+                                         div_sign;
 
-   wire [EXP_W+1:0]      op_exp = add? {2'd0, add_exp}:
-                                  mul? mul_exp:
-                                       div_exp;
+   wire [EXP_W+1:0]       op_exp = add? {2'd0, add_exp}:
+                                   mul? mul_exp:
+                                        div_exp;
 
-   wire [2*MAN_W-1:0]    op_man = add? {add_man, {(MAN_W-EXTRA-1){1'b0}}}:
-                                  mul? mul_man:
-                                       div_man;
+   wire [2*`MAN_W-1:0]    op_man = add? {add_man, {(`MAN_W-`EXTRA-1){1'b0}}}:
+                                   mul? mul_man:
+                                        div_man;
 
-   wire                  op_inv = add? add_inv:
-                                       1'b0;
+   wire                   op_inv = add? add_inv:
+                                        1'b0;
 
-   wire [EXP_W+1:0]      op_offset = add? {2'd0, add_offset}:
-                                     mul? mul_offset:
-                                          div_offset;
+   wire [EXP_W+1:0]       op_offset = add? {2'd0, add_offset}:
+                                      mul? mul_offset:
+                                           div_offset;
 
-   wire                  norm_sign;
-   wire [EXP_W+1:0]      norm_exp;
-   wire [MAN_W+EXTRA-1:0] norm_man;
-   wire                   norm_inv;
+   wire                   norm_sign;
+   wire [EXP_W+1:0]       norm_exp;
+   wire [`MAN_W+`EXTRA-1:0] norm_man;
+   wire                     norm_inv;
    norm
      #(
        .DATA_W (DATA_W),
@@ -316,9 +315,9 @@ module ieee754_fpu
         .inv_o    (norm_inv)
         );
 
-   wire                start_pack = div? done_div:
-                                         done_norm;
-   wire [DATA_W-1:0]   res_int;
+   wire                     start_pack = div? done_div:
+                                              done_norm;
+   wire [DATA_W-1:0]        res_int;
    ieee754_pack
      #(
        .DATA_W (DATA_W),
@@ -341,8 +340,8 @@ module ieee754_fpu
         .data_o   (res_int)
         );
 
-   reg                 special, norm_special;
-   reg [DATA_W-1:0]    res_special, norm_res_special;
+   reg                      special, norm_special;
+   reg [DATA_W-1:0]         res_special, norm_res_special;
    always @(posedge clk) begin
       if (rst) begin
          norm_special <= 1'b0;

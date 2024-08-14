@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "ieee754_defs.vh"
+
 module ieee754_div
   #(
     parameter DATA_W = 32,
@@ -18,12 +20,9 @@ module ieee754_div
     output [DATA_W-1:0] res
     );
 
-   localparam MAN_W = DATA_W-EXP_W;
-   localparam EXTRA = 3;
-
    wire                 op_a_sign;
    wire [EXP_W-1:0]     op_a_exp;
-   wire [MAN_W-1:0]     op_a_man;
+   wire [`MAN_W-1:0]    op_a_man;
    wire                 op_a_nan;
    wire                 op_a_inf;
    wire                 op_a_zero;
@@ -56,7 +55,7 @@ module ieee754_div
 
    wire                 op_b_sign;
    wire [EXP_W-1:0]     op_b_exp;
-   wire [MAN_W-1:0]     op_b_man;
+   wire [`MAN_W-1:0]    op_b_man;
    wire                 op_b_nan;
    wire                 op_b_inf;
    wire                 op_b_zero;
@@ -87,17 +86,16 @@ module ieee754_div
         .mantissa (op_b_man)
         );
 
-   wire                 start_div;
+   wire                 start_div = done_unpack0;
    wire                 done_div;
    wire                 div_sign;
    wire [EXP_W+1:0]     div_exp;
-   wire [2*MAN_W-1:0]   div_man;
+   wire [2*`MAN_W-1:0]  div_man;
    wire [EXP_W+1:0]     div_offset;
 `ifdef SPECIAL_CASES
    wire                 div_special;
    wire [DATA_W-1:0]    div_res_special;
 `endif
-   assign start_div = done_unpack0;
    fp_div
      #(
        .DATA_W (DATA_W),
@@ -147,8 +145,8 @@ module ieee754_div
 
    wire                 norm_sign;
    wire [EXP_W+1:0]     norm_exp;
-   wire [MAN_W+EXTRA-1:0] norm_man;
-   wire                   norm_inv;
+   wire [`MAN_W+`EXTRA-1:0] norm_man;
+   wire                     norm_inv;
    norm
      #(
        .DATA_W (DATA_W),
@@ -174,9 +172,8 @@ module ieee754_div
         .inv_o    (norm_inv)
         );
 
-   wire                start_pack;
-   wire [DATA_W-1:0]   res_int;
-   assign start_pack = done_div;
+   wire                     start_pack = done_div;
+   wire [DATA_W-1:0]        res_int;
    ieee754_pack
      #(
        .DATA_W (DATA_W),
@@ -199,8 +196,8 @@ module ieee754_div
         .data_o   (res_int)
         );
 
-   reg                 special, norm_special;
-   reg [DATA_W-1:0]    res_special, norm_res_special;
+   reg                      special, norm_special;
+   reg [DATA_W-1:0]         res_special, norm_res_special;
    always @(posedge clk) begin
       if (rst) begin
          norm_special <= 1'b0;

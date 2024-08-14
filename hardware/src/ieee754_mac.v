@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "ieee754_defs.vh"
+
 module ieee754_mac
   #(
     parameter DATA_W = 32,
@@ -19,12 +21,9 @@ module ieee754_mac
     output [DATA_W-1:0] res
     );
 
-   localparam MAN_W = DATA_W-EXP_W;
-   localparam EXTRA = 3;
-
    wire                 op_a_sign;
    wire [EXP_W-1:0]     op_a_exp;
-   wire [MAN_W-1:0]     op_a_man;
+   wire [`MAN_W-1:0]    op_a_man;
    wire                 op_a_nan;
    wire                 op_a_inf;
    wire                 op_a_zero;
@@ -57,7 +56,7 @@ module ieee754_mac
 
    wire                 op_b_sign;
    wire [EXP_W-1:0]     op_b_exp;
-   wire [MAN_W-1:0]     op_b_man;
+   wire [`MAN_W-1:0]    op_b_man;
    wire                 op_b_nan;
    wire                 op_b_inf;
    wire                 op_b_zero;
@@ -88,13 +87,12 @@ module ieee754_mac
         .mantissa (op_b_man)
         );
 
-   wire                 start_mac;
+   wire                 start_mac = done_unpack0;
    wire                 done_mac;
    wire                 mac_sign;
    wire [EXP_W+1:0]     mac_exp;
-   wire [MAN_W+EXTRA-1:0] mac_man;
-   wire                   mac_inv;
-   assign start_mac = done_unpack0;
+   wire [`MAN_W+`EXTRA-1:0] mac_man;
+   wire                     mac_inv;
    fp_mac
      #(
        .DATA_W  (DATA_W),
@@ -123,9 +121,8 @@ module ieee754_mac
         .res_inv     (mac_inv)
         );
 
-   wire                   start_pack;
-   wire [DATA_W-1:0]      res_int;
-   assign start_pack = done_mac;
+   wire                     start_pack = done_mac;
+   wire [DATA_W-1:0]        res_int;
    ieee754_pack
      #(
        .DATA_W (DATA_W),

@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "ieee754_defs.vh"
+
 module ieee754_add
   #(
     parameter DATA_W = 32,
@@ -18,12 +20,9 @@ module ieee754_add
     output [DATA_W-1:0] res
     );
 
-   localparam MAN_W = DATA_W-EXP_W;
-   localparam EXTRA = 3;
-
    wire                 op_a_sign;
    wire [EXP_W-1:0]     op_a_exp;
-   wire [MAN_W-1:0]     op_a_man;
+   wire [`MAN_W-1:0]    op_a_man;
    wire                 op_a_nan;
    wire                 op_a_inf;
    wire                 op_a_zero;
@@ -56,7 +55,7 @@ module ieee754_add
 
    wire                 op_b_sign;
    wire [EXP_W-1:0]     op_b_exp;
-   wire [MAN_W-1:0]     op_b_man;
+   wire [`MAN_W-1:0]    op_b_man;
    wire                 op_b_nan;
    wire                 op_b_inf;
    wire                 op_b_zero;
@@ -87,18 +86,17 @@ module ieee754_add
         .mantissa (op_b_man)
         );
 
-   wire                 start_add;
+   wire                 start_add = done_unpack0;
    wire                 done_add;
    wire                 add_sign;
    wire [EXP_W-1:0]     add_exp;
-   wire [MAN_W+EXTRA:0] add_man;
-   wire                 add_inv;
-   wire [EXP_W-1:0]     add_offset;
+   wire [`MAN_W+`EXTRA:0] add_man;
+   wire                   add_inv;
+   wire [EXP_W-1:0]       add_offset;
 `ifdef SPECIAL_CASES
-   wire                 add_special;
-   wire [DATA_W-1:0]    add_res_special;
+   wire                   add_special;
+   wire [DATA_W-1:0]      add_res_special;
 `endif
-   assign start_add = done_unpack0;
    fp_add
      #(
        .DATA_W (DATA_W),
@@ -143,17 +141,16 @@ module ieee754_add
         );
 
 `ifdef SPECIAL_CASES
-   wire                 special_int = add_special;
-   wire [DATA_W-1:0]    res_special_int = add_res_special;
+   wire                   special_int = add_special;
+   wire [DATA_W-1:0]      res_special_int = add_res_special;
 `endif
 
-   wire                 start_norm;
-   wire                 done_norm;
-   wire                 norm_sign;
-   wire [EXP_W+1:0]     norm_exp;
-   wire [MAN_W+EXTRA-1:0] norm_man;
-   wire                   norm_inv;
-   assign start_norm = done_add;
+   wire                   start_norm = done_add;
+   wire                   done_norm;
+   wire                   norm_sign;
+   wire [EXP_W+1:0]       norm_exp;
+   wire [`MAN_W+`EXTRA-1:0] norm_man;
+   wire                     norm_inv;
    norm
      #(
        .DATA_W (DATA_W),
@@ -169,7 +166,7 @@ module ieee754_add
 
         .sign_i   (add_sign),
         .exp_i    ({2'd0, add_exp}),
-        .man_i    ({add_man, {(MAN_W-EXTRA-1){1'b0}}}),
+        .man_i    ({add_man, {(`MAN_W-`EXTRA-1){1'b0}}}),
         .inv_i    (add_inv),
         .offset   ({2'd0, add_offset}),
 
@@ -179,9 +176,8 @@ module ieee754_add
         .inv_o    (norm_inv)
         );
 
-   wire                start_pack;
-   wire [DATA_W-1:0]   res_int;
-   assign start_pack = done_norm;
+   wire                     start_pack = done_norm;
+   wire [DATA_W-1:0]        res_int;
    ieee754_pack
      #(
        .DATA_W (DATA_W),
@@ -204,8 +200,8 @@ module ieee754_add
         .data_o   (res_int)
         );
 
-   reg                 special, norm_special;
-   reg [DATA_W-1:0]    res_special, norm_res_special;
+   reg                      special, norm_special;
+   reg [DATA_W-1:0]         res_special, norm_res_special;
    always @(posedge clk) begin
       if (rst) begin
          norm_special <= 1'b0;

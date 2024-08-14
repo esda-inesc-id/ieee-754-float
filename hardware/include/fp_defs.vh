@@ -20,9 +20,3 @@
 `define FPU_CLASS     (`FUNCT_W'd13)
 `define FPU_CVT_X_W_U (`FUNCT_W'd14)
 `define FPU_CVT_X_W   (`FUNCT_W'd15)
-
-// Canonical NAN
-`define NAN {1'b0, {EXP_W{1'b1}}, 1'b1, {(DATA_W-EXP_W-2){1'b0}}}
-
-// Infinite
-`define INF(SIGN) {SIGN, {EXP_W{1'b1}}, {(DATA_W-EXP_W-1){1'b0}}}
