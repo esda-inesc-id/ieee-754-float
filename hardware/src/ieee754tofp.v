@@ -38,8 +38,8 @@ module ieee754tofp
    wire [EXP_W-1:0]                  fp_exp;
    assign fp_exp = {data_i[DATA_W-2 -: EXP_W-1], sub | data_i[DATA_W-EXP_W-1]};
 
-   wire [`MAN_W-1:0]                 fp_sig;
-   assign fp_sig  = {nsub, data_i[`F_W-1:0]};
+   wire [`MAN_W-1:0]                 fp_man;
+   assign fp_man  = {nsub, data_i[`F_W-1:0]};
 
    wire [`MAN_W-1:0]                 fp_man_norm;
 `ifdef SUBNORMALS
@@ -51,14 +51,14 @@ module ieee754tofp
        )
    cls0
      (
-      .data_in  (fp_sig),
+      .data_in  (fp_man),
       .symbol   (1'b0),
       .data_out (lds)
       );
 
-   assign fp_man_norm = fp_sig << lds;
+   assign fp_man_norm = fp_man << lds;
 `else
-   assign fp_man_norm = fp_sig[`MAN_W-1]? fp_sig: 1'b0;
+   assign fp_man_norm = fp_man[`MAN_W-1]? fp_man: 1'b0;
 `endif
 
    wire [FP_EXP_W+1:0]               exp_int_;
@@ -92,7 +92,7 @@ module ieee754tofp
    endgenerate
 
    wire                              zero;
-   assign zero = ~|fp_sig;
+   assign zero = ~|fp_man;
 
    wire [FP_EXP_W+1:0]               exp_int;
    assign exp_int = zero? {2'b11, FP_EXP_MIN}: exp_int_;
