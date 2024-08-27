@@ -53,7 +53,7 @@ module fptoieee754
    generate
       if (EXP_W > FP_EXP_W) begin
 `ifdef SUBNORMALS
-         assign exp_int = {{(EXP_W+2-(FP_EXP_W+1)){exp_i[FP_EXP_W-1]}}, exp_i} + `BIAS - {{(EXP_W+2-LDS_W){1'b0}}, lds};
+         assign exp_int = {{(EXP_W+2-FP_EXP_W){exp_i[FP_EXP_W-1]}}, exp_i} + `BIAS - {{(EXP_W+2-LDS_W){1'b0}}, lds};
 `else
          assign exp_int = {{(EXP_W+2-FP_EXP_W){exp_i[FP_EXP_W-1]}}, exp_i} + `BIAS;
 `endif
