@@ -103,7 +103,7 @@ module fp_div #(
    wire [2*`MAN_W-1:0]        Temp_Mantissa; // = A_Mantissa_reg / B_Mantissa_reg;
    wire [2*`MAN_W-1:0]        remainder;
    wire                       div_en = ~start & ~rst;
-   wire                       div_done;
+   wire                       div_done_;
    div_subshift #(
                   .DATA_W(2*`MAN_W)
                   )
@@ -113,13 +113,23 @@ module fp_div #(
 
       .en        (div_en),
       .sign      (1'b0),
-      .done      (div_done),
+      .done      (div_done_),
 
       .dividend  ({A_Mantissa, {`MAN_W{1'b0}}}),
       .divisor   ({{`MAN_W{1'b0}}, B_Mantissa}),
       .quotient  (Temp_Mantissa),
       .remainder (remainder)
       );
+
+   reg                        div_start;
+   wire                       div_done = div_done_ & div_start;
+   always @(posedge clk, posedge rst) begin
+      if (rst) begin
+         div_start <= 1'b0;
+      end else if (start) begin
+         div_start <= 1'b1;
+      end
+   end
 
    reg                        div_done_reg;
    always @(posedge clk, posedge rst) begin
