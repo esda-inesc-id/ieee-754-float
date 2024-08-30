@@ -122,6 +122,7 @@ module fp_div #(
       );
 
    reg                        div_start;
+   wire                       div_done = div_done_ & div_start;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
          div_start <= 1'b0;
@@ -129,8 +130,6 @@ module fp_div #(
          div_start <= 1'b1;
       end
    end
-
-   wire                       div_done = div_done_ & div_start;
 
    reg                        div_done_reg;
    always @(posedge clk, posedge rst) begin
