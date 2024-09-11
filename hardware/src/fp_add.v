@@ -53,7 +53,7 @@ module fp_add #(
                                                                           `INF(op_a_sign);
 `endif
 
-   wire                          comp = (op_a_exp >= op_b_exp)? 1'b1 : 1'b0;
+   wire                          comp = (op_a_exp >= op_b_exp)? 1'b1: 1'b0;
 
    wire                          A_sign     = comp? op_a_sign: op_b_sign;
    wire [EXP_W-1:0]              A_Exponent = comp? op_a_exp: op_b_exp;

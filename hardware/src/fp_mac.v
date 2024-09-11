@@ -110,7 +110,7 @@ module fp_mac #(
    wire [EXP_W+1:0]                B_exp_int = acc_exp_reg;
    wire [ACC_W:0]                  B_man_int = acc_man_reg;
 
-   wire                            comp = (A_exp_int >= B_exp_int)? 1'b1 : 1'b0;
+   wire                            comp = (A_exp_int >= B_exp_int)? 1'b1: 1'b0;
 
    wire [EXP_W+1:0]                A_exp = comp? A_exp_int: B_exp_int;
    wire [ACC_W-1:0]                A_man = comp? A_man_int: B_man_int;
@@ -193,6 +193,7 @@ module fp_mac #(
    wire                            res_sign_int = acc_man_reg[ACC_W];
 
    localparam EXP_MIN = 0;
+   localparam EXP_MIN_G = EXP_MIN - GUARD_W;
    localparam RSHIFT_LIM = `MAN_W+2;
 
    // Normalize
@@ -210,7 +211,7 @@ module fp_mac #(
       .data_out (lsc)
       );
 
-   wire [EXP_W+1:0]                exp_diff  = EXP_MIN - acc_exp_reg + lsc;
+   wire [EXP_W+1:0]                exp_diff  = EXP_MIN_G - acc_exp_reg + lsc;
    wire [EXP_W+1:0]                exp_diff2 = EXP_MIN - acc_exp_reg;
    wire [EXP_W+1:0]                exp_diff2_1 = acc_exp_reg - EXP_MIN;
 
