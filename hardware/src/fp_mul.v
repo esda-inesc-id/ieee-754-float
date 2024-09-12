@@ -47,7 +47,6 @@ module fp_mul #(
 
    wire                       special_int = op_a_nan | op_a_inf | op_b_nan | op_b_inf;
    wire [DATA_W-1:0]          res_special_int = (op_a_nan | op_b_nan)? `NAN:
-                                                (op_a_inf & op_b_inf)? `NAN:
                                               (op_a_zero | op_b_zero)? `NAN:
                                                                        `INF(op_a_sign ^ op_b_sign);
 `endif
