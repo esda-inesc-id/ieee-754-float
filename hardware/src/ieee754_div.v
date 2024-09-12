@@ -161,7 +161,7 @@ module ieee754_div
         .clk      (clk),
         .rst      (rst),
    
-        .start    (),
+        .start    (1'b0),
         .done     (),
 
         .sign_i   (div_sign),
