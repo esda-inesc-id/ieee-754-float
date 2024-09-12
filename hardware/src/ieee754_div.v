@@ -23,9 +23,11 @@ module ieee754_div
    wire                 op_a_sign;
    wire [EXP_W-1:0]     op_a_exp;
    wire [`MAN_W-1:0]    op_a_man;
+`ifdef SPECIAL_CASES
    wire                 op_a_nan;
    wire                 op_a_inf;
    wire                 op_a_zero;
+`endif
    wire                 done_unpack0;
    ieee754_unpack
      #(
@@ -56,9 +58,11 @@ module ieee754_div
    wire                 op_b_sign;
    wire [EXP_W-1:0]     op_b_exp;
    wire [`MAN_W-1:0]    op_b_man;
+`ifdef SPECIAL_CASES
    wire                 op_b_nan;
    wire                 op_b_inf;
    wire                 op_b_zero;
+`endif
    wire                 done_unpack1;
    ieee754_unpack
      #(
@@ -157,7 +161,7 @@ module ieee754_div
         .clk      (clk),
         .rst      (rst),
    
-        .start    (),
+        .start    (1'b0),
         .done     (),
 
         .sign_i   (div_sign),
@@ -196,6 +200,7 @@ module ieee754_div
         .data_o   (res_int)
         );
 
+`ifdef SPECIAL_CASES
    reg                      special, norm_special;
    reg [DATA_W-1:0]         res_special, norm_res_special;
    always @(posedge clk) begin
@@ -215,5 +220,8 @@ module ieee754_div
    end
 
    assign res = special? res_special: res_int;
+`else
+   assign res = res_int;
+`endif
 
 endmodule
