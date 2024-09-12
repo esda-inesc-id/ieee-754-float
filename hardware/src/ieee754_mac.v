@@ -24,9 +24,11 @@ module ieee754_mac
    wire                 op_a_sign;
    wire [EXP_W-1:0]     op_a_exp;
    wire [`MAN_W-1:0]    op_a_man;
+`ifdef SPECIAL_CASES
    wire                 op_a_nan;
    wire                 op_a_inf;
    wire                 op_a_zero;
+`endif
    wire                 done_unpack0;
    ieee754_unpack
      #(
@@ -57,9 +59,11 @@ module ieee754_mac
    wire                 op_b_sign;
    wire [EXP_W-1:0]     op_b_exp;
    wire [`MAN_W-1:0]    op_b_man;
+`ifdef SPECIAL_CASES
    wire                 op_b_nan;
    wire                 op_b_inf;
    wire                 op_b_zero;
+`endif
    wire                 done_unpack1;
    ieee754_unpack
      #(
