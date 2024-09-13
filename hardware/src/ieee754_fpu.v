@@ -105,6 +105,7 @@ module ieee754_fpu
    wire [EXP_W-1:0]      add_exp;
    wire [`MAN_W+`EXTRA:0] add_man;
    wire                   add_inv;
+   wire                   add_nsub;
    wire [EXP_W-1:0]       add_offset;
 `ifdef SPECIAL_CASES
    wire                   add_special;
@@ -150,6 +151,7 @@ module ieee754_fpu
         .res_exp     (add_exp),
         .res_man     (add_man),
         .res_inv     (add_inv),
+        .res_nsub    (add_nsub),
         .offset      (add_offset)
         );
 
@@ -286,6 +288,9 @@ module ieee754_fpu
    wire                   op_inv = add? add_inv:
                                         1'b0;
 
+   wire                   op_nsub = add? add_nsub:
+                                         1'b1;
+
    wire [EXP_W+1:0]       op_offset = add? {2'd0, add_offset}:
                                       mul? mul_offset:
                                            div_offset;
@@ -294,6 +299,7 @@ module ieee754_fpu
    wire [EXP_W+1:0]       norm_exp;
    wire [`MAN_W+`EXTRA-1:0] norm_man;
    wire                     norm_inv;
+   wire                     norm_nsub;
    norm
      #(
        .DATA_W (DATA_W),
@@ -311,12 +317,14 @@ module ieee754_fpu
         .exp_i    (op_exp),
         .man_i    (op_man),
         .inv_i    (op_inv),
+        .nsub_i   (op_nsub),
         .offset   (op_offset),
 
         .sign_o   (norm_sign),
         .exp_o    (norm_exp),
         .man_o    (norm_man),
-        .inv_o    (norm_inv)
+        .inv_o    (norm_inv),
+        .nsub_o   (norm_nsub)
         );
 
    wire                     start_pack = div? done_div:
@@ -336,6 +344,7 @@ module ieee754_fpu
         .done     (done),
 
         .inv      (norm_inv),
+        .nsub     (norm_nsub),
 
         .sign_i   (norm_sign),
         .exp_i    (norm_exp),

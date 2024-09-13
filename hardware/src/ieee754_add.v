@@ -96,6 +96,7 @@ module ieee754_add
    wire [EXP_W-1:0]     add_exp;
    wire [`MAN_W+`EXTRA:0] add_man;
    wire                   add_inv;
+   wire                   add_nsub;
    wire [EXP_W-1:0]       add_offset;
 `ifdef SPECIAL_CASES
    wire                   add_special;
@@ -141,6 +142,7 @@ module ieee754_add
         .res_exp     (add_exp),
         .res_man     (add_man),
         .res_inv     (add_inv),
+        .res_nsub    (add_nsub),
         .offset      (add_offset)
         );
 
@@ -155,6 +157,7 @@ module ieee754_add
    wire [EXP_W+1:0]       norm_exp;
    wire [`MAN_W+`EXTRA-1:0] norm_man;
    wire                     norm_inv;
+   wire                     norm_nsub;
    norm
      #(
        .DATA_W (DATA_W),
@@ -172,12 +175,14 @@ module ieee754_add
         .exp_i    ({2'd0, add_exp}),
         .man_i    ({add_man, {(`MAN_W-`EXTRA-1){1'b0}}}),
         .inv_i    (add_inv),
+        .nsub_i   (add_nsub),
         .offset   ({2'd0, add_offset}),
 
         .sign_o   (norm_sign),
         .exp_o    (norm_exp),
         .man_o    (norm_man),
-        .inv_o    (norm_inv)
+        .inv_o    (norm_inv),
+        .nsub_o   (norm_nsub)
         );
 
    wire                     start_pack = done_norm;
@@ -196,6 +201,7 @@ module ieee754_add
         .done     (done),
 
         .inv      (norm_inv),
+        .nsub     (norm_nsub),
 
         .sign_i   (norm_sign),
         .exp_i    (norm_exp),
