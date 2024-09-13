@@ -141,6 +141,7 @@ module ieee754_mac
         .done     (done),
 
         .inv      (mac_inv),
+        .nsub     (1'b0),
 
         .sign_i   (mac_sign),
         .exp_i    (mac_exp),

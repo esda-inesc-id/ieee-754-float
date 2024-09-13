@@ -16,12 +16,14 @@ module norm
     input [EXP_W+1:0]              exp_i,
     input [2*`MAN_W-1:0]           man_i,
     input                          inv_i,
+    input                          nsub_i,
     input [EXP_W+1:0]              offset,
 
     output reg                     sign_o,
     output reg [EXP_W+1:0]         exp_o,
     output reg [`MAN_W+`EXTRA-1:0] man_o,
-    output reg                     inv_o
+    output reg                     inv_o,
+    output reg                     nsub_o
     );
 
    localparam EXP_MIN = 0;
@@ -66,6 +68,7 @@ module norm
          man_o <= {(`MAN_W+`EXTRA){1'b0}};
 
          inv_o <= 1'b0;
+         nsub_o <= 1'b0;
 
          done <= 1'b0;
       end else begin
@@ -74,6 +77,7 @@ module norm
          man_o <= man_adjust;
 
          inv_o <= inv_i;
+         nsub_o <= nsub_i;
 
          done <= start;
       end

@@ -150,7 +150,6 @@ module ieee754_div
    wire                 norm_sign;
    wire [EXP_W+1:0]     norm_exp;
    wire [`MAN_W+`EXTRA-1:0] norm_man;
-   wire                     norm_inv;
    norm
      #(
        .DATA_W (DATA_W),
@@ -168,12 +167,14 @@ module ieee754_div
         .exp_i    (div_exp),
         .man_i    (div_man),
         .inv_i    (1'b0),
+        .nsub_i   (1'b1),
         .offset   (div_offset),
 
         .sign_o   (norm_sign),
         .exp_o    (norm_exp),
         .man_o    (norm_man),
-        .inv_o    (norm_inv)
+        .inv_o    (),
+        .nsub_o   ()
         );
 
    wire                     start_pack = done_div;
@@ -191,7 +192,8 @@ module ieee754_div
         .start    (start_pack),
         .done     (done),
 
-        .inv      (norm_inv),
+        .inv      (1'b0),
+        .nsub     (1'b1),
 
         .sign_i   (norm_sign),
         .exp_i    (norm_exp),

@@ -13,6 +13,7 @@ module ieee754_pack
     output reg                done,
 
     input                     inv,
+    input                     nsub,
 
     input                     sign_i,
     input [EXP_W+1:0]         exp_i,
@@ -46,7 +47,7 @@ module ieee754_pack
    // Pack
    wire [`F_W-1:0]            fraction = man_rnd[`F_W-1:0];
    wire [EXP_W-1:0]           exponent = man_rnd[`MAN_W-1]? exp_rnd: {EXP_W{1'b0}};
-   wire                       sign     = nzero & sign_i;
+   wire                       sign     = (nzero | nsub) & sign_i;
 
    wire [DATA_W-1:0]          data_o_int = {sign, exponent, fraction};
 
