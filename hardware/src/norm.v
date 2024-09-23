@@ -54,7 +54,7 @@ module norm
    wire [2*`MAN_W+RSHIFT_LIM-1:0]  man_rsht = {man_i, {RSHIFT_LIM{1'b0}}} >> rshift;
 
    wire [EXP_W+1:0]                exp_norm = exp_diff2[EXP_W+1]? exp_i + lshift_inv + offset:
-                                                                  1'b0;
+                                                                  {{(EXP_W+1){1'b0}}, 1'b1};
    wire [2*`MAN_W-1:0]             man_norm = exp_diff2[EXP_W+1]? man_i << lshift:
                                                                   {man_rsht[2*`MAN_W+RSHIFT_LIM-1:RSHIFT_LIM+1], |man_rsht[RSHIFT_LIM:0]};
 
