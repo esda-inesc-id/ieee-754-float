@@ -115,10 +115,10 @@ module fp_mac #(
    wire                            comp = (A_exp_int >= B_exp_int)? 1'b1: 1'b0;
 
    wire [EXP_W+1:0]                A_exp = comp? A_exp_int: B_exp_int;
-   wire [ACC_W-1:0]                A_man = comp? A_man_int: B_man_int;
+   wire [ACC_W:0]                  A_man = comp? A_man_int: B_man_int;
 
    wire [EXP_W+1:0]                B_exp = comp? B_exp_int: A_exp_int;
-   wire [ACC_W-1:0]                B_man = comp? B_man_int: A_man_int;
+   wire [ACC_W:0]                  B_man = comp? B_man_int: A_man_int;
 
    // Align significants
    wire [EXP_W+1:0]                diff_exp = A_exp - B_exp;
