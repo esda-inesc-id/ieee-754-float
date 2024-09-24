@@ -68,7 +68,7 @@ module fptoieee754
 `ifdef SUBNORMALS
          assign exp_int_tmp = {{2{exp_i[FP_EXP_W-1]}}, exp_i} + {{(FP_EXP_W+2-EXP_W){1'b0}}, `BIAS} - {{(FP_EXP_W+2-LDS_W){1'b0}}, lds};
 
-         assign shift = (exp_int_tmp ^ {(FP_EXP_W+2){exp_int_tmp[FP_EXP_W+1]}}) + {{(FP_EXP_W+1){1'b0}}, exp_int_tmp[FP_EXP_W+1]};
+         assign shift = (exp_int_tmp ^ {(FP_EXP_W+2){exp_int_tmp[FP_EXP_W+1]}}) + {{(FP_EXP_W+1){1'b0}}, exp_int_tmp[FP_EXP_W+1]} + 1'b1;
 
 `ifdef ROUNDING
          iob_mask
@@ -85,7 +85,7 @@ module fptoieee754
          assign exp_int_tmp = {exp_i[FP_EXP_W-1], exp_i} + {{(FP_EXP_W+2-EXP_W){1'b0}}, `BIAS};
 `endif
 
-         assign underflow = exp_int_tmp[FP_EXP_W+1];
+         assign underflow = exp_int_tmp[FP_EXP_W+1] | ~|exp_int_tmp[EXP_W+1:0];
          assign overflow  = |exp_int_tmp[FP_EXP_W:EXP_W];
 
          assign exp_int = underflow? {(EXP_W+2){1'b0}}:

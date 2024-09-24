@@ -101,22 +101,24 @@ module fp_mac #(
    localparam STICKY_BITS = ACC_W+3;
 
    // Accumulation in 2's Complement
-   wire [2*`MAN_W:0]               mul_man_c_ = ({1'b0, mul_man_reg} ^ {(2*`MAN_W+1){mul_sign_reg}});
+   wire [2*`MAN_W:0]               mul_man_c_ = {1'b0, mul_man_reg} ^ {(2*`MAN_W+1){mul_sign_reg}};
    wire [ACC_W:0]                  mul_man_c  = {{(GUARD_W+1){mul_man_c_[2*`MAN_W]}}, mul_man_c_};
 
    wire [EXP_W+1:0]                A_exp_int = done_int2? mul_exp_reg: acc_exp_reg2;
    wire [ACC_W:0]                  A_man_int = done_int2? mul_man_c: acc_man_reg2;
 
-   wire [EXP_W+1:0]                B_exp_int = acc_exp_reg;
-   wire [ACC_W:0]                  B_man_int = acc_man_reg;
+   wire                            ovf_int  = ^acc_man_reg[ACC_W -: 2];
+
+   wire [EXP_W+1:0]                B_exp_int = ovf_int? acc_exp_reg + 1'b1: acc_exp_reg;
+   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:2], |acc_man_reg[1:0]}: acc_man_reg;
 
    wire                            comp = (A_exp_int >= B_exp_int)? 1'b1: 1'b0;
 
    wire [EXP_W+1:0]                A_exp = comp? A_exp_int: B_exp_int;
-   wire [ACC_W-1:0]                A_man = comp? A_man_int: B_man_int;
+   wire [ACC_W:0]                  A_man = comp? A_man_int: B_man_int;
 
    wire [EXP_W+1:0]                B_exp = comp? B_exp_int: A_exp_int;
-   wire [ACC_W-1:0]                B_man = comp? B_man_int: A_man_int;
+   wire [ACC_W:0]                  B_man = comp? B_man_int: A_man_int;
 
    // Align significants
    wire [EXP_W+1:0]                diff_exp = A_exp - B_exp;
@@ -221,8 +223,7 @@ module fp_mac #(
    wire [EXP_W+1:0]                rshift = (exp_diff2 > RSHIFT_LIM)? RSHIFT_LIM: exp_diff2;
    wire [ACC_W+RSHIFT_LIM:0]       man_rsht = {acc_man_reg, {RSHIFT_LIM{1'b0}}} >> rshift;
 
-   wire [EXP_W+1:0]                exp_norm = exp_diff2[EXP_W+1]? acc_exp_reg + lshift_inv + OFFSET:
-                                                                  1'b0;
+   wire [EXP_W+1:0]                exp_norm = acc_exp_reg + lshift_inv + OFFSET;
    wire [ACC_W:0]                  man_norm = exp_diff2[EXP_W+1]? acc_man_reg << lshift:
                                                                   {man_rsht[ACC_W+RSHIFT_LIM:RSHIFT_LIM+1], |man_rsht[RSHIFT_LIM:0]};
 
