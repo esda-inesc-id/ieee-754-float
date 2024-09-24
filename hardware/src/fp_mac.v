@@ -223,8 +223,7 @@ module fp_mac #(
    wire [EXP_W+1:0]                rshift = (exp_diff2 > RSHIFT_LIM)? RSHIFT_LIM: exp_diff2;
    wire [ACC_W+RSHIFT_LIM:0]       man_rsht = {acc_man_reg, {RSHIFT_LIM{1'b0}}} >> rshift;
 
-   wire [EXP_W+1:0]                exp_norm = exp_diff2[EXP_W+1]? acc_exp_reg + lshift_inv + OFFSET:
-                                                                  1'b0;
+   wire [EXP_W+1:0]                exp_norm = acc_exp_reg + lshift_inv + OFFSET;
    wire [ACC_W:0]                  man_norm = exp_diff2[EXP_W+1]? acc_man_reg << lshift:
                                                                   {man_rsht[ACC_W+RSHIFT_LIM:RSHIFT_LIM+1], |man_rsht[RSHIFT_LIM:0]};
 
