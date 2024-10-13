@@ -97,20 +97,22 @@ module fp_mac #(
       end
    end
 
-   localparam ACC_W = 2*`MAN_W+GUARD_W+1;
+   localparam ACC_W = GUARD_W+1+2*`MAN_W+`EXTRA;
    localparam STICKY_BITS = ACC_W+3;
 
    // Accumulation in 2's Complement
    wire [2*`MAN_W:0]               mul_man_c_ = {1'b0, mul_man_reg} ^ {(2*`MAN_W+1){mul_sign_reg}};
-   wire [ACC_W:0]                  mul_man_c  = {{(GUARD_W+1){mul_man_c_[2*`MAN_W]}}, mul_man_c_};
+   wire [ACC_W:0]                  mul_man_c  = {{(GUARD_W+1){mul_man_c_[2*`MAN_W]}}, mul_man_c_, {`EXTRA{1'b0}}};
 
    wire [EXP_W+1:0]                A_exp_int = done_int2? mul_exp_reg: acc_exp_reg2;
-   wire [ACC_W:0]                  A_man_int = done_int2? mul_man_c: acc_man_reg2;
+   wire [ACC_W:0]                  A_man_int = done_int2? mul_man_c: {acc_man_reg2, 1'b0};
 
    wire                            ovf_int  = ^acc_man_reg[ACC_W -: 2];
 
    wire [EXP_W+1:0]                B_exp_int = ovf_int? acc_exp_reg + 1'b1: acc_exp_reg;
-   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:2], |acc_man_reg[1:0]}: acc_man_reg;
+   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:1]}: {acc_man_reg[ACC_W:1], 1'b0};
+
+   wire                            cin_int = done_int2 & mul_sign_reg;
 
    wire                            comp = (A_exp_int >= B_exp_int)? 1'b1: 1'b0;
 
@@ -153,14 +155,14 @@ module fp_mac #(
 
          B_man_reg <= {B_man_in[STICKY_BITS+1 +: ACC_W], sticky_bit};
 
-         cin <= mul_sign_reg;
+         cin <= cin_int;
 
          done_int3 <= done_int2;
       end
    end
 
    // Accumulation
-   wire [ACC_W:0]                  acc_man = A_man_reg + B_man_reg + cin;
+   wire [ACC_W:0]                  acc_man = A_man_reg + B_man_reg + {cin, {`EXTRA{1'b0}}};
 
    // pipeline stage 4
    wire                            rst_acc  = (done_int & ~done_int2) | (done_int2 & ~done_int3);
@@ -168,7 +170,8 @@ module fp_mac #(
    wire [ACC_W:0]                  acc_man_ = rst_acc? {(ACC_W+1){1'b0}}: acc_man;
 
    reg [EXP_W+1:0]                 acc_exp_reg, acc_exp_reg2;
-   reg [ACC_W:0]                   acc_man_reg, acc_man_reg2;
+   reg [ACC_W:0]                   acc_man_reg;
+   reg [ACC_W-1:0]                 acc_man_reg2;
 
    reg                             done_int4;
    always @(posedge clk) begin
@@ -177,7 +180,7 @@ module fp_mac #(
          acc_man_reg <= {(ACC_W+1){1'b0}};
 
          acc_exp_reg2 <= {(EXP_W+2){1'b0}};
-         acc_man_reg2 <= {(ACC_W+1){1'b0}};
+         acc_man_reg2 <= {ACC_W{1'b0}};
 
          done_int4 <= 1'b0;
       end else begin
@@ -185,7 +188,7 @@ module fp_mac #(
          acc_man_reg <= acc_man_;
 
          acc_exp_reg2 <= acc_exp_reg;
-         acc_man_reg2 <= acc_man_reg;
+         acc_man_reg2 <= acc_man_reg[ACC_W:1];
 
          done_int4 <= done_int3;
       end
