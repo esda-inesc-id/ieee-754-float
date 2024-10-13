@@ -21,12 +21,27 @@ endfunction
 function [DATA_W-1:0] float2bin;
    input real     x;
    reg [63:0]     x_d;
+   reg signed [10:0] exp_d;
+   reg [2*53+3-1:0]  frac;
+   reg [10:0]        shift;
 
    begin
       x_d = $realtobits(x);
+
       float2bin[DATA_W-1] = x_d[63];
-      float2bin[DATA_W-2 -: EXP_W] = x_d[62 -: 11] - 1023 + BIAS;
-      float2bin[DATA_W-EXP_W-2 -: DATA_W-EXP_W-1] = x_d[63-12 -: DATA_W-EXP_W-1];
+      frac = {1'b1, x_d[51:0], {(53+3){1'b0}}};
+
+      exp_d = x_d[62 -: 11] - 1023 + BIAS;
+      if (exp_d > (BIAS << 1)) begin
+         exp_d = -1;
+      end else if (exp_d < 0) begin
+         shift = 1 - exp_d;
+         if (shift > (53+3)) shift = 53+3;
+         exp_d = 0;
+         frac >>= shift;
+      end
+      float2bin[DATA_W-2 -: EXP_W] = exp_d[0 +: EXP_W];
+      float2bin[DATA_W-EXP_W-2 -: DATA_W-EXP_W-1] = frac[2*53+3-2 -: DATA_W-EXP_W-1];
    end
 endfunction
 
@@ -50,7 +65,7 @@ function real bin2float;
             x_d[62 -: 11] = 0;
          end else begin
             x_d[62 -: 11] = 1 - BIAS - shift + 1023;
-            frac = frac << shift;
+            frac <<= shift;
          end
       end else begin
          x_d[62 -: 11] = x[DATA_W-2 -: EXP_W] - BIAS + 1023;
