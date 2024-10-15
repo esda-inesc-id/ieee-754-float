@@ -5,7 +5,8 @@
 module fp_mac #(
                 parameter DATA_W = 32,
                 parameter EXP_W = 8,
-                parameter GUARD_W = 0
+                parameter LGUARD_W = 0,
+                parameter RGUARD_W = 0
                 )
    (
     input                          clk,
@@ -97,20 +98,19 @@ module fp_mac #(
       end
    end
 
-   localparam ACC_W = GUARD_W+1+2*`MAN_W+`EXTRA;
-   localparam STICKY_BITS = ACC_W+3;
+   localparam ACC_W = LGUARD_W+1+2*`MAN_W+RGUARD_W;
 
    // Accumulation in 2's Complement
    wire [2*`MAN_W:0]               mul_man_c_ = {1'b0, mul_man_reg} ^ {(2*`MAN_W+1){mul_sign_reg}};
-   wire [ACC_W:0]                  mul_man_c  = {{(GUARD_W+1){mul_man_c_[2*`MAN_W]}}, mul_man_c_, {`EXTRA{1'b0}}};
+   wire [ACC_W:0]                  mul_man_c  = {{(LGUARD_W+1){mul_man_c_[2*`MAN_W]}}, mul_man_c_, {RGUARD_W{1'b0}}};
 
    wire [EXP_W+1:0]                A_exp_int = done_int2? mul_exp_reg: acc_exp_reg2;
-   wire [ACC_W:0]                  A_man_int = done_int2? mul_man_c: {acc_man_reg2, 1'b0};
+   wire [ACC_W:0]                  A_man_int = done_int2? mul_man_c: acc_man_reg2;
 
    wire                            ovf_int  = ^acc_man_reg[ACC_W -: 2];
 
    wire [EXP_W+1:0]                B_exp_int = ovf_int? acc_exp_reg + 1'b1: acc_exp_reg;
-   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:1]}: {acc_man_reg[ACC_W:1], 1'b0};
+   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:1]}: acc_man_reg;
 
    wire                            cin_int = done_int2 & mul_sign_reg;
 
@@ -120,15 +120,11 @@ module fp_mac #(
    wire [ACC_W:0]                  A_man = comp? A_man_int: B_man_int;
 
    wire [EXP_W+1:0]                B_exp = comp? B_exp_int: A_exp_int;
-   wire [ACC_W:0]                  B_man = comp? B_man_int: A_man_int;
+   wire signed [ACC_W:0]           B_man = comp? B_man_int: A_man_int;
 
    // Align significants
    wire [EXP_W+1:0]                diff_exp = A_exp - B_exp;
-   wire [EXP_W+1:0]                shift = (diff_exp > STICKY_BITS)? STICKY_BITS: diff_exp;
-   wire [ACC_W+STICKY_BITS:0]      B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> shift;
-
-   // Sticky
-   wire                            sticky_bit = |B_man_in[STICKY_BITS:0];
+   wire [ACC_W:0]                  B_man_in = B_man >>> diff_exp;
 
    // pipeline stage 3
    reg [EXP_W+1:0]                 A_exp_reg;
@@ -153,7 +149,7 @@ module fp_mac #(
          A_exp_reg <= A_exp;
          A_man_reg <= A_man;
 
-         B_man_reg <= {B_man_in[STICKY_BITS+1 +: ACC_W], sticky_bit};
+         B_man_reg <= B_man_in;
 
          cin <= cin_int;
 
@@ -162,7 +158,7 @@ module fp_mac #(
    end
 
    // Accumulation
-   wire [ACC_W:0]                  acc_man = A_man_reg + B_man_reg + {cin, {`EXTRA{1'b0}}};
+   wire [ACC_W:0]                  acc_man = A_man_reg + B_man_reg + cin;
 
    // pipeline stage 4
    wire                            rst_acc  = (done_int & ~done_int2) | (done_int2 & ~done_int3);
@@ -170,8 +166,7 @@ module fp_mac #(
    wire [ACC_W:0]                  acc_man_ = rst_acc? {(ACC_W+1){1'b0}}: acc_man;
 
    reg [EXP_W+1:0]                 acc_exp_reg, acc_exp_reg2;
-   reg [ACC_W:0]                   acc_man_reg;
-   reg [ACC_W-1:0]                 acc_man_reg2;
+   reg [ACC_W:0]                   acc_man_reg, acc_man_reg2;
 
    reg                             done_int4;
    always @(posedge clk) begin
@@ -180,7 +175,7 @@ module fp_mac #(
          acc_man_reg <= {(ACC_W+1){1'b0}};
 
          acc_exp_reg2 <= {(EXP_W+2){1'b0}};
-         acc_man_reg2 <= {ACC_W{1'b0}};
+         acc_man_reg2 <= {(ACC_W+1){1'b0}};
 
          done_int4 <= 1'b0;
       end else begin
@@ -188,7 +183,7 @@ module fp_mac #(
          acc_man_reg <= acc_man_;
 
          acc_exp_reg2 <= acc_exp_reg;
-         acc_man_reg2 <= acc_man_reg[ACC_W:1];
+         acc_man_reg2 <= acc_man_reg;
 
          done_int4 <= done_int3;
       end
@@ -198,12 +193,12 @@ module fp_mac #(
    wire                            res_sign_int = acc_man_reg[ACC_W];
 
    localparam EXP_MIN = 0;
-   localparam EXP_MIN_G = EXP_MIN - GUARD_W;
+   localparam EXP_MIN_G = EXP_MIN - LGUARD_W;
    localparam RSHIFT_LIM = `MAN_W+2;
 
    // Normalize
    localparam LSC_W  = $clog2(ACC_W+2);
-   localparam OFFSET = GUARD_W+4; // 3 -> 1 for the carry from the accumulator, 1 for the extra integer bit and 1 for the 2's Complement
+   localparam OFFSET = LGUARD_W+4; // 3 -> 1 for the carry from the accumulator, 1 for the extra integer bit and 1 for the 2's Complement
 
    wire [LSC_W-1:0]                lsc;
    cls #(
