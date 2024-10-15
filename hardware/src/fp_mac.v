@@ -99,7 +99,6 @@ module fp_mac #(
    end
 
    localparam ACC_W = LGUARD_W+1+2*`MAN_W+RGUARD_W;
-   localparam STICKY_BITS = ACC_W+3;
 
    // Accumulation in 2's Complement
    wire [2*`MAN_W:0]               mul_man_c_ = {1'b0, mul_man_reg} ^ {(2*`MAN_W+1){mul_sign_reg}};
