@@ -3,7 +3,8 @@
 module ieee754_mac_tb;
    parameter DATA_W = 32;
    parameter EXP_W = 8;
-   parameter GUARD_W = 0;
+   parameter LGUARD_W = 0;
+   parameter RGUARD_W = 0;
 
    parameter BIAS = 2**(EXP_W-1)-1;
 
@@ -29,13 +30,16 @@ module ieee754_mac_tb;
    real              acc;
    real              acc_in;
 
+   integer           i;
+
 `include "functions.vh"
 
    ieee754_mac
      #(
-       .DATA_W  (DATA_W),
-       .EXP_W   (EXP_W),
-       .GUARD_W (GUARD_W)
+       .DATA_W   (DATA_W),
+       .EXP_W    (EXP_W),
+       .LGUARD_W (LGUARD_W),
+       .RGUARD_W (RGUARD_W)
        )
    ieee754_mac0
      (

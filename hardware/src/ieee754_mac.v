@@ -6,7 +6,8 @@ module ieee754_mac
   #(
     parameter DATA_W = 32,
     parameter EXP_W = 8,
-    parameter GUARD_W = 0
+    parameter LGUARD_W = 0,
+    parameter RGUARD_W = 0
     )
    (
     input               clk,
@@ -99,9 +100,10 @@ module ieee754_mac
    wire                     mac_inv;
    fp_mac
      #(
-       .DATA_W  (DATA_W),
-       .EXP_W   (EXP_W),
-       .GUARD_W (GUARD_W)
+       .DATA_W   (DATA_W),
+       .EXP_W    (EXP_W),
+       .LGUARD_W (LGUARD_W),
+       .RGUARD_W (RGUARD_W)
        )
    mac0
        (
