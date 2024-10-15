@@ -166,8 +166,7 @@ module fp_mac #(
    wire [ACC_W:0]                  acc_man_ = rst_acc? {(ACC_W+1){1'b0}}: acc_man;
 
    reg [EXP_W+1:0]                 acc_exp_reg, acc_exp_reg2;
-   reg [ACC_W:0]                   acc_man_reg;
-   reg [ACC_W:0]                   acc_man_reg2;
+   reg [ACC_W:0]                   acc_man_reg, acc_man_reg2;
 
    reg                             done_int4;
    always @(posedge clk) begin
