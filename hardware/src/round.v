@@ -16,7 +16,7 @@ module round #(
    output               round
    );
 
-   wire [DATA_W+3:0]    mantissa_inv = {(DATA_W+3){inv}} ^ mantissa_i;
+   wire [DATA_W+3-1:0]  mantissa_inv = {(DATA_W+3){inv}} ^ mantissa_i;
 
    // Round
    wire                 man_lsb    = mantissa_inv[3];
@@ -28,7 +28,7 @@ module round #(
                   (inv & ((man_lsb & ~guard_bit & round_bit & sticky_bit) |
                           (~man_lsb & guard_bit & ~round_bit & ~sticky_bit)));
 
-   wire [DATA_W:0]      mantissa_rnd_int = {1'b0, mantissa_inv[DATA_W+3:3]} + round;
+   wire [DATA_W:0]      mantissa_rnd_int = {1'b0, mantissa_inv[DATA_W+3-1:3]} + round;
 
    // Normalize
    wire                 norm = mantissa_rnd_int[DATA_W];
@@ -36,13 +36,8 @@ module round #(
    wire [EXP_W+1:0]     exponent_norm = exponent_i + 1'b1;
    wire [DATA_W-1:0]    mantissa_norm = mantissa_rnd_int[DATA_W:1];
 
-   wire [EXP_W+1:0]     exponent_rnd_ = norm? exponent_norm: exponent_i;
-   wire [DATA_W-1:0]    mantissa_rnd_ = norm? mantissa_norm: mantissa_rnd_int[DATA_W-1:0];
-
-   wire [EXP_W+1:0]     exponent_rnd = norm? exponent_norm:
-                                             exponent_i;
-   wire [DATA_W-1:0]    mantissa_rnd = norm? mantissa_norm:
-                                             mantissa_rnd_int[DATA_W-1:0];
+   wire [EXP_W+1:0]     exponent_rnd = norm? exponent_norm: exponent_i;
+   wire [DATA_W-1:0]    mantissa_rnd = norm? mantissa_norm: mantissa_rnd_int[DATA_W-1:0];
 
    localparam EXP_MAX = {{(EXP_W-1){1'b1}}, 1'b0};
 
