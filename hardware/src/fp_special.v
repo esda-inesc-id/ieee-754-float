@@ -12,19 +12,18 @@ module fp_special #(
     output             zero
     );
 
-   localparam MAN_W = DATA_W-EXP_W;
+   localparam FRAC_W = DATA_W-EXP_W-1;
 
-   wire                sign = data_i[DATA_W-1];
    wire [EXP_W-1:0]    exponent = data_i[DATA_W-2 -: EXP_W];
-   wire [MAN_W-2:0]    mantissa = data_i[MAN_W-2:0];
+   wire [FRAC_W-1:0]   fraction = data_i[FRAC_W-1:0];
 
    wire                exp_all_ones = &exponent;
    wire                exp_zero = ~|exponent;
-   wire                man_nzero = |mantissa;
-   wire                man_zero = ~man_nzero;
+   wire                frac_nzero = |fraction;
+   wire                frac_zero = ~frac_nzero;
 
-   assign nan       = exp_all_ones & man_nzero;
-   assign infinite  = exp_all_ones & man_zero;
-   assign zero      = exp_zero & man_zero;
+   assign nan       = exp_all_ones & frac_nzero;
+   assign infinite  = exp_all_ones & frac_zero;
+   assign zero      = exp_zero & frac_zero;
 
 endmodule

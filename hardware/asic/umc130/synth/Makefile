@@ -15,7 +15,7 @@ $(TOP_MODULE)_synth.v: $(VHDR) $(VSRC)
 	echo "exit"
 
 clean:
-	@rm -rf *~ *.hex *.txt rc.cmd* rc.* fv libscore_work *.sdc *.v *.h *.lib *.db
+	@rm -rf *~ *.hex *.txt *.log rc.cmd* rc.* fv libscore_work *.sdc *.v *.h *.lib *.db
 	@find *.tcl -type f -not -name synscript.tcl -not -name powscript.tcl -delete
 
 .PHONY: run clean

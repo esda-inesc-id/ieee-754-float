@@ -104,6 +104,9 @@ module fp_mac #(
    wire [2*`MAN_W:0]               mul_man_c_ = {1'b0, mul_man_reg} ^ {(2*`MAN_W+1){mul_sign_reg}};
    wire [ACC_W:0]                  mul_man_c  = {{(LGUARD_W+1){mul_man_c_[2*`MAN_W]}}, mul_man_c_, {RGUARD_W{1'b0}}};
 
+   reg [EXP_W+1:0]                 acc_exp_reg, acc_exp_reg2;
+   reg [ACC_W:0]                   acc_man_reg, acc_man_reg2;
+
    wire [EXP_W+1:0]                A_exp_int = done_int2? mul_exp_reg: acc_exp_reg2;
    wire [ACC_W:0]                  A_man_int = done_int2? mul_man_c: acc_man_reg2;
 
@@ -165,9 +168,6 @@ module fp_mac #(
    wire [EXP_W+1:0]                acc_exp_ = rst_acc? {{(EXP_W+1){1'b0}}, 1'b1}: A_exp_reg;
    wire [ACC_W:0]                  acc_man_ = rst_acc? {(ACC_W+1){1'b0}}: acc_man;
 
-   reg [EXP_W+1:0]                 acc_exp_reg, acc_exp_reg2;
-   reg [ACC_W:0]                   acc_man_reg, acc_man_reg2;
-
    reg                             done_int4;
    always @(posedge clk) begin
       if (rst) begin
@@ -211,17 +211,17 @@ module fp_mac #(
       .data_out (lsc)
       );
 
-   wire [EXP_W+1:0]                exp_diff  = EXP_MIN_G - acc_exp_reg + lsc;
-   wire [EXP_W+1:0]                exp_diff2 = EXP_MIN - acc_exp_reg;
-   wire [EXP_W+1:0]                exp_diff2_1 = acc_exp_reg - EXP_MIN;
+   wire [EXP_W+1:0]                exp_diff  = EXP_MIN_G[EXP_W+1:0] - acc_exp_reg + lsc;
+   wire [EXP_W+1:0]                exp_diff2 = EXP_MIN[EXP_W+1:0] - acc_exp_reg;
+   wire [EXP_W+1:0]                exp_diff2_1 = acc_exp_reg - EXP_MIN[EXP_W+1:0];
 
    wire [EXP_W+1:0]                lshift = exp_diff[EXP_W+1]? lsc: exp_diff2_1;
    wire [EXP_W+1:0]                lshift_inv = ~lshift;
 
-   wire [EXP_W+1:0]                rshift = (exp_diff2 > RSHIFT_LIM)? RSHIFT_LIM: exp_diff2;
+   wire [EXP_W+1:0]                rshift = (exp_diff2 > RSHIFT_LIM[EXP_W+1:0])? RSHIFT_LIM[EXP_W+1:0]: exp_diff2;
    wire [ACC_W+RSHIFT_LIM:0]       man_rsht = {acc_man_reg, {RSHIFT_LIM{1'b0}}} >> rshift;
 
-   wire [EXP_W+1:0]                exp_norm = acc_exp_reg + lshift_inv + OFFSET;
+   wire [EXP_W+1:0]                exp_norm = acc_exp_reg + lshift_inv + OFFSET[EXP_W+1:0];
    wire [ACC_W:0]                  man_norm = exp_diff2[EXP_W+1]? acc_man_reg << lshift:
                                                                   {man_rsht[ACC_W+RSHIFT_LIM:RSHIFT_LIM+1], |man_rsht[RSHIFT_LIM:0]};
 

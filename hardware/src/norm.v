@@ -43,14 +43,14 @@ module norm
       .data_out (lsc)
       );
 
-   wire [EXP_W+1:0]                exp_diff  = EXP_MIN - exp_i + lsc;
-   wire [EXP_W+1:0]                exp_diff2 = EXP_MIN - exp_i;
-   wire [EXP_W+1:0]                exp_diff2_1 = exp_i - EXP_MIN;
+   wire [EXP_W+1:0]                exp_diff  = EXP_MIN[EXP_W+1:0] - exp_i + lsc;
+   wire [EXP_W+1:0]                exp_diff2 = EXP_MIN[EXP_W+1:0] - exp_i;
+   wire [EXP_W+1:0]                exp_diff2_1 = exp_i - EXP_MIN[EXP_W+1:0];
 
    wire [EXP_W+1:0]                lshift = exp_diff[EXP_W+1]? lsc: exp_diff2_1;
    wire [EXP_W+1:0]                lshift_inv = ~lshift;
 
-   wire [EXP_W+1:0]                rshift = (exp_diff2 > RSHIFT_LIM)? RSHIFT_LIM: exp_diff2;
+   wire [EXP_W+1:0]                rshift = (exp_diff2 > RSHIFT_LIM[EXP_W+1:0])? RSHIFT_LIM[EXP_W+1:0]: exp_diff2;
    wire [2*`MAN_W+RSHIFT_LIM-1:0]  man_rsht = {man_i, {RSHIFT_LIM{1'b0}}} >> rshift;
 
    wire [EXP_W+1:0]                exp_norm = exp_i + lshift_inv + offset;
