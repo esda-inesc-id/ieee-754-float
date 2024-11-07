@@ -29,6 +29,9 @@ ifneq ($(SIM_SERVER), localhost)
 	ssh $(SIM_USER)@$(SIM_SERVER) "if [ -d $(REMOTE_ROOT_DIR) ]; then cd $(REMOTE_ROOT_DIR); make -C $(SIM_DIR) clean; fi"
 endif
 
+sim-clean-all:
+	$(foreach s, $(SIMULATOR_LIST), make sim-clean SIMULATOR=$s;)
+
 #
 # FPGA COMPILE
 #
@@ -50,6 +53,9 @@ ifneq ($(FPGA_SERVER), localhost)
 	rsync -avz --delete --exclude .git $(FPU_DIR) $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)
 	ssh $(FPGA_USER)@$(FPGA_SERVER) "if [ -d $(REMOTE_ROOT_DIR) ]; then cd $(REMOTE_ROOT_DIR); make -C $(FPGA_DIR) clean; fi"
 endif
+
+fpga-clean-all:
+	$(foreach f, $(FPGA_FAMILY_LIST), make fpga-clean FPGA_FAMILY=$f;)
 
 #
 # COMPILE ASIC
@@ -96,11 +102,14 @@ ifneq ($(shell hostname), $(ASIC_SERVER))
 	ssh $(ASIC_USER)@$(ASIC_SERVER) "if [ -d $(REMOTE_ROOT_DIR) ]; then cd $(REMOTE_ROOT_DIR); make -C $(ASIC_DIR) clean; fi"
 endif
 
+asic-clean-all:
+	$(foreach n, $(ASIC_NODE_LIST), make asic-clean ASIC_NODE=$n;)
+
 
 # CLEAN ALL
-clean-all: sim-clean fpga-clean asic-clean
+clean-all: sim-clean-all fpga-clean-all asic-clean-all
 
-.PHONY: sim sim-waves sim-clean \
-	fpga fpga-clean \
-	asic asic-synth asic-sim-synth asic-clean \
+.PHONY: sim sim-waves sim-clean sim-clean-all \
+	fpga fpga-clean fpga-clean-all \
+	asic asic-synth asic-sim-synth asic-clean asic-clean-all \
 	clean-all

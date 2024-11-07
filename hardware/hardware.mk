@@ -1,17 +1,17 @@
 include $(FPU_DIR)/core.mk
 
-#define
+# Defines
 ifeq ($(FPU),)
 DEFINE+=$(defmacro)SPECIAL_CASES
 endif
 
-# include
+# Includes
 INCLUDE+=$(incdir) $(FPU_INC_DIR)
 
-# headers
+# Headers
 VHDR+=$(wildcard $(FPU_INC_DIR)/*.vh)
 
-# sources
+# Sources
 VSRC+=$(wildcard $(FPU_HW_DIR)/src/*.v) \
 $(DIV_DIR)/hardware/src/div_subshift.v
 
@@ -76,8 +76,3 @@ $(FPU_HW_DIR)/src/norm.v \
 $(FPU_HW_DIR)/src/round.v \
 $(FPU_HW_DIR)/src/ieee754_pack.v
 endif
-
-clean_hw:
-	@rm -rf $(FPU_HW_DIR)/fpga/vivado/XCKU $(FPU_HW_DIR)/fpga/quartus/CYCLONEV-GT
-
-.PHONY: clean_hw

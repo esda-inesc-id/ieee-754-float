@@ -11,12 +11,14 @@ DIV_DIR=$(FPU_SUBMODULES_DIR)/DIV
 REMOTE_ROOT_DIR?=sandbox/float
 
 # SIMULATION
+SIMULATOR_LIST=icarus
 SIMULATOR?=icarus
 SIM_SERVER?=localhost
 SIM_USER?=$(USER)
 SIM_DIR?=hardware/simulation/$(SIMULATOR)
 
 # FPGA
+FPGA_FAMILY_LIST=XCKU CYCLONEV-GT
 FPGA_FAMILY?=XCKU
 FPGA_USER?=$(USER)
 FPGA_SERVER?=pudim-flan.iobundle.com
@@ -31,9 +33,10 @@ FPGA_DIR?=$(FPU_DIR)/hardware/fpga/$(FPGA_COMP)
 FPGA_LOG?=$(FPGA_COMP).log
 
 # ASIC
+ASIC_NODE_LIST=umc130
 ASIC_NODE?=umc130
 ASIC_SERVER?=micro5.lx.it.pt
-ASIC_COMPILE_ROOT_DIR ?=$(ROOT_DIR)/sandbox/float
+ASIC_COMPILE_ROOT_DIR?=$(ROOT_DIR)/sandbox/float
 ASIC_USER?=user14
 ASIC_DIR?=hardware/asic/$(ASIC_NODE)
 
