@@ -6,7 +6,7 @@ DEFINE+=$(defmacro)SPECIAL_CASES
 endif
 
 # Includes
-INCLUDE+=$(incdir) $(FPU_INC_DIR)
+INCLUDE+=$(incdir)$(FPU_INC_DIR)
 
 # Headers
 VHDR+=$(wildcard $(FPU_INC_DIR)/*.vh)
