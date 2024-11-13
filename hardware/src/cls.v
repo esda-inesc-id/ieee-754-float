@@ -17,7 +17,7 @@ module cls #(
       data_out = DATA_W[BIT_W-1:0];
       for (i=0; i < DATA_W; i=i+1) begin
          if (data_in[i] == ~symbol) begin
-            data_out = (DATA_W[BIT_W-1:0] - i[BIT_W-1:0] - 1);
+            data_out = (DATA_W[BIT_W-1:0] - i[BIT_W-1:0] - 1'b1);
          end
       end
    end

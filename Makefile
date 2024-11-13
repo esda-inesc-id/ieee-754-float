@@ -16,11 +16,11 @@ else
 	ssh $(SIM_USER)@$(SIM_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
 	make -C $(SIM_DIR) clean
 	rsync -avz --delete --exclude .git $(FPU_DIR) $(SIM_USER)@$(SIM_SERVER):$(USER)/$(REMOTE_ROOT_DIR)
-	ssh $(SIM_USER)@$(SIM_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(SIM_DIR) run SIMULATOR=$(SIMULATOR) SIM_SERVER=localhost'
+	ssh $(SIM_USER)@$(SIM_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(SIM_DIR) run TOP_MODULE=$(TOP_MODULE) SIMULATOR=$(SIMULATOR) SIM_SERVER=localhost'
 endif
 
 sim-waves:
-	gtkwave $(SIM_DIR)/fpu.vcd &
+	gtkwave $(SIM_DIR)/*.vcd &
 
 sim-clean:
 	make -C $(SIM_DIR) clean
@@ -28,6 +28,9 @@ ifneq ($(SIM_SERVER), localhost)
 	rsync -avz --delete --exclude .git $(FPU_DIR) $(SIM_USER)@$(SIM_SERVER):$(USER)/$(REMOTE_ROOT_DIR)
 	ssh $(SIM_USER)@$(SIM_SERVER) "if [ -d $(REMOTE_ROOT_DIR) ]; then cd $(REMOTE_ROOT_DIR); make -C $(SIM_DIR) clean; fi"
 endif
+
+sim-clean-all:
+	$(foreach s, $(SIMULATOR_LIST), make sim-clean SIMULATOR=$s;)
 
 #
 # FPGA COMPILE
@@ -39,7 +42,7 @@ ifeq ($(FPGA_SERVER), localhost)
 else 
 	ssh $(FPGA_USER)@$(FPGA_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
 	rsync -avz --delete --exclude .git $(FPU_DIR) $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)
-	ssh $(FPGA_USER)@$(FPGA_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(FPGA_DIR) run FPGA_FAMILY=$(FPGA_FAMILY) FPGA_SERVER=localhost'
+	ssh $(FPGA_USER)@$(FPGA_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(FPGA_DIR) run FPGA_FAMILY=$(FPGA_FAMILY) TOP_MODULE=$(TOP_MODULE) FPGA_SERVER=localhost'
 	mkdir -p $(FPGA_DIR)/$(FPGA_FAMILY)
 	scp $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)/$(FPGA_DIR)/$(FPGA_FAMILY)/$(FPGA_LOG) $(FPGA_DIR)/$(FPGA_FAMILY)
 endif
@@ -51,6 +54,9 @@ ifneq ($(FPGA_SERVER), localhost)
 	ssh $(FPGA_USER)@$(FPGA_SERVER) "if [ -d $(REMOTE_ROOT_DIR) ]; then cd $(REMOTE_ROOT_DIR); make -C $(FPGA_DIR) clean; fi"
 endif
 
+fpga-clean-all:
+	$(foreach f, $(FPGA_FAMILY_LIST), make fpga-clean FPGA_FAMILY=$f;)
+
 #
 # COMPILE ASIC
 #
@@ -61,7 +67,8 @@ ifeq ($(shell hostname), $(ASIC_SERVER))
 else
 	ssh $(ASIC_USER)@$(ASIC_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
 	rsync -avz --delete --exclude .git $(FPU_DIR) $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)
-	ssh -Y -C $(ASIC_USER)@$(ASIC_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(ASIC_DIR) ASIC=1'
+	ssh -Y -C $(ASIC_USER)@$(ASIC_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(ASIC_DIR) TOP_MODULE=$(TOP_MODULE) ASIC=1'
+	scp $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)/$(ASIC_DIR)/synth/*.log $(ASIC_DIR)/synth
 	scp $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)/$(ASIC_DIR)/synth/*.txt $(ASIC_DIR)/synth
 endif
 
@@ -71,7 +78,8 @@ ifeq ($(shell hostname), $(ASIC_SERVER))
 else
 	ssh $(ASIC_USER)@$(ASIC_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
 	rsync -avz --delete --exclude .git $(FPU_DIR) $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)
-	ssh -Y -C $(ASIC_USER)@$(ASIC_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(ASIC_DIR) synth ASIC=1'
+	ssh -Y -C $(ASIC_USER)@$(ASIC_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(ASIC_DIR) TOP_MODULE=$(TOP_MODULE) synth ASIC=1'
+	scp $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)/$(ASIC_DIR)/synth/*.log $(ASIC_DIR)/synth
 	scp $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)/$(ASIC_DIR)/synth/*.txt $(ASIC_DIR)/synth
 endif
 
@@ -94,11 +102,14 @@ ifneq ($(shell hostname), $(ASIC_SERVER))
 	ssh $(ASIC_USER)@$(ASIC_SERVER) "if [ -d $(REMOTE_ROOT_DIR) ]; then cd $(REMOTE_ROOT_DIR); make -C $(ASIC_DIR) clean; fi"
 endif
 
+asic-clean-all:
+	$(foreach n, $(ASIC_NODE_LIST), make asic-clean ASIC_NODE=$n;)
+
 
 # CLEAN ALL
-clean-all: sim-clean fpga-clean asic-clean
+clean-all: sim-clean-all fpga-clean-all asic-clean-all
 
-.PHONY: sim sim-waves sim-clean \
-	fpga fpga-clean \
-	asic asic-synth asic-sim-synth asic-clean \
+.PHONY: sim sim-waves sim-clean sim-clean-all \
+	fpga fpga-clean fpga-clean-all \
+	asic asic-synth asic-sim-synth asic-clean asic-clean-all \
 	clean-all

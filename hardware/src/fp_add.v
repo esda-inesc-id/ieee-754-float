@@ -117,7 +117,7 @@ module fp_add #(
 
    // Align significants
    wire [EXP_W-1:0]              diff_Exponent = A_Exponent_reg - B_Exponent_reg;
-   wire [EXP_W-1:0]              rshift = (diff_Exponent > STICKY_BITS)? STICKY_BITS: diff_Exponent;
+   wire [EXP_W-1:0]              rshift = (diff_Exponent > STICKY_BITS[EXP_W-1:0])? STICKY_BITS[EXP_W-1:0]: diff_Exponent;
    wire [`MAN_W+STICKY_BITS-1:0] B_Mantissa_in = {B_Mantissa_reg, {STICKY_BITS{1'b0}}} >> rshift;
 
    // Sticky
