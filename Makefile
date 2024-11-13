@@ -20,7 +20,7 @@ else
 endif
 
 sim-waves:
-	gtkwave $(SIM_DIR)/fpu.vcd &
+	gtkwave $(SIM_DIR)/*.vcd &
 
 sim-clean:
 	make -C $(SIM_DIR) clean
