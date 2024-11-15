@@ -14,7 +14,7 @@ run: a.out
 a.out: $(VSRC) $(VHDR)
 	$(VLOG) $(INCLUDE) $(DEFINE) $(VSRC)
 
-clean: 
+clean:
 	@rm -f a.out *~ *.vcd
 
 .PHONY: run clean
