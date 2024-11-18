@@ -5,7 +5,8 @@ defmacro:=-d
 
 include ../simulation.mk
 
-CFLAGS=--sv
+VFLAGS=--sv
+VHDLFLAGS=--2008
 EFLAGS=--dup_entity_as_module --snapshot
 SFLAGS=--R
 
@@ -15,10 +16,23 @@ run: elab
 elab: comp
 	xelab $(EFLAGS) worklib $(TOP_MODULE)_tb
 
-comp: $(VSRC) $(VHDR)
-	xvlog $(CFLAGS) $(INCLUDE) $(DEFINE) $(VSRC)
+comp: verilog
+ifeq ($(FLOPOCO),1)
+	make vhdl
+	cp $(FPU_HW_DIR)/src/testbench/$(TOP_MODULE).input .
+endif
+
+verilog: $(VSRC) $(VHDR)
+	xvlog $(VFLAGS) $(INCLUDE) $(DEFINE) $(VSRC)
+
+vhdl: $(VHDLSRC)
+	xvhdl $(VHDLFLAGS) $(VHDLSRC)
 
 clean:
 	@rm -rf *~ *.vcd xsim.dir *.jou *.log *.pb
 
-.PHONY: run comp elab clean
+.PHONY: \
+	comp verilog vhdl \
+	elab \
+	run \
+	clean
