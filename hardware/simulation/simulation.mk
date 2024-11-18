@@ -18,7 +18,14 @@ endif
 endif
 
 ifeq ($(TOP_MODULE),ieee754_mul)
+ifeq ($(FLOPOCO),)
 VSRC+=$(FPU_HW_DIR)/src/testbench/ieee754_mul_tb.v
+else
+VHDLSRC+=$(FPU_HW_DIR)/src/testbench/ieee754_mul_tb.vhd \
+$(FPU_HW_DIR)/src/testbench/ieee754_mul_wrapper.vhd \
+$(FPU_HW_DIR)/src/testbench/InputIEEE.vhd \
+$(FPU_HW_DIR)/src/testbench/OutputIEEE.vhd
+endif
 endif
 
 ifeq ($(TOP_MODULE),ieee754_div)
