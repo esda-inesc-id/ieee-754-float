@@ -29,7 +29,7 @@ vhdl: $(VHDLSRC)
 	xvhdl $(VHDLFLAGS) $(VHDLSRC)
 
 clean:
-	@rm -rf *~ *.vcd xsim.dir *.jou *.log *.pb
+	@rm -rf *~ *.vcd *.input xsim.dir *.jou *.log *.pb
 
 .PHONY: \
 	comp verilog vhdl \
