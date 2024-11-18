@@ -121,7 +121,7 @@ signal rst :  std_logic;
 
    -- FP subtypes for casting
    subtype fp34 is std_logic_vector(33 downto 0);
-   function testLine(testCounter:integer; expectedOutputS: string(1 to 10000); expectedOutputSize: integer; R:  std_logic_vector(8+23+2 downto 0)) return boolean is
+   function testLine(testCounter:integer; expectedOutputS: string(1 to 10000); expectedOutputSize: integer; R:  std_logic_vector(8+23+2 downto 0)) return integer is
       variable expectedOutput: line;
       variable possibilityNumber : integer;
       variable testSuccess: boolean;
@@ -131,6 +131,7 @@ signal rst :  std_logic;
       variable inf_R: bit_vector (33 downto 0); -- for intervals
       variable sup_R: bit_vector (33 downto 0); -- for intervals
       variable expected_R_sl: std_logic_vector (33 downto 0);
+      variable outOfRange: integer := 0;
    begin
       write(expectedOutput, expectedOutputS);
       read(expectedOutput, possibilityNumber); -- for R
@@ -147,6 +148,7 @@ signal rst :  std_logic;
                or expected_R_sl(expected_R_sl'high-3 downto expected_R_sl'high-10) = "00000000") then
                   -- report ("Expected_R OutOfRange: " & str(expected_R_sl)) severity note;
                   testSuccess_R := true;
+                  outOfRange := 1;
             elsif fp_equal(R, to_stdlogicvector(expected_R)) then
                   testSuccess_R := true;
             end if;
@@ -169,7 +171,8 @@ signal rst :  std_logic;
       end if;
       
       testSuccess := true and testSuccess_R;
-      return testSuccess;
+      if testSuccess then return 1 + outOfRange;
+      else return 0; end if;
    end testLine;
 
 begin
@@ -235,6 +238,7 @@ begin
       variable expectedOutputString : string(1 to 10000);
       variable testSuccess: boolean;
       variable testOutOfRange: boolean;
+      variable ret: integer;
    begin
       wait for 12 ns; -- wait for reset 
       -- wait for 30 ns; -- wait for pipeline to flush
@@ -262,7 +266,13 @@ begin
              testSuccess := true;
              outOfRangeCounter := outOfRangeCounter + 1;
          else
-             testSuccess := testLine(testCounter, expectedOutputString, expectedOutput'Length, R);
+             ret := testLine(testCounter, expectedOutputString, expectedOutput'Length, R);
+             if ret > 0 then
+                if ret = 2 then outOfRangeCounter := outOfRangeCounter + 1; end if;
+                testSuccess := true;
+             else
+                testSuccess := false;
+             end if;
          end if;
          if not testSuccess then 
                errorCounter := errorCounter + 1; -- incrementing global error counter
@@ -272,6 +282,7 @@ begin
          wait for 10 ns;
       end loop;
       report integer'image(errorCounter) & " error(s) encoutered." severity note;
+      report integer'image(outOfRangeCounter) & " test(s) out of range encoutered." severity note;
       report "End of simulation after " & integer'image(testCounter-1) & " tests" severity failure;
    end process;
 
