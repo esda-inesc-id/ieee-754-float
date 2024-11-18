@@ -42,7 +42,7 @@ sim-clean-all:
 fpga:
 ifeq ($(FPGA_SERVER), localhost)
 	make -C $(FPGA_DIR) run DATA_W=$(DATA_W)
-else 
+else
 	ssh $(FPGA_USER)@$(FPGA_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
 	rsync -avz --delete --exclude .git $(FPU_DIR) $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)
 	ssh $(FPGA_USER)@$(FPGA_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(FPGA_DIR) run FPGA_FAMILY=$(FPGA_FAMILY) TOP_MODULE=$(TOP_MODULE) FPGA_SERVER=localhost'
