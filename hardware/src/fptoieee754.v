@@ -71,7 +71,7 @@ module fptoieee754
          assign shift = (exp_int_tmp ^ {(FP_EXP_W+2){exp_int_tmp[FP_EXP_W+1]}}) + {{(FP_EXP_W+1){1'b0}}, exp_int_tmp[FP_EXP_W+1]} + 1'b1;
 
 `ifdef ROUNDING
-         iob_mask
+         mask
            #(
              .DATA_W (FP_EXP_W+2)
              )

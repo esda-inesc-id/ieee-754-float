@@ -63,13 +63,7 @@ module ieee754tofp
 
    wire [FP_EXP_W+1:0]               exp_int_;
    generate
-      if (FP_EXP_W > EXP_W) begin
-`ifdef SUBNORMALS
-         assign exp_int_ = {{(FP_EXP_W+2-EXP_W){1'b0}}, fp_exp} - {{(FP_EXP_W+2-EXP_W){1'b0}}, `BIAS} - {{(FP_EXP_W+2-LDS_W){1'b0}}, lds};
-`else
-         assign exp_int_ = {{(FP_EXP_W+2-EXP_W){1'b0}}, fp_exp} - {{(FP_EXP_W+2-EXP_W){1'b0}}, `BIAS};
-`endif
-      end else begin
+      if (FP_EXP_W < EXP_W) begin
          wire [EXP_W-1:0] exp_int_tmp;
 `ifdef SUBNORMALS
          assign exp_int_tmp  = fp_exp - `BIAS - {{(EXP_W-LDS_W){1'b0}}, lds};
@@ -80,14 +74,24 @@ module ieee754tofp
          wire [EXP_W-1:0] shift;
          assign shift = {{(EXP_W-FP_EXP_W){1'b1}}, FP_EXP_MIN} - exp_int_tmp;
 
-         wire                 overflow;
-         wire                 underflow;
-         assign underflow = ~&shift[EXP_W-1:FP_EXP_W+1];
-         assign overflow  = ~(&exp_int_tmp[EXP_W-1:FP_EXP_W+1] | ~|exp_int_tmp[EXP_W-1:FP_EXP_W+1]);
+         if ((EXP_W - FP_EXP_W) > 1) begin
+            wire                 overflow;
+            wire                 underflow;
+            assign underflow = ~&shift[EXP_W-1:FP_EXP_W+1];
+            assign overflow  = ~(&exp_int_tmp[EXP_W-1:FP_EXP_W+1] | ~|exp_int_tmp[EXP_W-1:FP_EXP_W+1]);
 
-         assign exp_int_ = underflow? {2'b11, FP_EXP_MIN}:
-                            overflow? {2'b00, FP_EXP_MAX}:
-                                      exp_int_tmp[FP_EXP_W+1:0];
+            assign exp_int_ = underflow? {2'b11, FP_EXP_MIN}:
+                               overflow? {2'b00, FP_EXP_MAX}:
+                                         exp_int_tmp[FP_EXP_W+1:0];
+         end else begin
+             assign exp_int_ = {exp_int_tmp[EXP_W-1], exp_int_tmp};
+         end
+      end else begin
+`ifdef SUBNORMALS
+         assign exp_int_ = {{(FP_EXP_W+2-EXP_W){1'b0}}, fp_exp} - {{(FP_EXP_W+2-EXP_W){1'b0}}, `BIAS} - {{(FP_EXP_W+2-LDS_W){1'b0}}, lds};
+`else
+         assign exp_int_ = {{(FP_EXP_W+2-EXP_W){1'b0}}, fp_exp} - {{(FP_EXP_W+2-EXP_W){1'b0}}, `BIAS};
+`endif
       end
    endgenerate
 
