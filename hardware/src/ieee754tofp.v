@@ -22,24 +22,42 @@ module ieee754tofp
 
     output reg                       sign_o,
     output reg [FP_EXP_W+1:0]        exp_o,
-    output reg [FP_MAN_W+`EXTRA-1:0] man_o
+    output reg [FP_MAN_W+`EXTRA-1:0] man_o,
+    output reg                       nan_o
     );
 
    wire                              done_int;
    assign done_int = start;
 
+   // Unpack
+   wire                              fp_sign;
+   wire [EXP_W-1:0]                  fp_exp_;
+   wire [`F_W-1:0]                   fp_frac;
+   assign fp_sign = data_i[DATA_W-1];
+   assign fp_exp_ = data_i[DATA_W-2 -: EXP_W];
+   assign fp_frac = data_i[`F_W-1:0];
+
+   wire                              fp_exp_all_ones;
+   assign fp_exp_all_ones = &fp_exp_;
+
+   wire                              fp_frac_nzero;
+   assign fp_frac_nzero = |fp_frac;
+
+   wire                              nan_int;
+   assign nan_int = fp_exp_all_ones & fp_frac_nzero;
+
    wire                              nsub, sub;
-   assign nsub = |data_i[DATA_W-2 -: EXP_W];
+   assign nsub = |fp_exp_;
    assign sub  = ~nsub;
 
    wire                              sign_int;
-   assign sign_int = data_i[DATA_W-1];
+   assign sign_int = fp_sign;
 
    wire [EXP_W-1:0]                  fp_exp;
-   assign fp_exp = {data_i[DATA_W-2 -: EXP_W-1], sub | data_i[DATA_W-EXP_W-1]};
+   assign fp_exp = {fp_exp_[EXP_W-1:1], sub | fp_exp_[0]};
 
    wire [`MAN_W-1:0]                 fp_man;
-   assign fp_man  = {nsub, data_i[`F_W-1:0]};
+   assign fp_man  = {nsub, fp_frac};
 
    wire [`MAN_W-1:0]                 fp_man_norm;
 `ifdef SUBNORMALS
@@ -121,11 +139,15 @@ module ieee754tofp
          exp_o  <= {(FP_EXP_W+2){1'b0}};
          man_o  <= {(FP_MAN_W+`EXTRA){1'b0}};
 
+         nan_o <= 1'b0;
+
          done <= 1'b0;
       end else begin
          sign_o <= sign_int;
          exp_o  <= exp_int;
          man_o  <= man_int;
+
+         nan_o <= nan_int;
 
          done <= done_int;
       end
