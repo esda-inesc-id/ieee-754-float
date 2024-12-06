@@ -125,9 +125,9 @@ module ieee754_mac_tb;
       #clk_per $finish;
    end
 
-   assign op_a_ = float2bin(op_a);
-   assign op_b_ = float2bin(op_b);
-   assign res   = bin2float(res_);
+   always @* op_a_ = float2bin(op_a);
+   always @* op_b_ = float2bin(op_b);
+   always @* res   = bin2float(res_);
 
    // Accumulator
    always @(posedge clk, posedge rst) begin
@@ -138,9 +138,9 @@ module ieee754_mac_tb;
       end
    end
 
-   assign acc_in = start? acc + op_a * op_b:
-                    done? 0.0:
-                          acc;
+   always @* acc_in = start? acc + op_a * op_b:
+                       done? 0.0:
+                             acc;
 
    // Clock
    always #(clk_per/2) clk = ~clk;
