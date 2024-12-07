@@ -38,7 +38,7 @@ function [DATA_W-1:0] float2bin;
          shift = 1 - exp_d;
          if (shift > (53+3)) shift = 53+3;
          exp_d = 0;
-         frac >>= shift;
+         frac = frac >> shift;
       end
       float2bin[DATA_W-2 -: EXP_W] = exp_d[0 +: EXP_W];
       float2bin[DATA_W-EXP_W-2 -: DATA_W-EXP_W-1] = frac[2*53+3-2 -: DATA_W-EXP_W-1];
@@ -65,7 +65,7 @@ function real bin2float;
             x_d[62 -: 11] = 0;
          end else begin
             x_d[62 -: 11] = 1 - BIAS - shift + 1023;
-            frac <<= shift;
+            frac = frac << shift;
          end
       end else begin
          x_d[62 -: 11] = x[DATA_W-2 -: EXP_W] - BIAS + 1023;

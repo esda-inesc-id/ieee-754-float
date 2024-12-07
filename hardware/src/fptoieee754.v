@@ -19,6 +19,7 @@ module fptoieee754
     input                sign_i,
     input [FP_EXP_W-1:0] exp_i,
     input [FP_MAN_W-1:0] man_i,
+    input                nan_i,
 
     output [DATA_W-1:0]  data_o
     );
@@ -147,9 +148,9 @@ module fptoieee754
 
          done_reg <= 1'b0;
       end else begin
-         sign_int_reg <= sign_i;
-         exp_int_reg  <= exp_int;
-         man_int_reg  <= man_int;
+         sign_int_reg <= sign_i & ~nan_i;
+         exp_int_reg  <= nan_i? {2'b11, `EXP_NAN}: exp_int;
+         man_int_reg  <= nan_i? {2'b11, {(`MAN_W-2){1'b0}},`EXTRA'd0}: man_int;
 
          done_reg <= done_int;
       end

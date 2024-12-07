@@ -193,9 +193,9 @@ module ieee754_mul_tb;
       #clk_per $finish;
    end
 
-   assign op_a_ = raw? op_a_raw: float2bin(op_a);
-   assign op_b_ = raw? op_b_raw: float2bin(op_b);
-   assign res   = bin2float(res_);
+   always @* op_a_ = raw? op_a_raw: float2bin(op_a);
+   always @* op_b_ = raw? op_b_raw: float2bin(op_b);
+   always @* res   = bin2float(res_);
 
    // Clock
    always #(clk_per/2) clk = ~clk;
