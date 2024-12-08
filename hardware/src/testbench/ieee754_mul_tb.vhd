@@ -17,6 +17,10 @@ end entity;
 
 architecture behavorial of ieee754_mul_tb is
    component ieee754_mul_wrapper is
+      generic (
+        DATA_W: integer := 32;
+        EXP_W: integer := 8
+        );
       port ( clk : in std_logic;
              X : in  std_logic_vector(31 downto 0);
              Y : in  std_logic_vector(31 downto 0);
@@ -45,6 +49,9 @@ signal ieeeYdelayed :  std_logic_vector(31 downto 0);
 
 signal clk :  std_logic;
 signal rst :  std_logic;
+
+constant DATA_W : integer := 32;
+constant EXP_W : integer := 8;
 
  -- converts std_logic into a character
    function chr(sl: std_logic) return character is
@@ -194,6 +201,10 @@ begin
    ieeeYdelayed <= transport ieeeY after 50 ns;
    
    test: ieee754_mul_wrapper
+      generic map (
+        DATA_W => DATA_W,
+        EXP_W => EXP_W
+      )
       port map ( clk  => clk,
                  X => ieeeX,
                  Y => ieeeY,
