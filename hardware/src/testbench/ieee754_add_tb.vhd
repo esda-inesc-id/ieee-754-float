@@ -593,6 +593,10 @@ end entity;
 architecture behavorial of ieee754_add_tb is
 --   component IEEEFPAdd_8_23_Freq300_uid2 is
    component ieee754_add_wrapper is
+      generic (
+        DATA_W: integer := 32;
+        EXP_W: integer := 8
+        );
       port ( clk : in std_logic;
              X : in  std_logic_vector(31 downto 0);
              Y : in  std_logic_vector(31 downto 0);
@@ -603,6 +607,8 @@ signal Y :  std_logic_vector(31 downto 0);
 signal R :  std_logic_vector(31 downto 0);
 signal clk :  std_logic;
 signal rst :  std_logic;
+constant DATA_W : integer := 32;
+constant EXP_W : integer := 8;
 
  -- converts std_logic into a character
    function chr(sl: std_logic) return character is
@@ -740,6 +746,10 @@ begin
 
 --   test: IEEEFPAdd_8_23_Freq300_uid2
    test: ieee754_add_wrapper
+      generic map (
+        DATA_W => DATA_W,
+        EXP_W => EXP_W
+      )
       port map ( clk  => clk,
                  X => X,
                  Y => Y,

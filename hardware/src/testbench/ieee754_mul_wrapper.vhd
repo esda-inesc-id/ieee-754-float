@@ -11,6 +11,10 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 entity ieee754_mul_wrapper is
+  generic (
+    DATA_W: integer := 32;
+    EXP_W: integer := 8
+    );
   PORT (
     clk : in std_logic;
     X : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
@@ -22,6 +26,10 @@ end ieee754_mul_wrapper;
 
 architecture Behavioral of ieee754_mul_wrapper is
 COMPONENT ieee754_mul
+  generic (
+    DATA_W: integer := 32;
+    EXP_W: integer := 8
+    );
   PORT (
     clk : IN STD_LOGIC;
     rst : IN STD_LOGIC;
@@ -35,6 +43,10 @@ END COMPONENT;
 signal regX, regY, regR : STD_LOGIC_VECTOR(31 DOWNTO 0);
 begin
 fpm0 : ieee754_mul
+  generic map (
+    DATA_W => DATA_W,
+    EXP_W => EXP_W
+    )
   PORT MAP (
     clk => clk,
     rst => '0',
