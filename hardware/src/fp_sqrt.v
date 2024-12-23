@@ -37,7 +37,7 @@ module fp_sqrt #(
    reg                      A_sign_reg;
    reg [EXP_W-1:0]          A_Exponent_reg;
    reg [MAN_W-1:0]          A_Mantissa_reg;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_sign_reg <= 1'b0;
          A_Exponent_reg <= {EXP_W{1'b0}};
@@ -84,7 +84,7 @@ module fp_sqrt #(
    reg [MAN_W+EXTRA-1:0]    Temp_Mantissa_reg;
 
    reg                      done_reg;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          Temp_sign_reg <= 1'b0;
          Temp_Exponent_reg <= {EXP_W{1'b0}};
@@ -125,7 +125,7 @@ module fp_sqrt #(
    reg [MAN_W+EXTRA-1:0]    man_adjust_reg;
 
    reg                      done_reg2;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          Temp_sign_reg2 <= 1'b0;
 
@@ -170,7 +170,7 @@ module fp_sqrt #(
    wire                     Sign     = nzero & Temp_sign_reg2;
 
    // pipeline stage 4
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          res <= {DATA_W{1'b0}};
          done <= 1'b0;

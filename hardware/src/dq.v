@@ -12,7 +12,7 @@ module dq # (
 
    integer            i;
    reg [width-1:0]    delay_line [depth-1:0];
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       delay_line[0] <= d;
       for (i=1; i < depth; i=i+1) begin
          delay_line[i] <= delay_line[i-1];

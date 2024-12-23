@@ -133,7 +133,7 @@ module ieee754tofp
    endgenerate
 
    // pipeline stage 1
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          sign_o <= 1'b0;
          exp_o  <= {(FP_EXP_W+2){1'b0}};

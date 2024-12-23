@@ -32,7 +32,7 @@ module int_sqrt #(
    wire [DATA_W/2+1:0]         tmp = r[DATA_W/2+1]? left + right: // add if r is negative
                                                     left - right; // subtract if r is positive
 
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          pc <= 1'd0;
       end else begin

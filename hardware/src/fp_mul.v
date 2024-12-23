@@ -74,7 +74,7 @@ module fp_mul #(
 `endif
 
    reg                        done_int;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_sign_reg <= 1'b0;
          A_Exponent_reg <= {EXP_W{1'b0}};
@@ -114,7 +114,7 @@ module fp_mul #(
    wire [2*`MAN_W-1:0]        man = A_Mantissa_reg * B_Mantissa_reg;
 
    // pipeline stage 2
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          res_sign <= 1'b0;
          res_exp <= {(EXP_W+2){1'b0}};

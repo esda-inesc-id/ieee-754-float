@@ -342,7 +342,7 @@ module ieee754_fpu
 `ifdef SPECIAL_CASES
    reg                      special, norm_special;
    reg [DATA_W-1:0]         res_special, norm_res_special;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          norm_special <= 1'b0;
          special <= 1'b0;

@@ -140,7 +140,7 @@ module fptoieee754
    reg [`MAN_W+`EXTRA-1:0]        man_int_reg;
 
    reg                            done_reg;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          sign_int_reg <= 1'b0;
          exp_int_reg  <= {(EXP_W+2){1'b0}};
@@ -183,7 +183,7 @@ module fptoieee754
    assign nzero = |man_int_reg[`MAN_W+`EXTRA-1:3] | round;
 
    // pipeline stage 2
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          sign_f <= 1'b0;
          exp_f  <= {EXP_W{1'b0}};
