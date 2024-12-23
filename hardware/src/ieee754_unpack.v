@@ -8,12 +8,6 @@ module ieee754_unpack
     parameter EXP_W = 8
     )
    (
-    input               clk,
-    input               rst,
-
-    input               start,
-    output              done,
-
     input [DATA_W-1:0]  data_i,
 
 `ifdef SPECIAL_CASES
@@ -50,7 +44,5 @@ module ieee754_unpack
    assign sign     = data_i[DATA_W-1];
    assign exponent = {data_i[DATA_W-2 -: EXP_W-1], sub | data_i[DATA_W-EXP_W-1]};
    assign mantissa = {nsub, data_i[`F_W-1:0]};
-
-   assign done = start;
 
 endmodule

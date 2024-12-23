@@ -28,7 +28,6 @@ module ieee754_div
    wire                 op_a_inf;
    wire                 op_a_zero;
 `endif
-   wire                 done_unpack0;
    ieee754_unpack
      #(
        .DATA_W (DATA_W),
@@ -36,12 +35,6 @@ module ieee754_div
        )
    unpack0
        (
-        .clk      (clk),
-        .rst      (rst),
-   
-        .start    (start),
-        .done     (done_unpack0),
-
         .data_i   (op_a),
 
 `ifdef SPECIAL_CASES
@@ -63,7 +56,6 @@ module ieee754_div
    wire                 op_b_inf;
    wire                 op_b_zero;
 `endif
-   wire                 done_unpack1;
    ieee754_unpack
      #(
        .DATA_W (DATA_W),
@@ -71,12 +63,6 @@ module ieee754_div
        )
    unpack1
        (
-        .clk      (clk),
-        .rst      (rst),
-   
-        .start    (start),
-        .done     (done_unpack1),
-
         .data_i   (op_b),
 
 `ifdef SPECIAL_CASES
@@ -90,7 +76,7 @@ module ieee754_div
         .mantissa (op_b_man)
         );
 
-   wire                 start_div = done_unpack0;
+   wire                 start_div = start;
    wire                 done_div;
    wire                 div_sign;
    wire [EXP_W+1:0]     div_exp;
