@@ -36,7 +36,6 @@ module ieee754_fpu
    wire                  op_a_inf;
    wire                  op_a_zero;
 `endif
-   wire                  done_unpack0;
    ieee754_unpack
      #(
        .DATA_W (DATA_W),
@@ -44,12 +43,6 @@ module ieee754_fpu
        )
    unpack0
        (
-        .clk      (clk),
-        .rst      (rst),
-   
-        .start    (start),
-        .done     (done_unpack0),
-
         .data_i   (op_a),
 
 `ifdef SPECIAL_CASES
@@ -71,7 +64,6 @@ module ieee754_fpu
    wire                  op_b_inf;
    wire                  op_b_zero;
 `endif
-   wire                  done_unpack1;
    ieee754_unpack
      #(
        .DATA_W (DATA_W),
@@ -79,12 +71,6 @@ module ieee754_fpu
        )
    unpack1
        (
-        .clk      (clk),
-        .rst      (rst),
-   
-        .start    (start),
-        .done     (done_unpack1),
-
         .data_i   (op_b),
 
 `ifdef SPECIAL_CASES
@@ -98,7 +84,7 @@ module ieee754_fpu
         .mantissa (op_b_man)
         );
 
-   wire                  start_add = done_unpack0 & add;
+   wire                  start_add = start & add;
    wire                  done_add;
    wire                  op_b_sign_int = op_b_sign ^ funct[0];
    wire                  add_sign;
@@ -155,7 +141,7 @@ module ieee754_fpu
         .offset      (add_offset)
         );
 
-   wire                   start_mul = done_unpack0 & mul;
+   wire                   start_mul = start & mul;
    wire                   done_mul;
    wire                   mul_sign;
    wire [EXP_W+1:0]       mul_exp;
@@ -207,7 +193,7 @@ module ieee754_fpu
         .offset      (mul_offset)
         );
 
-   wire                   start_div = done_unpack0 & div;
+   wire                   start_div = start & div;
    wire                   done_div;
    wire                   div_sign;
    wire [EXP_W+1:0]       div_exp;
@@ -356,7 +342,7 @@ module ieee754_fpu
 `ifdef SPECIAL_CASES
    reg                      special, norm_special;
    reg [DATA_W-1:0]         res_special, norm_res_special;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          norm_special <= 1'b0;
          special <= 1'b0;

@@ -47,7 +47,7 @@ module fp_mac #(
    reg [`MAN_W-1:0]                B_Mantissa_reg;
 
    reg                             done_int;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_sign_reg <= 1'b0;
          A_Exponent_reg <= {EXP_W{1'b0}};
@@ -82,7 +82,7 @@ module fp_mac #(
    reg [2*`MAN_W-1:0]              mul_man_reg;
 
    reg                             done_int2;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          mul_sign_reg <= 1'b0;
          mul_exp_reg  <= {(EXP_W+2){1'b0}};
@@ -138,7 +138,7 @@ module fp_mac #(
    reg                             cin;
 
    reg                             done_int3;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_exp_reg <= {(EXP_W+2){1'b0}};
          A_man_reg <= {(ACC_W+1){1'b0}};
@@ -169,7 +169,7 @@ module fp_mac #(
    wire [ACC_W:0]                  acc_man_ = rst_acc? {(ACC_W+1){1'b0}}: acc_man;
 
    reg                             done_int4;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          acc_exp_reg <= {(EXP_W+2){1'b0}};
          acc_man_reg <= {(ACC_W+1){1'b0}};
@@ -230,7 +230,7 @@ module fp_mac #(
 
    // pipeline stage 5
    reg                             done_int5, done_int6;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          res_sign <= 1'b0;
          res_exp <= {(EXP_W+2){1'b0}};

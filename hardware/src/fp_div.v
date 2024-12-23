@@ -71,7 +71,7 @@ module fp_div #(
    reg                        special_reg;
    reg [DATA_W-1:0]           res_special_reg;
 `endif
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_sign_reg <= 1'b0;
          A_Exponent_reg <= {EXP_W{1'b0}};
@@ -143,7 +143,7 @@ module fp_div #(
    assign done = div_done & ~div_done_reg;
 
    // pipeline stage 2
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          res_sign <= 1'b0;
          res_exp <= {(EXP_W+2){1'b0}};

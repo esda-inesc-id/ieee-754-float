@@ -79,7 +79,7 @@ module fp_add #(
 `endif
 
    reg                           done_int;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_sign_reg <= 1'b0;
          A_Exponent_reg <= {EXP_W{1'b0}};
@@ -142,7 +142,7 @@ module fp_add #(
 `endif
 
    reg                           done_int2;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_sign_reg2 <= 1'b0;
          A_Exponent_reg2 <= {EXP_W{1'b0}};
@@ -182,7 +182,7 @@ module fp_add #(
    // pipeline stage 3
    reg                           A_sign_reg3;
    reg                           subtract_reg2;
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_sign_reg3 <= 1'b0;
          subtract_reg2 <= 1'b0;

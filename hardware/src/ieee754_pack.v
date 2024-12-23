@@ -51,7 +51,7 @@ module ieee754_pack
 
    wire [DATA_W-1:0]          data_o_int = {sign, exponent, fraction};
 
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          data_o <= {DATA_W{1'b0}};
          done <= 1'b0;

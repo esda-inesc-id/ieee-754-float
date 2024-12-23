@@ -60,7 +60,7 @@ module norm
    wire [EXP_W+1:0]                exp_adjust = exp_norm;
    wire [`MAN_W+`EXTRA-1:0]        man_adjust = {man_norm[2*`MAN_W-1 -: `MAN_W+`EXTRA-1], |man_norm[`MAN_W-`EXTRA:0]};
 
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          sign_o <= 1'b0;
          exp_o <= {(EXP_W+2){1'b0}};

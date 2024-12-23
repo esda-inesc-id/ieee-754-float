@@ -123,7 +123,7 @@ module fpu # (
       end
    end
 
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          any_add_reg <= 1'b0;
          any_mul_reg <= 1'b0;
@@ -149,7 +149,7 @@ module fpu # (
       end
    end
 
-   always @ (posedge clk) begin
+   always @ (posedge clk, posedge rst) begin
       if (rst) begin
          ready_reg <= 1'b0;
       end else begin
@@ -157,7 +157,7 @@ module fpu # (
       end
    end
 
-   always @(posedge clk) begin
+   always @(posedge clk, posedge rst) begin
       if (rst) begin
          done_reg <= 1'b1;
       end else begin
