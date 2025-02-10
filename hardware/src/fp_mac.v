@@ -111,9 +111,14 @@ module fp_mac #(
    wire [ACC_W:0]                  A_man_int = done_int2? mul_man_c: acc_man_reg2;
 
    wire                            ovf_int  = ^acc_man_reg[ACC_W -: 2];
+   wire                            undf_int = ~^acc_man_reg[ACC_W-1 -: 2];
 
-   wire [EXP_W+1:0]                B_exp_int = ovf_int? acc_exp_reg + 1'b1: acc_exp_reg;
-   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:1]}: acc_man_reg;
+   wire [EXP_W+1:0]                B_exp_int = ovf_int? acc_exp_reg + 1'b1:
+                                              undf_int? acc_exp_reg - 1'b1:
+                                                        acc_exp_reg;
+   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:1]}:
+                                              undf_int? {acc_man_reg[ACC_W-1:0], 1'b0}:
+                                                        acc_man_reg;
 
    wire                            cin_int = done_int2 & mul_sign_reg;
 
