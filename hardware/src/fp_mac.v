@@ -111,9 +111,14 @@ module fp_mac #(
    wire [ACC_W:0]                  A_man_int = done_int2? mul_man_c: acc_man_reg2;
 
    wire                            ovf_int  = ^acc_man_reg[ACC_W -: 2];
+   wire                            undf_int = ~^acc_man_reg[ACC_W-1 -: 2];
 
-   wire [EXP_W+1:0]                B_exp_int = ovf_int? acc_exp_reg + 1'b1: acc_exp_reg;
-   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:1]}: acc_man_reg;
+   wire [EXP_W+1:0]                B_exp_int = ovf_int? acc_exp_reg + 1'b1:
+                                              undf_int? acc_exp_reg - 1'b1:
+                                                        acc_exp_reg;
+   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:1]}:
+                                              undf_int? {acc_man_reg[ACC_W-1:0], 1'b0}:
+                                                        acc_man_reg;
 
    wire                            cin_int = done_int2 & mul_sign_reg;
 
@@ -125,9 +130,19 @@ module fp_mac #(
    wire [EXP_W+1:0]                B_exp = comp? B_exp_int: A_exp_int;
    wire signed [ACC_W:0]           B_man = comp? B_man_int: A_man_int;
 
+   localparam STICKY_BITS = ACC_W+3;
+
    // Align significants
    wire [EXP_W+1:0]                diff_exp = A_exp - B_exp;
-   wire [ACC_W:0]                  B_man_in = B_man >>> diff_exp;
+   wire [EXP_W+1:0]                shift = (diff_exp > STICKY_BITS[EXP_W+1:0])? STICKY_BITS[EXP_W+1:0]: diff_exp;
+   wire [ACC_W+STICKY_BITS:0]      B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> shift;
+
+   wire                            man_lsb    = B_man_in[STICKY_BITS];
+   wire                            guard_bit  = B_man_in[STICKY_BITS-1];
+   wire                            round_bit  = B_man_in[STICKY_BITS-2];
+   wire                            sticky_bit = |B_man_in[STICKY_BITS-3:0];
+
+   wire                            round = guard_bit & (man_lsb | round_bit | sticky_bit);
 
    // pipeline stage 3
    reg [EXP_W+1:0]                 A_exp_reg;
@@ -135,7 +150,7 @@ module fp_mac #(
 
    reg [ACC_W:0]                   B_man_reg;
 
-   reg                             cin;
+   reg [1:0]                       cin;
 
    reg                             done_int3;
    always @(posedge clk, posedge rst) begin
@@ -152,9 +167,9 @@ module fp_mac #(
          A_exp_reg <= A_exp;
          A_man_reg <= A_man;
 
-         B_man_reg <= B_man_in;
+         B_man_reg <= B_man_in[STICKY_BITS +: ACC_W+1];
 
-         cin <= cin_int;
+         cin <= {1'b0, cin_int} + {1'b0, round};
 
          done_int3 <= done_int2;
       end
