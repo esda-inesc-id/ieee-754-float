@@ -6,6 +6,7 @@ TOP_MODULE?=fpu
 # PATHS
 FPU_HW_DIR=$(FPU_DIR)/hardware
 FPU_INC_DIR=$(FPU_HW_DIR)/include
+FPU_SW_DIR=$(FPU_DIR)/software
 FPU_SUBMODULES_DIR=$(FPU_DIR)/submodules
 DIV_DIR=$(FPU_SUBMODULES_DIR)/DIV
 REMOTE_ROOT_DIR?=sandbox/float
