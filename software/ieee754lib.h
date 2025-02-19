@@ -14,6 +14,13 @@
 // |<-1->|<-FP_EXP_W->|<----FP_F_W---->|
 //
 
+//
+// Defines
+//
+
+#define MSB(w) ((int64_t)1 << ((w) - 1))
+#define MASK(width) (int64_t)(((uint128_t)1 << (width)) - 1)
+
 #define IEEE754_DATA_W 8
 #define IEEE754_EXP_W  4
 
@@ -78,6 +85,9 @@ typedef struct {
 
 typedef int64_t ieee754;
 
+typedef __int128 int128_t;
+typedef unsigned __int128 uint128_t;
+
 //
 // Functions
 //
@@ -121,19 +131,45 @@ ieee754 ieee754_pack_(ieee754Unpacked o, int32_t dw, int32_t ew);
 #define ieee754_abs(a, dw) ((a < 0)? ieee754_neg(a, dw): a)
 
 ieee754 doubletoieee754_(double input, int32_t dw, int32_t ew);
+#define floattoieee754_(input, dw, ew) doubletoieee754_((double)input, dw, ew)
 double ieee754todouble_(ieee754 input, int32_t dw, int32_t ew);
+#define ieee754tofloat_(input, dw, ew) (float)ieee754todouble_(input, dw, ew)
 #define inttoieee754_(input, dw, ew) doubletoieee754_((double)input, dw, ew)
 int64_t ieee754toint_(ieee754 input, int32_t dw, int32_t ew);
 
 #define _doubletoieee754_(input, dw, ew) doubletoieee754_(input, dw, ew)
 #define _ieee754todouble_(input, dw, ew) ieee754todouble_(input, dw, ew)
+#define _floattoieee754_(input, dw, ew)  floattoieee754_(input, dw, ew)
+#define _ieee754tofloat_(input, dw, ew)  ieee754tofloat_(input, dw, ew)
 #define _inttoieee754_(input, dw, ew)    inttoieee754_(input, dw, ew)
 #define _ieee754toint_(input, dw, ew)    ieee754toint_(input, dw, ew)
 
 #define doubletoieee754(input) doubletoieee754_(input, IEEE754_DATA_W, IEEE754_EXP_W)
 #define ieee754todouble(input) ieee754todouble_(input, IEEE754_DATA_W, IEEE754_EXP_W)
+#define floattoieee754(input)  floattoieee754_(input, IEEE754_DATA_W, IEEE754_EXP_W)
+#define ieee754tofloat(input)  ieee754tofloat_(input, IEEE754_DATA_W, IEEE754_EXP_W)
 #define inttoieee754(input)    inttoieee754_(input, IEEE754_DATA_W, IEEE754_EXP_W)
 #define ieee754toint(input)    ieee754toint_(input, IEEE754_DATA_W, IEEE754_EXP_W)
+
+#define ieee754_compare(a, b, dw) ({\
+  int8_t ret;\
+  int64_t abs_a = ieee754_abs(a, dw);\
+  int64_t abs_b = ieee754_abs(b, dw);\
+  if (abs_a > abs_b) ret = 1;\
+  else if (abs_a < abs_b) ret = -1;\
+  else ret = 0;\
+  if ((a & MSB(IEEE754_W)) ^ (b & MSB(IEEE754_W))) \
+    if (a < 0) ret = -1;\
+    else ret = 1;\
+  else if (a < 0) ret = -ret;\
+  ret;\
+})
+
+#define ieee754_lt(a, b, dw) ((ieee754_compare(a, b, dw) < 0)? 1: 0)
+#define ieee754_le(a, b, dw) ((ieee754_compare(a, b, dw) <= 0)? 1: 0)
+#define ieee754_gt(a, b, dw) ((ieee754_compare(a, b, dw) > 0)? 1: 0)
+#define ieee754_ge(a, b, dw) ((ieee754_compare(a, b, dw) >= 0)? 1: 0)
+#define ieee754_eq(a, b, dw) ((ieee754_compare(a, b, dw) == 0)? 1: 0)
 
 uint8_t double_is_sub(double val);
 uint8_t double_is_nan(double val);

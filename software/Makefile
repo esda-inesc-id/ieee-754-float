@@ -36,6 +36,6 @@ clean:
 	@find . -name "*~" -type f -delete
 	@find . -name "*#" -type f -delete
 
-clean-all: clean
+clean-all: clean clean-ieee754
 
 .PHONY: test clean clean-all

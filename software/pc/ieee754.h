@@ -445,7 +445,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            return (bool)ieee754_lt(op1, op2);
+            return (bool)ieee754_lt(op1, op2, dw_int);
         }
 
         bool operator<=(Ieee754 const& other) {
@@ -456,7 +456,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            return (bool)ieee754_le(op1, op2);
+            return (bool)ieee754_le(op1, op2, dw_int);
         }
 
         bool operator>(Ieee754 const& other) {
@@ -467,7 +467,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            return (bool)ieee754_gt(op1, op2);
+            return (bool)ieee754_gt(op1, op2, dw_int);
         }
 
         bool operator>=(Ieee754 const& other) {
@@ -478,7 +478,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            return (bool)ieee754_ge(op1, op2);
+            return (bool)ieee754_ge(op1, op2, dw_int);
         }
 
         bool operator==(Ieee754 const& other) {
@@ -489,7 +489,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            return (bool)ieee754_eq(op1, op2);
+            return (bool)ieee754_eq(op1, op2, dw_int);
         }
 
         bool operator!=(Ieee754 const& other) {
@@ -500,7 +500,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            return (bool)!ieee754_eq(op1, op2);
+            return (bool)!ieee754_eq(op1, op2, dw_int);
         }
 
         //

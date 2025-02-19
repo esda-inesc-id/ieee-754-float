@@ -29,7 +29,7 @@ ieee754.a: $(OBJ)
 %.o: %.c
 	$(CPP) -Wall -O3 $(INCLUDE) -c $< -o $@
 
-clean: clean-ieee754
+clean:
 	rm -f ieee754.a *.o *~
 
 .PHONY: clean

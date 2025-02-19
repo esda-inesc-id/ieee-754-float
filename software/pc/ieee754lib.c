@@ -4,9 +4,6 @@
 
 #include "ieee754lib.h"
 
-#define MSB(w) ((int64_t)1 << ((w) - 1))
-#define MASK(width) (((int64_t)1 << (width)) - 1)
-
 #define LSHIFT(num, shift) ({\
   uint64_t num_ = num;\
   if ((shift) < 64) num_ <<= (shift);\
@@ -657,6 +654,11 @@ ieee754 doubletoieee754_(double input, int32_t dw, int32_t ew) {
     upk.man = man;
   }
 
+  if (upk.exp > IEEE754_EXP_MAX(ew)) {
+    upk.exp = IEEE754_EXP_MAX(ew);
+    upk.man = 1 << (IEEE754_F_W(dw, ew) + 3);
+  }
+
   return ieee754_pack_(upk, dw, ew);
 }
 
@@ -724,7 +726,7 @@ int64_t ieee754toint_(ieee754 input, int32_t dw, int32_t ew) {
 
   ieee754Unpacked upk = ieee754_unpack_(input, dw, ew);
 
-  int32_t shift = IEEE754_F_W(dw, ew) - upk.exp;
+  int32_t shift = IEEE754_F_W(dw, ew) - upk.exp + IEEE754_BIAS(ew);
   if (shift < 0) {
     ret = LSHIFT(upk.man, -shift);
     if (!ret && upk.man) {
