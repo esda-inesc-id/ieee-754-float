@@ -1,0 +1,13 @@
+*~
+
+*.out
+*.vcd
+
+*.o
+*.a
+*.so
+software/ptfloat3_tests
+
+*.summary
+
+*__pycache__

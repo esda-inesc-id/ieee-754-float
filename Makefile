@@ -6,6 +6,16 @@ FPU_DIR:=.
 include core.mk
 
 #
+# SOFTWARE
+#
+
+sw-test:
+	make -C $(FPU_SW_DIR) test
+
+sw-clean:
+	make -C $(FPU_SW_DIR) clean-all
+
+#
 # SIMULATE
 #
 
@@ -110,9 +120,10 @@ asic-clean-all:
 
 
 # CLEAN ALL
-clean-all: sim-clean-all fpga-clean-all asic-clean-all
+clean-all: sw-clean sim-clean-all fpga-clean-all asic-clean-all
 
-.PHONY: sim sim-waves sim-clean sim-clean-all \
+.PHONY: sw-test sw-clean \
+	sim sim-waves sim-clean sim-clean-all \
 	fpga fpga-clean fpga-clean-all \
 	asic asic-synth asic-sim-synth asic-clean asic-clean-all \
 	clean-all
