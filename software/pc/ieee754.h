@@ -14,25 +14,27 @@ extern uint8_t op;
 
 class Ieee754 {
     private:
-        int32_t dw = IEEE754_DATA_W;
-        int32_t ew = IEEE754_EXP_W;
+        int32_t dw;
+        int32_t ew;
         ieee754 val;
         ieee754Acc acc;
+        int32_t sc;
     public:
 
         //
         // Declarations
         //
 
-        Ieee754(): val(IEEE754_ZERO) { _ieee754_rst_acc_(&acc); op = 0; };
-        Ieee754(float f): val(floattoieee754(f)) { _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
-        Ieee754(double d): val(doubletoieee754(d)) { _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
-        Ieee754(long int i): val(doubletoieee754((double)i)) { _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
-        Ieee754(long unsigned int i): val(doubletoieee754((double)i)) { _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
-        Ieee754(int i): val(doubletoieee754((double)i)) { _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
-        Ieee754(short unsigned int i): val(doubletoieee754((double)i)) { _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
-        Ieee754(unsigned char i): val(doubletoieee754((double)i)) { _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
-        Ieee754(int32_t data_w, int32_t ew): val(IEEE754_ZERO) { dw = data_w; ew = ew; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; }
+        Ieee754(): val(IEEE754_ZERO) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_rst_acc_(&acc); op = 0; };
+        Ieee754(float f): val(floattoieee754(f)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
+        Ieee754(double d): val(doubletoieee754(d)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
+        Ieee754(long int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
+        Ieee754(long unsigned int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
+        Ieee754(int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
+        Ieee754(short unsigned int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
+        Ieee754(unsigned char i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
+  Ieee754(int32_t data_w, int32_t exp_w): val(IEEE754_ZERO) { dw = data_w; ew = exp_w; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; }
+        Ieee754(int32_t data_w, int32_t exp_w, int32_t scale): val(IEEE754_ZERO) { dw = data_w; ew = exp_w; sc = scale; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; }
 
         //
         // Conversion operators
@@ -64,6 +66,7 @@ class Ieee754 {
         void operator=(Ieee754 const& other) {
             if (!dw) dw = other.dw;
             if (!ew) ew = other.ew;
+            if (!sc) sc = other.sc;
             if (dw != other.dw || ew != other.ew) val = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw, ew);
             else val = other.val;
             _ieee754_set_acc_(&acc, val, dw, ew);
@@ -164,13 +167,13 @@ class Ieee754 {
             if (!dw) dw = other.dw;
             if (!ew) ew = other.ew;
             if (op) {
-              val = _ieee754_acc_(&acc, 0, dw, ew);
+              val = _ieee754_acc_(&acc, 0, 0, dw, ew);
             } else {
               ieee754 aux;
               if (dw != other.dw || ew != other.ew) aux = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw, ew);
               else aux = other.val;
               upk = _ieee754_unpack_(aux, dw, ew);
-              val = _ieee754_acc_(&acc, &upk, dw, ew);
+              val = _ieee754_acc_(&acc, &upk, other.sc, dw, ew);
             }
             op = 0;
             return val;
@@ -291,7 +294,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            res.val = _ieee754_mul_(op1, op2, dw_int, ew_int);
+            res.val = _ieee754_mul_(op1, sc, op2, other.sc, dw_int, ew_int);
             op = 1;
             return res;
         }
@@ -305,7 +308,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            res.val = _ieee754_mul_(op1, op2, dw_int, ew_int);
+            res.val = _ieee754_mul_(op1, sc, op2, other.sc, dw_int, ew_int);
             op = 1;
             return res;
         }
@@ -313,7 +316,7 @@ class Ieee754 {
         Ieee754 operator*(double const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_mul_(val, res.val, dw, ew);
+            res.val = _ieee754_mul_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -321,7 +324,7 @@ class Ieee754 {
         Ieee754 operator*(float const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_mul_(val, res.val, dw, ew);
+            res.val = _ieee754_mul_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -329,7 +332,7 @@ class Ieee754 {
         Ieee754 operator*(long unsigned int const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_mul_(val, res.val, dw, ew);
+            res.val = _ieee754_mul_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -337,7 +340,7 @@ class Ieee754 {
         Ieee754 operator*(int const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_mul_(val, res.val, dw, ew);
+            res.val = _ieee754_mul_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -345,7 +348,7 @@ class Ieee754 {
         Ieee754 operator*(unsigned char const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_mul_(val, res.val, dw, ew);
+            res.val = _ieee754_mul_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -354,7 +357,7 @@ class Ieee754 {
             if (!dw) dw = other.dw;
             if (!ew) ew = other.ew;
             op = 0;
-            return val = _ieee754_mul_(val, other.val, dw, ew);
+            return val = _ieee754_mul_(val, sc, other.val, other.sc, dw, ew);
         }
 
         // Division
@@ -367,7 +370,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            res.val = _ieee754_div_(op1, op2, dw_int, ew_int);
+            res.val = _ieee754_div_(op1, sc, op2, other.sc, dw_int, ew_int);
             op = 1;
             return res;
         }
@@ -381,7 +384,7 @@ class Ieee754 {
             else op1 = val;
             if (other.dw != dw_int || other.ew != ew_int) op2 = _doubletoieee754_(_ieee754todouble_(other.val, other.dw, other.ew), dw_int, ew_int);
             else op2 = other.val;
-            res.val = _ieee754_div_(op1, op2, dw_int, ew_int);
+            res.val = _ieee754_div_(op1, sc, op2, other.sc, dw_int, ew_int);
             op = 1;
             return res;
         }
@@ -389,7 +392,7 @@ class Ieee754 {
         Ieee754 operator/(double const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_div_(val, res.val, dw, ew);
+            res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -397,7 +400,7 @@ class Ieee754 {
         Ieee754 operator/(float const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_div_(val, res.val, dw, ew);
+            res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -405,7 +408,7 @@ class Ieee754 {
         Ieee754 operator/(long unsigned int const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_div_(val, res.val, dw, ew);
+            res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -413,7 +416,7 @@ class Ieee754 {
         Ieee754 operator/(int const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_div_(val, res.val, dw, ew);
+            res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -421,7 +424,7 @@ class Ieee754 {
         Ieee754 operator/(unsigned char const other) {
             Ieee754 res(dw, ew);
             res = other;
-            res.val = _ieee754_div_(val, res.val, dw, ew);
+            res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
             op = 1;
             return res;
         }
@@ -430,7 +433,7 @@ class Ieee754 {
             if (!dw) dw = other.dw;
             if (!ew) ew = other.ew;
             op = 0;
-            return val = _ieee754_div_(val, other.val, dw, ew);
+            return val = _ieee754_div_(val, sc, other.val, other.sc, dw, ew);
         }
 
         //
@@ -736,6 +739,37 @@ inline void *memcpy(Ieee754 *ieee754_ptr, const int *i_ptr, size_t n) {
   n /= sizeof(int);
   while (n--) ieee754_ptr[n] = (Ieee754)i_ptr[n];
   return (void *)ieee754_ptr;
+}
+
+inline void *malloc_ieee754(size_t size, int32_t dw, int32_t ew, int32_t sc) {
+  Ieee754 *ptr = (Ieee754 *)calloc(size, 1);
+  if (!(size % sizeof(Ieee754))) {
+    Ieee754 zero(dw, ew, sc);
+    size_t n = size / sizeof(Ieee754);
+    while (n--) ptr[n] = zero;
+  }
+  return (void *)ptr;
+}
+
+inline void *malloc_ieee754(size_t size, int32_t dw, int32_t ew) {
+  return malloc_ieee754(size, dw, ew, 0);
+}
+
+inline void *malloc_ieee754(size_t size) {
+  return malloc_ieee754(size, 0, 0, 0);
+}
+
+#define malloc malloc_ieee754
+
+inline void *calloc(size_t nitems, size_t size, int32_t dw, int32_t ew, int32_t sc) {
+  Ieee754 *ptr = (Ieee754 *)calloc(nitems, size);
+  Ieee754 zero(dw, ew, sc);
+  while (nitems--) ptr[nitems] = zero;
+  return (void *)ptr;
+}
+
+inline void *calloc(size_t nitems, size_t size, int32_t dw, int32_t ew) {
+  return calloc(nitems, size, dw, ew, 0);
 }
 
 #define printf printf_ieee754

@@ -45,6 +45,7 @@
 #define clz(num, width) cls(num, width, 0)
 
 ieee754Unpacked last_res_upk;
+int32_t last_res_sc = 0;
 
 ieee754Unpacked ieee754_unpack_(ieee754 input, int32_t dw, int32_t ew) {
   ieee754Unpacked upk;
@@ -135,7 +136,7 @@ ieee754Unpacked ieee754_add_sub(ieee754Unpacked a, ieee754Unpacked b, uint8_t op
   return o;
 }
 
-ieee754Unpacked ieee754_mul_(ieee754Unpacked a, ieee754Unpacked b, int32_t dw, int32_t ew) {
+ieee754Unpacked ieee754_mul_(ieee754Unpacked a, int32_t sca, ieee754Unpacked b, int32_t scb, int32_t dw, int32_t ew) {
   ieee754Unpacked o;
 
   o.sign = a.sign ^ b.sign;
@@ -147,6 +148,7 @@ ieee754Unpacked ieee754_mul_(ieee754Unpacked a, ieee754Unpacked b, int32_t dw, i
   last_res_upk.sign = o.sign;
   last_res_upk.exp = exp;
   last_res_upk.man = sig;
+  last_res_sc = sca + scb;
 
   int32_t shift = IEEE754_MAN_W(dw, ew) - 3;
   int32_t lds = clz(sig, (IEEE754_MAN_W(dw, ew) << 1));
@@ -202,7 +204,7 @@ ieee754Unpacked ieee754_mul_(ieee754Unpacked a, ieee754Unpacked b, int32_t dw, i
   return o;
 }
 
-ieee754Unpacked ieee754_div_(ieee754Unpacked a, ieee754Unpacked b, int32_t dw, int32_t ew) {
+ieee754Unpacked ieee754_div_(ieee754Unpacked a, int32_t sca, ieee754Unpacked b, int32_t scb, int32_t dw, int32_t ew) {
   ieee754Unpacked o = {};
 
   if (!b.man) {
@@ -245,6 +247,7 @@ ieee754Unpacked ieee754_div_(ieee754Unpacked a, ieee754Unpacked b, int32_t dw, i
   last_res_upk.sign = o.sign;
   last_res_upk.exp = exp;
   last_res_upk.man = quotient << (IEEE754_MAN_W(dw, ew) - 2);
+  last_res_sc = sca - scb;
 
   int32_t shift = IEEE754_MAN_W(dw, ew) - 3;
   int32_t lds = clz(quotient, (IEEE754_MAN_W(dw, ew) << 1));
@@ -302,7 +305,7 @@ ieee754Unpacked ieee754_div_(ieee754Unpacked a, ieee754Unpacked b, int32_t dw, i
 
 #define RGUARD_W 0
 
-ieee754Unpacked ieee754_mac_(ieee754 *vec_a, ieee754 *vec_b, uint16_t n, int32_t dw, int32_t ew) {
+ieee754Unpacked ieee754_mac_(ieee754 *vec_a, int32_t sca, ieee754 *vec_b, int32_t scb, uint16_t n, int32_t dw, int32_t ew) {
   ieee754Unpacked o;
 
   int32_t acc_exp = IEEE754_EXP_MIN;
@@ -361,6 +364,8 @@ ieee754Unpacked ieee754_mac_(ieee754 *vec_a, ieee754 *vec_b, uint16_t n, int32_t
 
     acc_sig = sig_a + sig_b + round;
   }
+
+  acc_exp -= sca + scb;
 
   o.sign = 0;
   if (acc_sig < 0) {
@@ -422,13 +427,14 @@ ieee754Unpacked ieee754_mac_(ieee754 *vec_a, ieee754 *vec_b, uint16_t n, int32_t
   return o;
 }
 
-ieee754Unpacked ieee754_acc_(ieee754Acc * acc, ieee754Unpacked *a, int32_t dw, int32_t ew) {
+ieee754Unpacked ieee754_acc_(ieee754Acc * acc, ieee754Unpacked *a, int32_t sca, int32_t dw, int32_t ew) {
   ieee754Unpacked o;
 
   if (a) {
     last_res_upk.sign = a->sign;
     last_res_upk.exp  = a->exp;
     last_res_upk.man  = a->man << (IEEE754_MAN_W(dw, ew) - 1);
+    last_res_sc       = sca;
   }
 
   int32_t acc_exp = acc->exp;
@@ -481,6 +487,8 @@ ieee754Unpacked ieee754_acc_(ieee754Acc * acc, ieee754Unpacked *a, int32_t dw, i
 
   acc->exp = acc_exp;
   acc->man = acc_sig;
+
+  acc_exp -= last_res_sc;
 
   o.sign = 0;
   if (acc_sig < 0) {
