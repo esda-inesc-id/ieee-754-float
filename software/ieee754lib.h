@@ -94,19 +94,19 @@ typedef unsigned __int128 uint128_t;
 
 ieee754Unpacked ieee754_unpack_(ieee754 input, int32_t dw, int32_t ew);
 ieee754Unpacked ieee754_add_sub(ieee754Unpacked a, ieee754Unpacked b, uint8_t op, int32_t dw, int32_t ew);
-ieee754Unpacked ieee754_mul_(ieee754Unpacked a, ieee754Unpacked b, int32_t dw, int32_t ew);
-ieee754Unpacked ieee754_div_(ieee754Unpacked a, ieee754Unpacked b, int32_t dw, int32_t ew);
-ieee754Unpacked ieee754_mac_(ieee754 *vec_a, ieee754 *vec_b, uint16_t n, int32_t dw, int32_t ew);
-ieee754Unpacked ieee754_acc_(ieee754Acc *acc, ieee754Unpacked *a, int32_t dw, int32_t ew);
+ieee754Unpacked ieee754_mul_(ieee754Unpacked a, int32_t sca, ieee754Unpacked b, int32_t scb, int32_t dw, int32_t ew);
+ieee754Unpacked ieee754_div_(ieee754Unpacked a, int32_t sca, ieee754Unpacked b, int32_t scb, int32_t dw, int32_t ew);
+ieee754Unpacked ieee754_mac_(ieee754 *vec_a, int32_t sca, ieee754 *vec_b, int32_t scb, uint16_t n, int32_t dw, int32_t ew);
+ieee754Unpacked ieee754_acc_(ieee754Acc *acc, ieee754Unpacked *a, int32_t sca, int32_t dw, int32_t ew);
 ieee754 ieee754_pack_(ieee754Unpacked o, int32_t dw, int32_t ew);
 
 #define _ieee754_unpack_(input, dw, ew) ieee754_unpack_(input, dw, ew)
 #define _ieee754_add_(a, b, dw, ew) ieee754_pack_(ieee754_add_sub(ieee754_unpack_(a, dw, ew), ieee754_unpack_(b, dw, ew), 0, dw, ew), dw, ew)
 #define _ieee754_sub_(a, b, dw, ew) ieee754_pack_(ieee754_add_sub(ieee754_unpack_(a, dw, ew), ieee754_unpack_(b, dw, ew), 1, dw, ew), dw, ew)
-#define _ieee754_mul_(a, b, dw, ew) ieee754_pack_(ieee754_mul_(ieee754_unpack_(a, dw, ew), ieee754_unpack_(b, dw, ew), dw, ew), dw, ew)
-#define _ieee754_div_(a, b, dw, ew) ieee754_pack_(ieee754_div_(ieee754_unpack_(a, dw, ew), ieee754_unpack_(b, dw, ew), dw, ew), dw, ew)
-#define _ieee754_mac_(a, b, n, dw, ew) ieee754_pack_(ieee754_mac_(a, b, n, dw, ew), dw, ew)
-#define _ieee754_acc_(acc, a, dw, ew) ieee754_pack_(ieee754_acc_(acc, a, dw, ew), dw, ew)
+#define _ieee754_mul_(a, sca, b, scb, dw, ew) ieee754_pack_(ieee754_mul_(ieee754_unpack_(a, dw, ew), sca, ieee754_unpack_(b, dw, ew), scb, dw, ew), dw, ew)
+#define _ieee754_div_(a, sca, b, scb, dw, ew) ieee754_pack_(ieee754_div_(ieee754_unpack_(a, dw, ew), sca, ieee754_unpack_(b, dw, ew), scb, dw, ew), dw, ew)
+#define _ieee754_mac_(a, sca, b, scb, n, dw, ew) ieee754_pack_(ieee754_mac_(a, sca, b, scb, n, dw, ew), dw, ew)
+#define _ieee754_acc_(acc, a, sca, dw, ew) ieee754_pack_(ieee754_acc_(acc, a, sca, dw, ew), dw, ew)
 #define _ieee754_rst_acc_(acc) (*acc = {IEEE754_EXP_MIN, 0})
 #define _ieee754_set_acc_(acc, val, dw, ew) ({\
   ieee754Unpacked upk = ieee754_unpack_(val, dw, ew);\
@@ -119,10 +119,10 @@ ieee754 ieee754_pack_(ieee754Unpacked o, int32_t dw, int32_t ew);
 #define ieee754_unpack(input) ieee754_unpack_(input, IEEE754_DATA_W, IEEE754_EXP_W)
 #define ieee754_add(a, b) _ieee754_add_(a, b, IEEE754_DATA_W, IEEE754_EXP_W)
 #define ieee754_sub(a, b) _ieee754_sub_(a, b, IEEE754_DATA_W, IEEE754_EXP_W)
-#define ieee754_mul(a, b) _ieee754_mul_(a, b, IEEE754_DATA_W, IEEE754_EXP_W)
-#define ieee754_div(a, b) _ieee754_div_(a, b, IEEE754_DATA_W, IEEE754_EXP_W)
-#define ieee754_mac(a, b, n) _ieee754_mac_(a, b, n, IEEE754_DATA_W, IEEE754_EXP_W)
-#define ieee754_acc(acc, a) _ieee754_acc_(acc, a, IEEE754_DATA_W, IEEE754_EXP_W)
+#define ieee754_mul(a, b) _ieee754_mul_(a, 0, b, 0, IEEE754_DATA_W, IEEE754_EXP_W)
+#define ieee754_div(a, b) _ieee754_div_(a, 0, b, 0, IEEE754_DATA_W, IEEE754_EXP_W)
+#define ieee754_mac(a, b, n) _ieee754_mac_(a, 0, b, 0, n, IEEE754_DATA_W, IEEE754_EXP_W)
+#define ieee754_acc(acc, a) _ieee754_acc_(acc, a, 0, IEEE754_DATA_W, IEEE754_EXP_W)
 #define ieee754_rst_acc(acc) _ieee754_rst_acc_(acc)
 #define ieee754_set_acc(acc, val) _ieee754_set_acc_(acc, val, IEEE754_DATA_W, IEEE754_EXP_W)
 #define ieee754_pack(o) ieee754_pack_(o, IEEE754_DATA_W, IEEE754_EXP_W)
