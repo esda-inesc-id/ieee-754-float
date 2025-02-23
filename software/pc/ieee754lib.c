@@ -338,31 +338,35 @@ ieee754Unpacked ieee754_mac_(ieee754 *vec_a, int32_t sca, ieee754 *vec_b, int32_
     int64_t sig_a, sig_b;
     if (mul_exp >= acc_exp) {
       exp_a = mul_exp;
-      sig_a = mul_sig << RGUARD_W;
+      sig_a = mul_sig << (RGUARD_W + 3);
 
       exp_b = acc_exp;
-      sig_b = acc_sig;
+      sig_b = acc_sig << 3;
     } else {
       exp_a = acc_exp;
-      sig_a = acc_sig;
+      sig_a = acc_sig << 3;
 
       exp_b = mul_exp;
-      sig_b = mul_sig << RGUARD_W;
+      sig_b = mul_sig << (RGUARD_W + 3);
     }
     acc_exp = exp_a;
 
     int32_t diff_exp = exp_a - exp_b;
+    int8_t sticky = (sig_b & MASK(diff_exp + 1))? 1 : 0;
+    sig_b = SRSHIFT(sig_b, diff_exp);
+    sig_b |= sticky;
 
-    uint8_t sig_lsb    = (sig_b & (1 << diff_exp))? 1: 0;
-    uint8_t guard_bit  = (sig_b & (1 << (diff_exp - 1)))? 1: 0;
-    uint8_t round_bit  = (sig_b & (1 << (diff_exp - 2)))? 1: 0;
-    uint8_t sticky_bit = (sig_b & ((1 << (diff_exp - 2)) - 1))? 1: 0;
+    acc_sig = sig_a + sig_b;
+
+    uint8_t sig_lsb    = (acc_sig & 8)? 1: 0;
+    uint8_t guard_bit  = (acc_sig & 4)? 1: 0;
+    uint8_t round_bit  = (acc_sig & 2)? 1: 0;
+    uint8_t sticky_bit = (acc_sig & 1)? 1: 0;
 
     uint8_t round = guard_bit & (sig_lsb | round_bit | sticky_bit);
 
-    sig_b = SRSHIFT(sig_b, diff_exp);
-
-    acc_sig = sig_a + sig_b + round;
+    acc_sig >>= 3;
+    acc_sig += round;
   }
 
   acc_exp -= sca + scb;
@@ -459,31 +463,35 @@ ieee754Unpacked ieee754_acc_(ieee754Acc * acc, ieee754Unpacked *a, int32_t sca, 
   int64_t sig_a, sig_b;
   if (last_res_upk.exp >= acc_exp) {
     exp_a = last_res_upk.exp;
-    sig_a = last_res_upk.man << RGUARD_W;
+    sig_a = last_res_upk.man << (RGUARD_W + 3);
 
     exp_b = acc_exp;
-    sig_b = acc_sig;
+    sig_b = acc_sig << 3;
   } else {
     exp_a = acc_exp;
-    sig_a = acc_sig;
+    sig_a = acc_sig << 3;
 
     exp_b = last_res_upk.exp;
-    sig_b = last_res_upk.man << RGUARD_W;
+    sig_b = last_res_upk.man << (RGUARD_W + 3);
   }
   acc_exp = exp_a;
 
   int32_t diff_exp = exp_a - exp_b;
+  int8_t sticky = (sig_b & MASK(diff_exp + 1))? 1 : 0;
+  sig_b = SRSHIFT(sig_b, diff_exp);
+  sig_b |= sticky;
 
-  uint8_t sig_lsb    = (sig_b & (1 << diff_exp))? 1: 0;
-  uint8_t guard_bit  = (sig_b & (1 << (diff_exp - 1)))? 1: 0;
-  uint8_t round_bit  = (sig_b & (1 << (diff_exp - 2)))? 1: 0;
-  uint8_t sticky_bit = (sig_b & ((1 << (diff_exp - 2)) - 1))? 1: 0;
+  acc_sig = sig_a + sig_b;
+
+  uint8_t sig_lsb    = (acc_sig & 8)? 1: 0;
+  uint8_t guard_bit  = (acc_sig & 4)? 1: 0;
+  uint8_t round_bit  = (acc_sig & 2)? 1: 0;
+  uint8_t sticky_bit = (acc_sig & 1)? 1: 0;
 
   uint8_t round = guard_bit & (sig_lsb | round_bit | sticky_bit);
 
-  sig_b = SRSHIFT(sig_b, diff_exp);
-
-  acc_sig = sig_a + sig_b + round;
+  acc_sig >>= 3;
+  acc_sig += round;
 
   acc->exp = acc_exp;
   acc->man = acc_sig;
@@ -504,7 +512,7 @@ ieee754Unpacked ieee754_acc_(ieee754Acc * acc, ieee754Unpacked *a, int32_t sca, 
   acc_exp -= lds - 3;
   shift -= lds;
 
-  int8_t sticky = 0;
+  sticky = 0;
   if (shift < 0) {
      acc_sig= LSHIFT(acc_sig, -shift);
   } else {
