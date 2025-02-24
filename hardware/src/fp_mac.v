@@ -105,107 +105,125 @@ module fp_mac #(
    wire [ACC_W:0]                  mul_man_c  = {{(LGUARD_W+1){mul_man_c_[2*`MAN_W]}}, mul_man_c_, {RGUARD_W{1'b0}}};
 
    reg [EXP_W+1:0]                 acc_exp_reg, acc_exp_reg2;
-   reg [ACC_W:0]                   acc_man_reg, acc_man_reg2;
+   reg [ACC_W+`EXTRA:0]            acc_man_reg;
+   reg [ACC_W:0]                   acc_man_reg2;
 
    wire [EXP_W+1:0]                A_exp_int = done_int2? mul_exp_reg: acc_exp_reg2;
-   wire [ACC_W:0]                  A_man_int = done_int2? mul_man_c: acc_man_reg2;
+   wire [ACC_W+1:0]                A_man_int = done_int2? {mul_man_c, 1'b0}: {acc_man_reg2, 1'b0};
 
-   wire                            ovf_int  = ^acc_man_reg[ACC_W -: 2];
-   wire                            undf_int = ~^acc_man_reg[ACC_W-1 -: 2];
+   wire                            cin_int_ = done_int2? mul_sign_reg: round_acc2;
+   wire [2:0]                      cin_int = {1'b0, cin_int_, 1'b0};
+
+   wire                            ovf_int  = ^acc_man_reg[ACC_W+`EXTRA -: 2];
+   wire                            undf_int = ~^acc_man_reg[ACC_W+`EXTRA-1 -: 2];
 
    wire [EXP_W+1:0]                B_exp_int = ovf_int? acc_exp_reg + 1'b1:
                                               undf_int? acc_exp_reg - 1'b1:
                                                         acc_exp_reg;
-   wire [ACC_W:0]                  B_man_int = ovf_int? {acc_man_reg[ACC_W], acc_man_reg[ACC_W:1]}:
-                                              undf_int? {acc_man_reg[ACC_W-1:0], 1'b0}:
-                                                        acc_man_reg;
+   wire [ACC_W+1:0]                B_man_int = ovf_int? {acc_man_reg[ACC_W+`EXTRA], acc_man_reg[ACC_W+`EXTRA:3]}:
+                                              undf_int? {acc_man_reg[ACC_W+`EXTRA-1:3], 2'b0}:
+                                                        {acc_man_reg[ACC_W+`EXTRA:3], 1'b0};
 
-   wire                            cin_int = done_int2 & mul_sign_reg;
+   wire [2:0]                      round = ovf_int? {2'b0, round_acc}:
+                                          undf_int? {round_acc, 2'b0}:
+                                                    {1'b0, round_acc, 1'b0};
 
    wire                            comp = (A_exp_int >= B_exp_int)? 1'b1: 1'b0;
 
    wire [EXP_W+1:0]                A_exp = comp? A_exp_int: B_exp_int;
-   wire [ACC_W:0]                  A_man = comp? A_man_int: B_man_int;
+   wire [ACC_W+1:0]                A_man = comp? A_man_int: B_man_int;
 
    wire [EXP_W+1:0]                B_exp = comp? B_exp_int: A_exp_int;
-   wire signed [ACC_W:0]           B_man = comp? B_man_int: A_man_int;
+   wire signed [ACC_W+1:0]         B_man = comp? B_man_int: A_man_int;
 
    localparam STICKY_BITS = ACC_W+3;
 
    // Align significants
    wire [EXP_W+1:0]                diff_exp = A_exp - B_exp;
    wire [EXP_W+1:0]                shift = (diff_exp > STICKY_BITS[EXP_W+1:0])? STICKY_BITS[EXP_W+1:0]: diff_exp;
-   wire [ACC_W+STICKY_BITS:0]      B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> shift;
+   wire [ACC_W+STICKY_BITS:0]      B_man_in = $signed({B_man, {(STICKY_BITS-1){1'b0}}}) >>> shift;
 
-   wire                            man_lsb    = B_man_in[STICKY_BITS];
-   wire                            guard_bit  = B_man_in[STICKY_BITS-1];
-   wire                            round_bit  = B_man_in[STICKY_BITS-2];
-   wire                            sticky_bit = |B_man_in[STICKY_BITS-3:0];
-
-   wire                            round = guard_bit & (man_lsb | round_bit | sticky_bit);
+   // Sticky
+   wire                            sticky = |B_man_in[STICKY_BITS-3:0];
 
    // pipeline stage 3
    reg [EXP_W+1:0]                 A_exp_reg;
-   reg [ACC_W:0]                   A_man_reg;
+   reg [ACC_W+1:0]                 A_man_reg;
 
-   reg [ACC_W:0]                   B_man_reg;
+   reg [ACC_W+`EXTRA:0]            B_man_reg;
 
-   reg [1:0]                       cin;
+   reg [2:0]                       cin;
 
    reg                             done_int3;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_exp_reg <= {(EXP_W+2){1'b0}};
-         A_man_reg <= {(ACC_W+1){1'b0}};
+         A_man_reg <= {(ACC_W+2){1'b0}};
 
-         B_man_reg <= {(ACC_W+1){1'b0}};
+         B_man_reg <= {(ACC_W+1+`EXTRA){1'b0}};
 
-         cin <= 1'b0;
+         cin <= 3'b0;
 
          done_int3 <= 1'b0;
       end else begin
          A_exp_reg <= A_exp;
          A_man_reg <= A_man;
 
-         B_man_reg <= B_man_in[STICKY_BITS +: ACC_W+1];
+         B_man_reg <= {B_man_in[STICKY_BITS-2 +: ACC_W+`EXTRA], sticky};
 
-         cin <= {1'b0, cin_int} + {1'b0, round};
+         cin <= cin_int + round;
 
          done_int3 <= done_int2;
       end
    end
 
    // Accumulation
-   wire [ACC_W:0]                  acc_man = A_man_reg + B_man_reg + cin;
+   wire [ACC_W+`EXTRA:0]           acc_man = {A_man_reg, 2'b0} + B_man_reg + {cin, 2'b0};
 
    // pipeline stage 4
    wire                            rst_acc  = (done_int & ~done_int2) | (done_int2 & ~done_int3);
    wire [EXP_W+1:0]                acc_exp_ = rst_acc? {{(EXP_W+1){1'b0}}, 1'b1}: A_exp_reg;
-   wire [ACC_W:0]                  acc_man_ = rst_acc? {(ACC_W+1){1'b0}}: acc_man;
+   wire [ACC_W+`EXTRA:0]           acc_man_ = rst_acc? {(ACC_W+1+`EXTRA){1'b0}}: acc_man;
 
    reg                             done_int4;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
          acc_exp_reg <= {(EXP_W+2){1'b0}};
-         acc_man_reg <= {(ACC_W+1){1'b0}};
-
-         acc_exp_reg2 <= {(EXP_W+2){1'b0}};
-         acc_man_reg2 <= {(ACC_W+1){1'b0}};
+         acc_man_reg <= {(ACC_W+1+`EXTRA){1'b0}};
 
          done_int4 <= 1'b0;
       end else begin
          acc_exp_reg <= acc_exp_;
          acc_man_reg <= acc_man_;
 
-         acc_exp_reg2 <= acc_exp_reg;
-         acc_man_reg2 <= acc_man_reg;
-
          done_int4 <= done_int3;
       end
    end
 
+   wire                            man_lsb    = acc_man_reg[3];
+   wire                            guard_bit  = acc_man_reg[2];
+   wire                            round_bit  = acc_man_reg[1];
+   wire                            sticky_bit = acc_man_reg[0];
+
+   wire                            round_acc = guard_bit & (man_lsb | round_bit | sticky_bit);
+
+   reg                             round_acc2;
+   always @(posedge clk, posedge rst) begin
+      if (rst) begin
+         acc_exp_reg2 <= {(EXP_W+2){1'b0}};
+         acc_man_reg2 <= {(ACC_W+1){1'b0}};
+
+         round_acc2 <= 1'b0;
+      end else begin
+         acc_exp_reg2 <= acc_exp_reg;
+         acc_man_reg2 <= acc_man_reg[ACC_W+`EXTRA:3];
+
+         round_acc2 <= round_acc;
+      end
+   end
+
    // Convert final result to sign-magnitude
-   wire                            res_sign_int = acc_man_reg[ACC_W];
+   wire                            res_sign_int = acc_man_reg[ACC_W+`EXTRA];
 
    localparam EXP_MIN = 0;
    localparam EXP_MIN_G = EXP_MIN - LGUARD_W;
@@ -221,7 +239,7 @@ module fp_mac #(
          )
    cls0
      (
-      .data_in  (acc_man_reg),
+      .data_in  (acc_man_reg[ACC_W+`EXTRA:3]),
       .symbol   (res_sign_int),
       .data_out (lsc)
       );
@@ -234,10 +252,10 @@ module fp_mac #(
    wire [EXP_W+1:0]                lshift_inv = ~lshift;
 
    wire [EXP_W+1:0]                rshift = (exp_diff2 > RSHIFT_LIM[EXP_W+1:0])? RSHIFT_LIM[EXP_W+1:0]: exp_diff2;
-   wire [ACC_W+RSHIFT_LIM:0]       man_rsht = {acc_man_reg, {RSHIFT_LIM{1'b0}}} >> rshift;
+   wire [ACC_W+RSHIFT_LIM:0]       man_rsht = {acc_man_reg[ACC_W+`EXTRA:3], {RSHIFT_LIM{1'b0}}} >> rshift;
 
    wire [EXP_W+1:0]                exp_norm = acc_exp_reg + lshift_inv + OFFSET[EXP_W+1:0];
-   wire [ACC_W:0]                  man_norm = exp_diff2[EXP_W+1]? acc_man_reg << lshift:
+   wire [ACC_W:0]                  man_norm = exp_diff2[EXP_W+1]? acc_man_reg[ACC_W+`EXTRA:3] << lshift:
                                                                   {man_rsht[ACC_W+RSHIFT_LIM:RSHIFT_LIM+1], |man_rsht[RSHIFT_LIM:0]};
 
    wire [EXP_W+1:0]                exp_adjust = exp_norm;
