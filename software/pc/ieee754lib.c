@@ -323,9 +323,9 @@ ieee754Unpacked ieee754_mac_(ieee754 *vec_a, int32_t sca, ieee754 *vec_b, int32_
       mul_sig = -mul_sig;
     }
 
-    uint8_t acc_sig_msb  = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + 2 + RGUARD_W); // 2 for sign and carry
-    uint8_t acc_sig_msb2 = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + 1 + RGUARD_W);
-    uint8_t acc_sig_msb3 = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + RGUARD_W);
+    uint8_t acc_sig_msb  = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + 2 + RGUARD_W + 3); // 2 for sign and carry
+    uint8_t acc_sig_msb2 = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + 1 + RGUARD_W + 3);
+    uint8_t acc_sig_msb3 = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + RGUARD_W + 3);
     if (acc_sig_msb != acc_sig_msb2) {
       acc_exp++;
       acc_sig >>= 1;
@@ -341,10 +341,10 @@ ieee754Unpacked ieee754_mac_(ieee754 *vec_a, int32_t sca, ieee754 *vec_b, int32_
       sig_a = mul_sig << (RGUARD_W + 3);
 
       exp_b = acc_exp;
-      sig_b = acc_sig << 3;
+      sig_b = acc_sig;
     } else {
       exp_a = acc_exp;
-      sig_a = acc_sig << 3;
+      sig_a = acc_sig;
 
       exp_b = mul_exp;
       sig_b = mul_sig << (RGUARD_W + 3);
@@ -365,11 +365,12 @@ ieee754Unpacked ieee754_mac_(ieee754 *vec_a, int32_t sca, ieee754 *vec_b, int32_
 
     uint8_t round = guard_bit & (sig_lsb | round_bit | sticky_bit);
 
-    acc_sig >>= 3;
-    acc_sig += round;
+    acc_sig += round << 3;
+    acc_sig &= (int64_t)-1 << 3;
   }
 
   acc_exp -= sca + scb;
+  acc_sig >>= 3;
 
   o.sign = 0;
   if (acc_sig < 0) {
@@ -448,9 +449,9 @@ ieee754Unpacked ieee754_acc_(ieee754Acc * acc, ieee754Unpacked *a, int32_t sca, 
     last_res_upk.man = -last_res_upk.man;
   }
 
-  uint8_t acc_sig_msb  = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + 2 + RGUARD_W); // 2 for sign and carry
-  uint8_t acc_sig_msb2 = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + 1 + RGUARD_W);
-  uint8_t acc_sig_msb3 = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + RGUARD_W);
+  uint8_t acc_sig_msb  = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + 2 + RGUARD_W + 3); // 2 for sign and carry
+  uint8_t acc_sig_msb2 = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + 1 + RGUARD_W + 3);
+  uint8_t acc_sig_msb3 = acc_sig >> ((IEEE754_MAN_W(dw, ew) << 1) + RGUARD_W + 3);
   if (acc_sig_msb != acc_sig_msb2) {
     acc_exp++;
     acc_sig >>= 1;
@@ -466,10 +467,10 @@ ieee754Unpacked ieee754_acc_(ieee754Acc * acc, ieee754Unpacked *a, int32_t sca, 
     sig_a = last_res_upk.man << (RGUARD_W + 3);
 
     exp_b = acc_exp;
-    sig_b = acc_sig << 3;
+    sig_b = acc_sig;
   } else {
     exp_a = acc_exp;
-    sig_a = acc_sig << 3;
+    sig_a = acc_sig;
 
     exp_b = last_res_upk.exp;
     sig_b = last_res_upk.man << (RGUARD_W + 3);
@@ -490,13 +491,14 @@ ieee754Unpacked ieee754_acc_(ieee754Acc * acc, ieee754Unpacked *a, int32_t sca, 
 
   uint8_t round = guard_bit & (sig_lsb | round_bit | sticky_bit);
 
-  acc_sig >>= 3;
-  acc_sig += round;
+  acc_sig += round << 3;
+  acc_sig &= (int64_t)-1 << 3;
 
   acc->exp = acc_exp;
   acc->man = acc_sig;
 
   acc_exp -= last_res_sc;
+  acc_sig >>= 3;
 
   o.sign = 0;
   if (acc_sig < 0) {
