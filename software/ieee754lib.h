@@ -21,8 +21,8 @@
 #define MSB(w) ((int64_t)1 << ((w) - 1))
 #define MASK(width) (int64_t)(((uint128_t)1 << (width)) - 1)
 
-#define IEEE754_DATA_W 8
-#define IEEE754_EXP_W  4
+#define IEEE754_DATA_W 32
+#define IEEE754_EXP_W  8
 
 #define IEEE754_BIAS(ew)      ((1 << ((ew) - 1)) - 1)
 #define IEEE754_F_W(dw, ew)   ((dw) - 1 - (ew))
