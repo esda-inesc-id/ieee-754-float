@@ -111,7 +111,7 @@ ieee754 ieee754_pack_(ieee754Unpacked o, int32_t dw, int32_t ew);
 #define _ieee754_set_acc_(acc, val, dw, ew) ({\
   ieee754Unpacked upk = ieee754_unpack_(val, dw, ew);\
   *acc.exp = upk.exp;\
-  *acc.man = upk.man << (IEEE754_MAN_W(dw, ew) - 1);\
+  *acc.man = upk.man << (IEEE754_RES_W(dw, ew) - 1);\
   if (upk.sign) *acc.man = -*acc.man;\
 })
 #define _ieee754_pack_(o, dw, ew) ieee754_pack_(o, dw, ew)
