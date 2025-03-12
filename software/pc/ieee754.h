@@ -808,10 +808,12 @@ inline int vsnprintf_ieee754(char *s, size_t n, const char *fmt, ...) {
   return ret;
 }
 
+extern char fmt_ieee754[1024];
+extern char buf_ieee754[1024];
+
 inline int vfprintf_ieee754(FILE *fp, const char *fmt, va_list args) {
   size_t len = getlen_(fmt);
   if (!len) return 0;
-  char *fmt_ieee754 = (char *) malloc(sizeof(char) * (len+1));
   memcpy(fmt_ieee754, fmt, len);
   fmt_ieee754[len] = 0;
 
@@ -820,13 +822,11 @@ inline int vfprintf_ieee754(FILE *fp, const char *fmt, va_list args) {
       fmt_ieee754[len-1] == 'e' ||
       fmt_ieee754[len-1] == 'g') {
     Ieee754 num_ieee754 = va_arg(args, Ieee754);
-    char buf[1024];
-    ret = vsnprintf_ieee754(buf, 1023, fmt_ieee754, (double)num_ieee754);
-    fputs(buf, fp);
+    ret = vsnprintf_ieee754(buf_ieee754, 1023, fmt_ieee754, (double)num_ieee754);
+    fputs(buf_ieee754, fp);
   } else {
     ret = vfprintf(fp, fmt_ieee754, args);
   }
-  free(fmt_ieee754);
   return ret + vfprintf_ieee754(fp, fmt+len, args);
 }
 
@@ -859,7 +859,6 @@ inline char* sgetnw(char *buf, int n, char *str) {
 inline int vsscanf_ieee754(char *str, const char *fmt, va_list args) {
   size_t len = getlen_(fmt);
   if (!len) return 0;
-  char *fmt_ieee754 = (char *) malloc(sizeof(char) * (len+1));
   memcpy(fmt_ieee754, fmt, len);
   fmt_ieee754[len] = 0;
 
@@ -868,34 +867,31 @@ inline int vsscanf_ieee754(char *str, const char *fmt, va_list args) {
       fmt_ieee754[len-1] == 'e' ||
       fmt_ieee754[len-1] == 'g') {
     Ieee754 *ieee754_ptr = va_arg(args, Ieee754*);
-    char buf[1024];
-    sgetnw(buf, 1024, (char *)str);
-    *ieee754_ptr = (Ieee754) atof(buf);
+    sgetnw(buf_ieee754, 1024, (char *)str);
+    *ieee754_ptr = (Ieee754) atof(buf_ieee754);
     ret = 1;
   } else {
     ret = vsscanf(str, fmt_ieee754, args);
   }
-  free(fmt_ieee754);
   char *str_nxt = strchr(str, ' ');
   if (str_nxt) ret += vsscanf_ieee754(str_nxt, fmt+len, args);
   return ret;
 }
 
 inline int vfscanf_ieee754(FILE *fp, const char *fmt, va_list args) {
-  char buf[1024];
-  char *str = buf;
+  char *str = buf_ieee754;
   int ret = 0;
-  while (fgets(str, 1024-(str-buf), fp)) {
+  while (fgets(str, 1024-(str-buf_ieee754), fp)) {
     char *lspace = 0;
-    if (strlen(buf) == 1023) {
-      lspace = strrchr(buf, ' ');
+    if (strlen(buf_ieee754) == 1023) {
+      lspace = strrchr(buf_ieee754, ' ');
       *lspace++ = 0;
     }
-    int ret_int = vsscanf_ieee754(buf, fmt, args);
+    int ret_int = vsscanf_ieee754(buf_ieee754, fmt, args);
     ret += ret_int;
-    if (lspace) strcpy(buf, lspace);
+    if (lspace) strcpy(buf_ieee754, lspace);
     else break;
-    str = buf + strlen(lspace);
+    str = buf_ieee754 + strlen(lspace);
     while (ret_int--) {
       while (*fmt++ != '%');
       while (*fmt++ != ' ');
