@@ -125,7 +125,8 @@ module fp_add #(
 
    // Invert OpA if subtraction
    wire                          subtract = A_sign_reg ^ B_sign_reg;
-   wire [`MAN_W+`EXTRA-1:0]      A_Mantissa_inv = {(`MAN_W+`EXTRA){subtract}} ^ {A_Mantissa_reg, {`EXTRA{1'b0}}};
+   wire [`MAN_W-1:0]             A_Mantissa_inv_ = {(`MAN_W){subtract}} ^ A_Mantissa_reg;
+   wire [`MAN_W+`EXTRA-1:0]      A_Mantissa_inv  = {A_Mantissa_reg, {`EXTRA{subtract}}};
 
    // pipeline stage 2
    reg                           A_sign_reg2;

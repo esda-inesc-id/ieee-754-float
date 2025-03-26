@@ -101,8 +101,8 @@ module fp_mac #(
    localparam ACC_W = LGUARD_W+1+2*`MAN_W+RGUARD_W;
 
    // Accumulation in 2's Complement
-   wire [2*`MAN_W:0]               mul_man_c_ = {1'b0, mul_man_reg} ^ {(2*`MAN_W+1){mul_sign_reg}};
-   wire [ACC_W+`EXTRA:0]           mul_man_c  = {{(LGUARD_W+1){mul_man_c_[2*`MAN_W]}}, mul_man_c_, {(RGUARD_W+`EXTRA){mul_sign_reg}}};
+   wire [2*`MAN_W-1:0]             mul_man_c_ = mul_man_reg ^ {(2*`MAN_W){mul_sign_reg}};
+   wire [ACC_W+`EXTRA:0]           mul_man_c  = {{(LGUARD_W+2){mul_sign_reg}}, mul_man_c_, {(RGUARD_W+`EXTRA){mul_sign_reg}}};
 
    reg [EXP_W+1:0]                 acc_exp_reg, acc_exp_reg2;
    reg [ACC_W+`EXTRA:0]            acc_man_reg;
