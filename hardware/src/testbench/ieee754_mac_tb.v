@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "mac_tbdefs.vh"
+
 module ieee754_mac_tb;
    parameter DATA_W = 32;
    parameter EXP_W = 8;
@@ -30,9 +32,9 @@ module ieee754_mac_tb;
    real              acc;
    real              acc_in;
 
-   integer           i;
-
 `include "functions.vh"
+
+`include "mac_fns.vh"
 
    ieee754_mac
      #(
@@ -121,6 +123,8 @@ module ieee754_mac_tb;
       end else begin
          $display("Test Failed!");
       end
+
+`include "mac_tasks.vh"
 
       #clk_per $finish;
    end
