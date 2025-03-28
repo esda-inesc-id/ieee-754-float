@@ -108,6 +108,9 @@ module fp_mac #(
    reg [ACC_W+`EXTRA:0]            acc_man_reg;
    reg [ACC_W:0]                   acc_man_reg2;
 
+   wire                            round_acc;
+   reg                             round_acc2;
+
    wire [EXP_W+1:0]                A_exp_int = done_int2? mul_exp_reg: acc_exp_reg2;
    wire [ACC_W+`EXTRA:0]           A_man_int = done_int2? mul_man_c: {acc_man_reg2, {`EXTRA{1'b0}}};
 
@@ -205,9 +208,8 @@ module fp_mac #(
    wire                            round_bit  = acc_man_reg[1];
    wire                            sticky_bit = acc_man_reg[0];
 
-   wire                            round_acc = guard_bit & (man_lsb | round_bit | sticky_bit);
+   assign round_acc = guard_bit & (man_lsb | round_bit | sticky_bit);
 
-   reg                             round_acc2;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
          acc_exp_reg2 <= {(EXP_W+2){1'b0}};
