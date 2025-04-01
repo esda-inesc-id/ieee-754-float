@@ -6,7 +6,7 @@
 *.o
 *.a
 *.so
-software/ptfloat3_tests
+software/ieee754_tests
 
 *.summary
 

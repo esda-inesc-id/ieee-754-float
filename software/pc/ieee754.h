@@ -810,6 +810,8 @@ inline int vsnprintf_ieee754(char *s, size_t n, const char *fmt, ...) {
 
 extern char fmt_ieee754[1024];
 extern char buf_ieee754[1024];
+extern char buf2_ieee754[1024];
+extern char str_ieee754[1024];
 
 inline int vfprintf_ieee754(FILE *fp, const char *fmt, va_list args) {
   size_t len = getlen_(fmt);
@@ -856,7 +858,22 @@ inline char* sgetnw(char *buf, int n, char *str) {
   return str;
 }
 
+inline int sscanf2_ieee754(char *str, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int ret = vsscanf(str, fmt, args);
+  va_end(args);
+  return ret;
+}
+
 inline int vsscanf_ieee754(char *str, const char *fmt, va_list args) {
+  while (*str == ' ') str++;
+  while (*fmt == ' ') fmt++;
+  char *str_nxt = strchr(str, ' ');
+  if (!str_nxt) str_nxt = str + strlen(str);
+  memcpy(str_ieee754, str, str_nxt-str);
+  str_ieee754[str_nxt-str] = 0;
+
   size_t len = getlen_(fmt);
   if (!len) return 0;
   memcpy(fmt_ieee754, fmt, len);
@@ -867,13 +884,14 @@ inline int vsscanf_ieee754(char *str, const char *fmt, va_list args) {
       fmt_ieee754[len-1] == 'e' ||
       fmt_ieee754[len-1] == 'g') {
     Ieee754 *ieee754_ptr = va_arg(args, Ieee754*);
-    sgetnw(buf_ieee754, 1024, (char *)str);
-    *ieee754_ptr = (Ieee754) atof(buf_ieee754);
+    sgetnw(buf2_ieee754, 1024, (char *)str);
+    *ieee754_ptr = (Ieee754) atof(buf2_ieee754);
     ret = 1;
   } else {
-    ret = vsscanf(str, fmt_ieee754, args);
+    void *ptr = va_arg(args, void *);
+    ret = sscanf2_ieee754(str_ieee754, fmt_ieee754, ptr);
   }
-  char *str_nxt = strchr(str, ' ');
+  str_nxt = strchr(str, ' ');
   if (str_nxt) ret += vsscanf_ieee754(str_nxt, fmt+len, args);
   return ret;
 }
