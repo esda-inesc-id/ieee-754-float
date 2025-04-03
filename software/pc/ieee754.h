@@ -30,6 +30,7 @@ class Ieee754 {
         Ieee754(double d): val(doubletoieee754(d)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(long int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(long unsigned int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
+        Ieee754(unsigned int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(short unsigned int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(unsigned char i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
@@ -44,6 +45,8 @@ class Ieee754 {
         operator double() { return _ieee754todouble_(val, dw, ew); }
         operator long int() { return (long int)_ieee754toint_(val, dw, ew); }
         operator long unsigned int() { return (long unsigned int)_ieee754toint_(val, dw, ew); }
+        operator unsigned int() { return (unsigned int)_ieee754toint_(val, dw, ew); }
+        operator unsigned int() const { return (unsigned int)_ieee754toint_(val, dw, ew); }
         operator int() { return (int)_ieee754toint_(val, dw, ew); }
         operator int() const { return (int)_ieee754toint_(val, dw, ew); }
         operator short unsigned int() { return (short unsigned int)_ieee754toint_(val, dw, ew); }
@@ -139,6 +142,22 @@ class Ieee754 {
         }
 
         Ieee754 operator+(long unsigned int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_add_(val, res.val, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator+(long int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_add_(val, res.val, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator+(unsigned int const other) {
             Ieee754 res(dw, ew);
             res = other;
             res.val = _ieee754_add_(val, res.val, dw, ew);
@@ -261,6 +280,22 @@ class Ieee754 {
             return res;
         }
 
+        Ieee754 operator-(long int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_sub_(val, res.val, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator-(unsigned int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_sub_(val, res.val, dw, ew);
+            op = 1;
+            return res;
+        }
+
         Ieee754 operator-(int const other) {
             Ieee754 res(dw, ew);
             res = other;
@@ -337,6 +372,22 @@ class Ieee754 {
             return res;
         }
 
+        Ieee754 operator*(long int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_mul_(val, sc, res.val, 0, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator*(unsigned int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_mul_(val, sc, res.val, 0, dw, ew);
+            op = 1;
+            return res;
+        }
+
         Ieee754 operator*(int const other) {
             Ieee754 res(dw, ew);
             res = other;
@@ -406,6 +457,22 @@ class Ieee754 {
         }
 
         Ieee754 operator/(long unsigned int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator/(long int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator/(unsigned int const other) {
             Ieee754 res(dw, ew);
             res = other;
             res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
@@ -545,6 +612,18 @@ inline Ieee754 operator+(long unsigned int i, Ieee754 num_ieee754) {
   return aux + num_ieee754;
 }
 
+inline Ieee754 operator+(long int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux + num_ieee754;
+}
+
+inline Ieee754 operator+(unsigned int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux + num_ieee754;
+}
+
 inline Ieee754 operator+(int i, Ieee754 num_ieee754) {
   Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
   aux = i;
@@ -570,6 +649,18 @@ inline Ieee754 operator-(float f, Ieee754 num_ieee754) {
 }
 
 inline Ieee754 operator-(long unsigned int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux - num_ieee754;
+}
+
+inline Ieee754 operator-(long int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux - num_ieee754;
+}
+
+inline Ieee754 operator-(unsigned int i, Ieee754 num_ieee754) {
   Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
   aux = i;
   return aux - num_ieee754;
@@ -605,6 +696,18 @@ inline Ieee754 operator*(long unsigned int i, Ieee754 num_ieee754) {
   return aux * num_ieee754;
 }
 
+inline Ieee754 operator*(long int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux * num_ieee754;
+}
+
+inline Ieee754 operator*(unsigned int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux * num_ieee754;
+}
+
 inline Ieee754 operator*(int i, Ieee754 num_ieee754) {
   Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
   aux = i;
@@ -630,6 +733,18 @@ inline Ieee754 operator/(float f, Ieee754 num_ieee754) {
 }
 
 inline Ieee754 operator/(long unsigned int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux / num_ieee754;
+}
+
+inline Ieee754 operator/(long int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux / num_ieee754;
+}
+
+inline Ieee754 operator/(unsigned int i, Ieee754 num_ieee754) {
   Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
   aux = i;
   return aux / num_ieee754;
