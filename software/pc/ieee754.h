@@ -30,6 +30,7 @@ class Ieee754 {
         Ieee754(double d): val(doubletoieee754(d)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(long int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(long unsigned int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
+        Ieee754(unsigned int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(short unsigned int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(unsigned char i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
@@ -44,6 +45,8 @@ class Ieee754 {
         operator double() { return _ieee754todouble_(val, dw, ew); }
         operator long int() { return (long int)_ieee754toint_(val, dw, ew); }
         operator long unsigned int() { return (long unsigned int)_ieee754toint_(val, dw, ew); }
+        operator unsigned int() { return (unsigned int)_ieee754toint_(val, dw, ew); }
+        operator unsigned int() const { return (unsigned int)_ieee754toint_(val, dw, ew); }
         operator int() { return (int)_ieee754toint_(val, dw, ew); }
         operator int() const { return (int)_ieee754toint_(val, dw, ew); }
         operator short unsigned int() { return (short unsigned int)_ieee754toint_(val, dw, ew); }
@@ -139,6 +142,22 @@ class Ieee754 {
         }
 
         Ieee754 operator+(long unsigned int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_add_(val, res.val, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator+(long int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_add_(val, res.val, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator+(unsigned int const other) {
             Ieee754 res(dw, ew);
             res = other;
             res.val = _ieee754_add_(val, res.val, dw, ew);
@@ -261,6 +280,22 @@ class Ieee754 {
             return res;
         }
 
+        Ieee754 operator-(long int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_sub_(val, res.val, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator-(unsigned int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_sub_(val, res.val, dw, ew);
+            op = 1;
+            return res;
+        }
+
         Ieee754 operator-(int const other) {
             Ieee754 res(dw, ew);
             res = other;
@@ -337,6 +372,22 @@ class Ieee754 {
             return res;
         }
 
+        Ieee754 operator*(long int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_mul_(val, sc, res.val, 0, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator*(unsigned int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_mul_(val, sc, res.val, 0, dw, ew);
+            op = 1;
+            return res;
+        }
+
         Ieee754 operator*(int const other) {
             Ieee754 res(dw, ew);
             res = other;
@@ -406,6 +457,22 @@ class Ieee754 {
         }
 
         Ieee754 operator/(long unsigned int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator/(long int const other) {
+            Ieee754 res(dw, ew);
+            res = other;
+            res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
+            op = 1;
+            return res;
+        }
+
+        Ieee754 operator/(unsigned int const other) {
             Ieee754 res(dw, ew);
             res = other;
             res.val = _ieee754_div_(val, sc, res.val, 0, dw, ew);
@@ -545,6 +612,18 @@ inline Ieee754 operator+(long unsigned int i, Ieee754 num_ieee754) {
   return aux + num_ieee754;
 }
 
+inline Ieee754 operator+(long int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux + num_ieee754;
+}
+
+inline Ieee754 operator+(unsigned int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux + num_ieee754;
+}
+
 inline Ieee754 operator+(int i, Ieee754 num_ieee754) {
   Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
   aux = i;
@@ -570,6 +649,18 @@ inline Ieee754 operator-(float f, Ieee754 num_ieee754) {
 }
 
 inline Ieee754 operator-(long unsigned int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux - num_ieee754;
+}
+
+inline Ieee754 operator-(long int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux - num_ieee754;
+}
+
+inline Ieee754 operator-(unsigned int i, Ieee754 num_ieee754) {
   Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
   aux = i;
   return aux - num_ieee754;
@@ -605,6 +696,18 @@ inline Ieee754 operator*(long unsigned int i, Ieee754 num_ieee754) {
   return aux * num_ieee754;
 }
 
+inline Ieee754 operator*(long int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux * num_ieee754;
+}
+
+inline Ieee754 operator*(unsigned int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux * num_ieee754;
+}
+
 inline Ieee754 operator*(int i, Ieee754 num_ieee754) {
   Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
   aux = i;
@@ -630,6 +733,18 @@ inline Ieee754 operator/(float f, Ieee754 num_ieee754) {
 }
 
 inline Ieee754 operator/(long unsigned int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux / num_ieee754;
+}
+
+inline Ieee754 operator/(long int i, Ieee754 num_ieee754) {
+  Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
+  aux = i;
+  return aux / num_ieee754;
+}
+
+inline Ieee754 operator/(unsigned int i, Ieee754 num_ieee754) {
   Ieee754 aux(num_ieee754.get_dw(), num_ieee754.get_ew());
   aux = i;
   return aux / num_ieee754;
@@ -810,6 +925,8 @@ inline int vsnprintf_ieee754(char *s, size_t n, const char *fmt, ...) {
 
 extern char fmt_ieee754[1024];
 extern char buf_ieee754[1024];
+extern char buf2_ieee754[1024];
+extern char str_ieee754[1024];
 
 inline int vfprintf_ieee754(FILE *fp, const char *fmt, va_list args) {
   size_t len = getlen_(fmt);
@@ -856,7 +973,22 @@ inline char* sgetnw(char *buf, int n, char *str) {
   return str;
 }
 
+inline int sscanf2_ieee754(char *str, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int ret = vsscanf(str, fmt, args);
+  va_end(args);
+  return ret;
+}
+
 inline int vsscanf_ieee754(char *str, const char *fmt, va_list args) {
+  while (*str == ' ') str++;
+  while (*fmt == ' ') fmt++;
+  char *str_nxt = strchr(str, ' ');
+  if (!str_nxt) str_nxt = str + strlen(str);
+  memcpy(str_ieee754, str, str_nxt-str);
+  str_ieee754[str_nxt-str] = 0;
+
   size_t len = getlen_(fmt);
   if (!len) return 0;
   memcpy(fmt_ieee754, fmt, len);
@@ -867,13 +999,14 @@ inline int vsscanf_ieee754(char *str, const char *fmt, va_list args) {
       fmt_ieee754[len-1] == 'e' ||
       fmt_ieee754[len-1] == 'g') {
     Ieee754 *ieee754_ptr = va_arg(args, Ieee754*);
-    sgetnw(buf_ieee754, 1024, (char *)str);
-    *ieee754_ptr = (Ieee754) atof(buf_ieee754);
+    sgetnw(buf2_ieee754, 1024, (char *)str);
+    *ieee754_ptr = (Ieee754) atof(buf2_ieee754);
     ret = 1;
   } else {
-    ret = vsscanf(str, fmt_ieee754, args);
+    void *ptr = va_arg(args, void *);
+    ret = sscanf2_ieee754(str_ieee754, fmt_ieee754, ptr);
   }
-  char *str_nxt = strchr(str, ' ');
+  str_nxt = strchr(str, ' ');
   if (str_nxt) ret += vsscanf_ieee754(str_nxt, fmt+len, args);
   return ret;
 }
