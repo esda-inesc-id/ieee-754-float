@@ -74,3 +74,22 @@ function real bin2float;
       bin2float = $bitstoreal(x_d);
    end
 endfunction
+
+//
+// Read double from binary file
+//
+function real fread_d;
+   input integer fd;
+   reg [7:0]     byte_mem [0:7];
+   reg [63:0]    d;
+
+   begin
+      d = -1;
+      if (!$feof(fd)) begin
+         if ($fread(byte_mem, fd)) begin
+            d = {byte_mem[7], byte_mem[6], byte_mem[5], byte_mem[4], byte_mem[3], byte_mem[2], byte_mem[1], byte_mem[0]};
+         end
+      end
+      fread_d = $bitstoreal(d);
+   end
+endfunction
