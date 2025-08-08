@@ -32,8 +32,6 @@ module ieee754_mac_tb;
    real              acc;
    real              acc_in;
 
-   integer           fp;
-
 `include "functions.vh"
 
 `include "mac_fns.vh"

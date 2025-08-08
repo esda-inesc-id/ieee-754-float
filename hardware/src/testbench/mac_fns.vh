@@ -1,6 +1,8 @@
 real ea, er;
 integer i;
 
+integer fp;
+
 real x, fact;
 real p;
 
