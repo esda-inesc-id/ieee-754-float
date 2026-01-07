@@ -182,9 +182,10 @@ class Ieee754 {
         }
 
         Ieee754 operator+=(Ieee754 const& other) {
-            ieee754Unpacked upk;
             if (!dw) dw = other.dw;
             if (!ew) ew = other.ew;
+#ifdef USE_ACC
+            ieee754Unpacked upk;
             if (op) {
               val = _ieee754_acc_(&acc, 0, 0, dw, ew);
             } else {
@@ -194,6 +195,9 @@ class Ieee754 {
               upk = _ieee754_unpack_(aux, dw, ew);
               val = _ieee754_acc_(&acc, &upk, other.sc, dw, ew);
             }
+#else
+            val = _ieee754_add_(val, other.val, dw, ew);
+#endif
             op = 0;
             return val;
         }
@@ -826,8 +830,8 @@ inline Ieee754 pow(float x, Ieee754 y) { return (Ieee754)pow(x, (double)y); }
 inline Ieee754 pow(int x, Ieee754 y) { return (Ieee754)pow(x, (double)y); }
 inline Ieee754 sqrt(Ieee754 x) { return (Ieee754)sqrt((double)x); }
 inline Ieee754 ceil(Ieee754 x) { return (Ieee754)ceil((double)x); }
-inline Ieee754 fabs(Ieee754 x) { return ieee754_abs(x.getvalue(), x.get_dw()); }
-inline Ieee754 fabsf(Ieee754 x) { return ieee754_abs(x.getvalue(), x.get_dw()); }
+inline Ieee754 fabs(Ieee754 x) { Ieee754 ret(x.get_dw(), x.get_ew()); ret.setvalue(ieee754_abs(x.getvalue(), x.get_dw())); return ret; }
+inline Ieee754 fabsf(Ieee754 x) { Ieee754 ret(x.get_dw(), x.get_ew()); ret.setvalue(ieee754_abs(x.getvalue(), x.get_dw())); return ret; }
 inline Ieee754 floor(Ieee754 x) { return (Ieee754)floor((double)x); }
 
 //
