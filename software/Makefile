@@ -23,14 +23,16 @@ endif
 
 OBJ:=$(SRC:.cpp=.o)
 
-IEEE754_DATA_W=$(shell grep "define IEEE754_DATA_W" $(SW_DIR)/ieee754lib.h | awk '{print $$3}')
-IEEE754_EXP_W=$(shell grep "define IEEE754_EXP_W" $(SW_DIR)/ieee754lib.h | awk '{print $$3}')
+DATA_W=$(shell grep "define IEEE754_DATA_W" $(SW_DIR)/ieee754lib.h | awk '{print $$3}')
+EXP_W=$(shell grep "define IEEE754_EXP_W" $(SW_DIR)/ieee754lib.h | awk '{print $$3}')
 
 test: clean-all $(TRG)
 	./$(TRG) -i data.in -w weights.in -d ./$@-double.out -f ./$@-float.out -p ./$@-ieee754.out
 #	./$(TRG) -d ./$@-double.out -f ./$@-float.out -p ./$@-ieee754.out
-#	$(PYTHON_DIR)/floatVSieee754 -d ./$@-double.out -f ./$@-float.out -o ./float-floatVSieee754.out -p 16 -dw $(IEEE754_DATA_W) -ew $(IEEE754_EXP_W)
-#	$(PYTHON_DIR)/floatVSieee754 -d ./$@-double.out -ieee754 ./$@-ieee754.out -o ./ieee754-floatVSieee754.out -p 16 -dw $(IEEE754_DATA_W) -ew $(IEEE754_EXP_W)
+	$(PYTHON_DIR)/floatVSieee754 -d ./$@-double.out -f ./$@-float.out -o ./float-floatVSieee754.out -p 16 -dw $(DATA_W) -ew $(EXP_W)
+	$(PYTHON_DIR)/floatVSieee754 -d ./$@-double.out -ieee754 ./$@-ieee754.out -o ./ieee754-floatVSieee754.out -p 16 -dw $(DATA_W) -ew $(EXP_W)
+	$(PYTHON_DIR)/floatVSieee754 -d ./QKVoutput_d.res -f ./QKVoutput_f.res -o ./transformer-float-floatVSieee754.res -p 16 -dw $(DATA_W) -ew $(EXP_W)
+	$(PYTHON_DIR)/floatVSieee754 -d ./QKVoutput_d.res -ieee754 ./QKVoutput_ieee754.res -o ./transformer-ieee754-floatVSieee754.res -p 16 -dw $(DATA_W) -ew $(EXP_W)
 
 benchmark: clean-all $(TRG)
 	./$(TRG) -i $(BENCH_DIR) -o $(BENCH_DIR)
@@ -42,8 +44,8 @@ evaluate:
 	@for app in $(apps);\
 	do \
 	echo -n "$$app...";\
-	$(PYTHON_DIR)/floatVSieee754 -d ./benchmark/$$app-double.out -f ./benchmark/$$app-float.out -o ./$$app-float-floatVSieee754.out -p 16 -dw $(IEEE754_DATA_W) -ew $(IEEE754_EXP_W);\
-	$(PYTHON_DIR)/floatVSieee754 -d ./benchmark/$$app-double.out -ieee754 ./benchmark/$$app-ieee754.out -o ./$$app-ieee754-floatVSieee754.out -p 16 -dw $(IEEE754_DATA_W) -ew $(IEEE754_EXP_W);\
+	$(PYTHON_DIR)/floatVSieee754 -d ./benchmark/$$app-double.out -f ./benchmark/$$app-float.out -o ./$$app-float-floatVSieee754.out -p 16 -dw $(DATA_W) -ew $(EXP_W);\
+	$(PYTHON_DIR)/floatVSieee754 -d ./benchmark/$$app-double.out -ieee754 ./benchmark/$$app-ieee754.out -o ./$$app-ieee754-floatVSieee754.out -p 16 -dw $(DATA_W) -ew $(EXP_W);\
 	echo "done" ;\
 	done
 
