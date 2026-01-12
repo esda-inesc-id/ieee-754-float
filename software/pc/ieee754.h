@@ -34,7 +34,7 @@ class Ieee754 {
         Ieee754(int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(short unsigned int i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
         Ieee754(unsigned char i): val(doubletoieee754((double)i)) { dw = IEEE754_DATA_W; ew = IEEE754_EXP_W; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; };
-  Ieee754(int32_t data_w, int32_t exp_w): val(IEEE754_ZERO) { dw = data_w; ew = exp_w; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; }
+        Ieee754(int32_t data_w, int32_t exp_w): val(IEEE754_ZERO) { dw = data_w; ew = exp_w; sc = 0; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; }
         Ieee754(int32_t data_w, int32_t exp_w, int32_t scale): val(IEEE754_ZERO) { dw = data_w; ew = exp_w; sc = scale; _ieee754_set_acc_(&acc, val, dw, ew); op = 0; }
 
         //

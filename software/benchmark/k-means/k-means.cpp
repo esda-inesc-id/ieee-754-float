@@ -7,7 +7,7 @@
 #include "ieee754.h"
 #include "common.h"
 
-#define MAX_ITER 280
+#define MAX_ITER 1
 
 int kmeans_kernel_d(int NDATAPTS, int NCENTRS, int DIM, double * data, unsigned int * label, double * center, double * tempCenter, unsigned int * cluster_size) {
 

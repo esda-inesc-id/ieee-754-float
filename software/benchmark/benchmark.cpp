@@ -114,7 +114,7 @@ void run_benchmark(char *inputDir, char *outputDir) {
   //
   // k-Means Clustering
   //
-  /*sprintf(buf, "%s/kmeans-double.out", outputDir);
+  sprintf(buf, "%s/kmeans-double.out", outputDir);
   fp_d = fopen(buf, "w");
   if (!fp_d) {
     fprintf(stderr, "unable to open file '%s'\n", buf);
@@ -143,7 +143,7 @@ void run_benchmark(char *inputDir, char *outputDir) {
 
   fclose(fp_d);
   fclose(fp_f);
-  fclose(fp_ieee754);*/
+  fclose(fp_ieee754);
 
   //
   // Black-Scholes
