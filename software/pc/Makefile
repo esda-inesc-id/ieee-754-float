@@ -24,10 +24,10 @@ ieee754.a: $(OBJ)
 	$(AR) $(ARFLAGS) $@ $^
 
 %.o: %.cpp
-	$(CPP) -Wall -O3 $(INCLUDE) -c $< -o $@
+	$(CPP) -Wall -O2 $(INCLUDE) -c $< -o $@
 
 %.o: %.c
-	$(CPP) -Wall -O3 $(INCLUDE) -c $< -o $@
+	$(CPP) -Wall -O2 $(INCLUDE) -c $< -o $@
 
 clean:
 	rm -f ieee754.a *.o *~

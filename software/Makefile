@@ -53,7 +53,7 @@ $(TRG): $(OBJ) $(SW_DIR)/pc/ieee754.a
 	$(CPP) $^ -o $@
 
 %.o: %.cpp
-	$(CPP) -Wall -O3 $(INCLUDE) $(DEFINE) -c $< -o $@
+	$(CPP) -Wall -O2 $(INCLUDE) $(DEFINE) -c $< -o $@
 
 clean:
 	rm -f $(TRG) bench
