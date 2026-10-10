@@ -261,7 +261,7 @@ module fp_mac #(
                                                                   {man_rsht[ACC_W+RSHIFT_LIM:RSHIFT_LIM+1], |man_rsht[RSHIFT_LIM:0]};
 
    wire [EXP_W+1:0]                exp_adjust = exp_norm;
-   wire [`MAN_W+`EXTRA-1:0]        man_adjust = {man_norm[ACC_W -: `MAN_W+`EXTRA-1], |man_norm[ACC_W-(`MAN_W-`EXTRA-1):0]};
+   wire [`MAN_W+`EXTRA-1:0]        man_adjust = {man_norm[ACC_W -: `MAN_W+`EXTRA-1], |man_norm[ACC_W-(`MAN_W+`EXTRA-1):0]};
 
    // pipeline stage 5
    reg                             done_int5, done_int6;
