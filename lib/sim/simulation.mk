@@ -16,6 +16,8 @@ else ifeq ($(TESTFLOAT),1)
 TB_TOP=testfloat_tb
 VSRC+=$(FPU_DIR)/lib/sim/src/testfloat_tb.v
 DEFINE+=$(defmacro)TF_DUT=$(CORE)
+TF_RND?=0
+DEFINE+=$(defmacro)TF_RND=$(TF_RND)
 ifeq ($(TF_OP),mulAdd)
 DEFINE+=$(defmacro)TF_3OP
 endif

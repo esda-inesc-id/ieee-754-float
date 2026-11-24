@@ -3,7 +3,6 @@
 module fmac #(
    parameter DATA_W        = 32,
    parameter EXP_W         = 8,
-   parameter MAN_W         = DATA_W - EXP_W,
    parameter SPECIAL_CASES = 1,
    parameter LGUARD_W      = 0,
    parameter RGUARD_W      = 0
@@ -14,12 +13,17 @@ module fmac #(
    input  valid_i,
    output valid_o,
 
+   // rounding mode, sampled with the last product of a stream; see round.v for the encoding
+   input [2:0] rnd_mode,
+
    input [DATA_W-1:0] op_a,
    input [DATA_W-1:0] op_b,
 
    output [DATA_W-1:0] res
 );
 
+   // mantissa width, including the hidden bit
+   localparam MAN_W = DATA_W - EXP_W;
    localparam EXTRA = 3;
 
    wire             op_a_sign;
@@ -72,7 +76,7 @@ module fmac #(
    wire                   mac_inv;
    wire                   mac_special;
    wire [     DATA_W-1:0] mac_res_special;
-   mac #(
+   fmac_core #(
       .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES),
@@ -109,6 +113,18 @@ module fmac #(
    );
 
    wire pack_valid_i = mac_valid_o;
+   // Rounding mode, delayed to the pack input (mac, from the last product)
+   localparam RND_DLY = 7;
+   reg [3*RND_DLY-1:0] rnd_pipe;
+   always @(posedge clk, posedge rst) begin
+      if (rst) begin
+         rnd_pipe <= {(3 * RND_DLY) {1'b0}};
+      end else begin
+         rnd_pipe <= {rnd_pipe[3*RND_DLY-4:0], rnd_mode};
+      end
+   end
+   wire [2:0] pack_rnd_mode = rnd_pipe[3*RND_DLY-1-:3];
+
    pack #(
       .DATA_W(DATA_W),
       .EXP_W (EXP_W)
@@ -121,6 +137,7 @@ module fmac #(
 
       .inv (mac_inv),
       .nsub(1'b0),
+      .rnd_mode(pack_rnd_mode),
 
       .special_i    (mac_special),
       .res_special_i(mac_res_special),

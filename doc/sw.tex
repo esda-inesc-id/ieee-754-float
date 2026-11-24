@@ -23,18 +23,26 @@ Section~\ref{sec:make_sw}, and Table~\ref{tab:sw_files} lists the contents.
 \label{sec:sw_c}
 
 Operands and results are raw encodings in the low \sig{data\_w} bits of a
-\sig{uint64\_t}. Rounding is to nearest, ties to even, and there are no exception
-flags. Every NaN result has sign 0 and only the top fraction bit set.
+\sig{uint64\_t}. There are no exception flags. Every NaN result has sign 0 and only the top fraction bit set.
 Table~\ref{tab:sw_c} lists the functions. The accepted formats have
 $6 \le \mathtt{data\_w}-\mathtt{exp\_w} \le 53$, $2 \le \mathtt{exp\_w} \le 11$ and
 $\mathtt{data\_w} \le 64$.
 
+The operations round in the mode set by \sig{ieee754\_set\_rounding}, with the
+encoding of the \sig{rnd\_mode} input of the units: \sig{IEEE754\_RNE}~(0, the
+default), \sig{IEEE754\_RTZ}~(1), \sig{IEEE754\_RDN}~(2), \sig{IEEE754\_RUP}~(3) and
+\sig{IEEE754\_RMM}~(4). Values 5 to 7 round as RNE. The mode is a global state of the
+library. A \sig{mac} stream rounds in the mode current at its last product, as the
+\sig{fmac} samples \sig{rnd\_mode} with it. The conversions and the math functions
+always round to nearest, ties to even.
+
 \begin{twotable}{C Model Functions}{tab:sw_c}{Function}{Operation}{6.2cm}
 \sig{ieee754\_format\_ok(data\_w, exp\_w)} & Returns 1 if the format is accepted. \\ \hline
+\sig{ieee754\_set\_rounding(mode)}, \sig{ieee754\_get\_rounding()} & Sets or returns the rounding mode. \\ \hline
 \sig{ieee754\_add}, \sig{ieee754\_sub}, \sig{ieee754\_mul}, \sig{ieee754\_div} & Operation on \sig{(a, b, data\_w, exp\_w)}. \\ \hline
 \sig{ieee754\_from\_double(value, data\_w, exp\_w)} & Conversion from binary64, rounding to nearest even. \\ \hline
 \sig{ieee754\_to\_double(bits, data\_w, exp\_w)} & Conversion to binary64. \\ \hline
-\sig{ieee754\_mac\_new(data\_w, exp\_w, lguard\_w, rguard\_w)} & Creates a clocked model of the \sig{mac} pipeline. Returns \sig{NULL} for an unaccepted format or if $\mathtt{lguard\_w}+\mathtt{rguard\_w}+2(\mathtt{data\_w}-\mathtt{exp\_w})+5 > 128$. \\ \hline
+\sig{ieee754\_mac\_new(data\_w, exp\_w, lguard\_w, rguard\_w)} & Creates a clocked model of the \sig{fmac\_core} pipeline. Returns \sig{NULL} for an unaccepted format or if $\mathtt{lguard\_w}+\mathtt{rguard\_w}+2(\mathtt{data\_w}-\mathtt{exp\_w})+5 > 128$. \\ \hline
 \sig{ieee754\_mac\_push(mac, a, b)} & Applies one product of the current stream. \\ \hline
 \sig{ieee754\_mac\_result(mac)} & Ends the stream and returns its sum; $+0$ for an empty stream. \\ \hline
 \sig{ieee754\_mac\_free(mac)} & Frees the model. \\
@@ -51,7 +59,8 @@ division run on the model. The math functions \sig{sqrt}, \sig{exp}, \sig{log} a
 \sig{fabs} come from the bit-accurate library \file{c/ieee754\_math}, built only on the
 model operations, with errors under 1 ulp.
 \sig{Ieee754Mac} is the streaming \sig{fmac}, with the methods \sig{push} and
-\sig{result}.
+\sig{result}. An \sig{Ieee754Rounding} object sets the rounding mode for its scope
+and restores the previous mode.
 
 \section{Python Interface}
 \label{sec:sw_py}
@@ -60,7 +69,10 @@ model operations, with errors under 1 ulp.
 software Makefile builds in \file{sw\_model/build}. The environment variable
 \sig{IEEE754\_LIB} can give another path. The class \sig{Format} has the methods
 \sig{add}, \sig{sub}, \sig{mul}, \sig{div}, \sig{from\_double}, \sig{to\_double}
-and \sig{mac}, and the class \sig{Mac} is the streaming \sig{fmac}.
+and \sig{mac}, and the class \sig{Mac} is the streaming \sig{fmac}. The functions
+\sig{set\_rounding} and \sig{get\_rounding}, the constants \sig{RNE}, \sig{RTZ},
+\sig{RDN}, \sig{RUP} and \sig{RMM}, and the context manager \sig{Rounding} give the
+rounding mode.
 
 \file{python/floatVSieee754} compares a reference file in binary64 with a target
 file in \sig{float} or in the model format. For each differing line it writes the
@@ -73,23 +85,31 @@ and the numbers of differing and total lines.
 \file{tests/ieee754\_tests.cpp} needs no RTL tools. It tests the conversions, the
 arithmetic operators, the comparators, memory copies and the streaming MAC. It
 compares 200,000 conversions and 200,000 random operand pairs per operation with
-the \sig{float} arithmetic of the host. It prints PASS or FAIL.
+the \sig{float} arithmetic of the host. It also compares 50,000 operand pairs per
+operation in each host rounding mode (all but RMM), and checks ties, overflow and
+zero signs in each mode. It prints PASS or FAIL.
 
 \section{Comparison With the RTL}
 \label{sec:sw_check}
 
 \file{tests/check.py} compares the model with TestFloat and with the RTL, simulated
 with Icarus Verilog. A comparison is bit for bit, except that any NaN equals any
-NaN in the TestFloat comparison. It covers the following, and
-Table~\ref{tab:sw_check} gives the sizes:
+NaN in the TestFloat comparison. Each comparison runs in the five rounding modes.
+It covers the following, and Table~\ref{tab:sw_check} gives the sizes:
 
 \begin{itemize}
-\item the C model against all TestFloat level 1 vectors of add, sub, mul and div;
+\item the C model against all TestFloat level 1 vectors of add, sub, mul, div and
+  mulAdd, where the \sig{mac} model computes $a \times b + c \times 1$;
 \item the C model against the \sig{fpu} RTL, on a random mix of the four operations;
 \item the C model against the \sig{fmac} RTL, on product streams with several
   \sig{LGUARD\_W} and \sig{RGUARD\_W} values;
 \item the Python wrapper against the C model, on the same mixes and streams.
 \end{itemize}
+
+In RNE the RTL comparisons use the sizes of Table~\ref{tab:sw_check}. In each other
+mode they use one eighth of them. One more run, of the same size, changes the mode on
+every operation or product (plusarg \sig{+rnd\_cycle} of \file{tests/rtl\_tb.v}). It
+checks that the units sample \sig{rnd\_mode} with the right operation.
 
 \begin{threetable}{Model Comparison With the RTL}{tab:sw_check}{Format}{\sig{fpu} operations}{\sig{fmac} streams, for each (\sig{LGUARD\_W}, \sig{RGUARD\_W})}{2cm}{3.4cm}
 32/8 & 100,000 & 6,000, for (0,0), (4,0), (0,4), (3,5), (8,8) \\ \hline
@@ -98,7 +118,7 @@ Table~\ref{tab:sw_check} gives the sizes:
 \end{threetable}
 
 The check runs the \sig{fpu} and \sig{fmac} RTL. \sig{fadd}, \sig{fmul} and
-\sig{fdiv} use the same \sig{add}, \sig{mul} and \sig{div} datapaths, and are not
+\sig{fdiv} use the same \sig{fadd\_core}, \sig{fmul\_core} and \sig{fdiv\_core} datapaths, and are not
 simulated by the check.
 
 \section{Example Applications}

@@ -4,7 +4,8 @@
 // model plus exact bit operations on the encodings; there is no host floating-point
 // arithmetic. Operands and results are raw encodings in the low data_w bits of a
 // uint64_t, as in ieee754_model.h. Constants are binary64 bit patterns rounded to the
-// format. NaN results are the model's quiet NaN.
+// format. NaN results are the model's quiet NaN. The functions round to nearest, ties to
+// even, whatever the mode set by ieee754_set_rounding.
 
 #ifndef IEEE754_MATH_H
 #define IEEE754_MATH_H

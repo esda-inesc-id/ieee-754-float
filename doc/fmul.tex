@@ -4,7 +4,7 @@
 \section{Introduction}
 
 \sig{fmul} computes $\mathtt{op\_a}\times\mathtt{op\_b}$. Two \sig{unpack}
-modules split the operands. The \sig{mul} module works in two pipeline stages. The
+modules split the operands. The \sig{fmul\_core} module works in two pipeline stages. The
 first normalizes a subnormal operand and computes the sign and exponent of the
 product; the second multiplies the mantissas. When both operands are subnormal the
 product underflows to zero, so normalizing one is enough. \sig{norm} normalizes the product, and
@@ -13,8 +13,8 @@ product underflows to zero, so normalizing one is enough. \sig{norm} normalizes 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[node distance=7mm]
-  \node[ugblock] (u) {\sig{unpack}\\(2)};
-  \node[ugblock,right=of u] (a) {\sig{mul}\\2 cycles};
+  \node[ugblock] (u) {2 $\times$ \sig{unpack}};
+  \node[ugblock,right=of u] (a) {\sig{fmul\_core}\\2 cycles};
   \node[ugblock,right=of a] (n) {\sig{norm}\\1 cycle};
   \node[ugblock,right=of n] (p) {\sig{pack}\\1 cycle};
   \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
@@ -31,13 +31,13 @@ product underflows to zero, so normalizing one is enough. \sig{norm} normalizes 
 \item Multiplication with a latency of 4 clock cycles.
 \item One new operation per clock cycle.
 \item Subnormal operands and results.
-\item Round to nearest, ties to even.
+\item The five rounding modes of Table~\ref{tab:rnd_mode}.
 \item NaN and infinity handling, selected by \sig{SPECIAL\_CASES}.
 \end{itemize}
 
 \section{Parameters}
 
-\sig{fmul} has the parameters of Table~\ref{tab:common_params}. Its \sig{mul}
+\sig{fmul} has the parameters of Table~\ref{tab:common_params}. Its \sig{fmul\_core}
 datapath also has the parameter \sig{OUT\_REG} (default 0), which adds an output
 register stage when it is not 0, and \sig{PRENORM} (default 0), which enables the
 operand normalization. \sig{fmul} sets \sig{PRENORM} to 1, so \sig{norm} shifts the
@@ -61,13 +61,14 @@ fmul #(
    .EXP_W        (8),
    .SPECIAL_CASES(1)
 ) fmul0 (
-   .clk    (clk),
-   .rst    (rst),
-   .valid_i(valid_i),
-   .valid_o(valid_o),
-   .op_a   (op_a),
-   .op_b   (op_b),
-   .res    (res)
+   .clk     (clk),
+   .rst     (rst),
+   .valid_i (valid_i),
+   .valid_o (valid_o),
+   .rnd_mode(rnd_mode),
+   .op_a    (op_a),
+   .op_b    (op_b),
+   .res     (res)
 );
 \end{vcode}
 

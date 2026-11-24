@@ -118,16 +118,34 @@ static void normalize(const format *f, uint32_t exp_i, u128 man_i, int inv, uint
   *man_o = (top << 1) | (uint64_t)((man_norm & mask(f->man_w - 2)) != 0);
 }
 
-// round and pack.
-static uint64_t pack(const format *f, int inv, int nsub, int sign_i, uint32_t exp_i,
+static int rounding_mode = IEEE754_RNE;
+
+void ieee754_set_rounding(int mode) { rounding_mode = mode & 7; }
+
+int ieee754_get_rounding(void) { return rounding_mode; }
+
+// round and pack in rounding mode rnd.
+static uint64_t pack(const format *f, int rnd, int inv, int nsub, int sign_i, uint32_t exp_i,
                      uint64_t man_i) {
+  // With inv, the magnitude is the inverted mantissa plus one unit of the sticky bit
   uint64_t man_inv = inv ? man_i ^ (uint64_t)mask(f->man_w + EXTRA) : man_i;
+  unsigned grs = (unsigned)(man_inv & 7) + (unsigned)inv;
+  int carry = (grs >> 3) & 1;
   int lsb = (int)(man_inv >> 3) & 1;
-  int guard = (int)(man_inv >> 2) & 1;
-  int rnd = (int)(man_inv >> 1) & 1;
-  int sticky = (int)man_inv & 1;
-  int round_up = (guard & (lsb | rnd | sticky)) |
-                 (inv & ((lsb & (!guard) & rnd & sticky) | ((!lsb) & guard & (!rnd) & (!sticky))));
+  int guard = (grs >> 2) & 1;
+  int rnd_bit = (grs >> 1) & 1;
+  int sticky = grs & 1;
+  int inexact = guard | rnd_bit | sticky;
+
+  int up;
+  switch (rnd) {
+    case IEEE754_RTZ: up = 0; break;
+    case IEEE754_RDN: up = sign_i && inexact; break;
+    case IEEE754_RUP: up = !sign_i && inexact; break;
+    case IEEE754_RMM: up = guard; break;
+    default: up = guard & (lsb | rnd_bit | sticky); break;
+  }
+  int round_up = carry | up;
 
   uint64_t man_rnd = (man_inv >> 3) + (uint64_t)round_up;
   uint32_t exp_rnd = exp_i;
@@ -137,16 +155,20 @@ static uint64_t pack(const format *f, int inv, int nsub, int sign_i, uint32_t ex
   }
   man_rnd &= (uint64_t)mask(f->man_w);
 
+  // Overflow gives infinity, or the largest finite number when the mode rounds toward
+  // zero for the sign of the result
   uint32_t exp_max = (1u << f->exp_w) - 2;
   if (exp_negative(f, (exp_max - exp_rnd) & f->exp_mask)) {
-    exp_rnd = (1u << f->exp_w) - 1;
-    man_rnd = (uint64_t)1 << f->f_w;
+    int ovf_inf = rnd == IEEE754_RTZ ? 0 : rnd == IEEE754_RDN ? sign_i : rnd == IEEE754_RUP ? !sign_i : 1;
+    exp_rnd = ovf_inf ? (1u << f->exp_w) - 1 : exp_max;
+    man_rnd = ovf_inf ? (uint64_t)1 << f->f_w : (uint64_t)mask(f->man_w);
   }
   exp_rnd &= (1u << f->exp_w) - 1;
 
   int nzero = man_i != 0 || round_up;
   uint64_t exponent = (man_rnd >> f->f_w) & 1 ? exp_rnd : 0;
-  int sign = (nzero || nsub) && sign_i;
+  // An exact zero from operands of opposite signs is +0, or -0 when rounding toward -infinity
+  int sign = (nzero || nsub) ? sign_i : rnd == IEEE754_RDN;
   return ((uint64_t)sign << (f->data_w - 1)) | (exponent << f->f_w) |
          (man_rnd & (uint64_t)mask(f->f_w));
 }
@@ -182,7 +204,7 @@ static uint64_t add_unpacked(const format *f, unpacked a, unpacked b) {
   uint32_t exp_norm;
   uint64_t man_norm;
   normalize(f, big.exp, temp << (f->man_w - EXTRA - 1), res_inv, &exp_norm, &man_norm);
-  return pack(f, res_inv, !subtract, res_sign, exp_norm, man_norm);
+  return pack(f, rounding_mode, res_inv, !subtract, res_sign, exp_norm, man_norm);
 }
 
 uint64_t ieee754_add(uint64_t a, uint64_t b, int data_w, int exp_w) {
@@ -212,7 +234,7 @@ uint64_t ieee754_mul(uint64_t a, uint64_t b, int data_w, int exp_w) {
   uint32_t exp_norm;
   uint64_t man_norm;
   normalize(&f, exponent, (u128)ua.man * ub.man, 0, &exp_norm, &man_norm);
-  return pack(&f, 0, 1, sign, exp_norm, man_norm);
+  return pack(&f, rounding_mode, 0, 1, sign, exp_norm, man_norm);
 }
 
 uint64_t ieee754_div(uint64_t a, uint64_t b, int data_w, int exp_w) {
@@ -244,7 +266,7 @@ uint64_t ieee754_div(uint64_t a, uint64_t b, int data_w, int exp_w) {
   uint32_t exp_norm;
   uint64_t man_norm;
   normalize(&f, exponent, man, 0, &exp_norm, &man_norm);
-  return pack(&f, 0, 1, sign, exp_norm, man_norm);
+  return pack(&f, rounding_mode, 0, 1, sign, exp_norm, man_norm);
 }
 
 int ieee754_format_ok(int data_w, int exp_w) {
@@ -353,6 +375,7 @@ struct ieee754_mac {
   int word_w;  // acc_w + EXTRA + 1
   uint32_t exp_zero;
   int pushed;
+  int rnd;  // rounding mode at the last product
   mac_regs r;
 };
 
@@ -408,7 +431,8 @@ static void mac_normalize(const ieee754_mac *m, uint32_t *exp_o, uint64_t *man_o
     man_norm = (shifted & ~(u128)1) | (u128)sticky;
   }
 
-  *exp_o = (acc_exp + (~lshift & f->exp_mask) + offset) & f->exp_mask;
+  // A zero sum takes exponent 0, as in fmac_core.v
+  *exp_o = acc_man == 0 ? 0 : (acc_exp + (~lshift & f->exp_mask) + offset) & f->exp_mask;
   int low_w = word_w - f->man_w - 2;
   uint64_t top = (uint64_t)((man_norm >> low_w) & mask(f->man_w + 2));
   *man_o = (top << 1) | (uint64_t)((man_norm & mask(low_w)) != 0);
@@ -506,15 +530,17 @@ static void mac_clock(ieee754_mac *m, int valid_i, uint64_t op_a, uint64_t op_b)
   n.acc_exp2 = b_exp_int;
   n.acc_man2 = b_man_int;
 
-  // NaN, infinity and -0 flags
+  // NaN, infinity and signed zero flags: a signed zero needs every term to be a zero of
+  // that sign
   int term_nan = a.nan || b.nan || (a.inf && b.zero) || (a.zero && b.inf);
   int term_inf = (a.inf || b.inf) && !term_nan;
   int term_sign = a.sign ^ b.sign;
-  int term_nzero = (a.zero || b.zero) && !term_nan && term_sign;
-  unsigned term_flags = (unsigned)term_nzero << 3 | (unsigned)(term_inf && term_sign) << 2 |
+  int term_zero = (a.zero || b.zero) && !term_nan;
+  unsigned term_flags = (unsigned)(term_zero && !term_sign) << 4 |
+                        (unsigned)(term_zero && term_sign) << 3 | (unsigned)(term_inf && term_sign) << 2 |
                         (unsigned)(term_inf && !term_sign) << 1 | (unsigned)term_nan;
   if (valid_i) {
-    unsigned merged = (r->acc_flags & term_flags & 8) | ((r->acc_flags | term_flags) & 7);
+    unsigned merged = (r->acc_flags & term_flags & 0x18) | ((r->acc_flags | term_flags) & 7);
     n.acc_flags = r->valid_d1 ? merged : term_flags;
   }
   for (int i = 5; i > 0; i--) n.flags_pipe[i] = r->flags_pipe[i - 1];
@@ -533,6 +559,7 @@ static void mac_clock(ieee754_mac *m, int valid_i, uint64_t op_a, uint64_t op_b)
 void ieee754_mac_push(ieee754_mac *mac, uint64_t a, uint64_t b) {
   mac_clock(mac, 1, a, b);
   mac->pushed = 1;
+  mac->rnd = rounding_mode;
 }
 
 uint64_t ieee754_mac_result(ieee754_mac *mac) {
@@ -546,10 +573,12 @@ uint64_t ieee754_mac_result(ieee754_mac *mac) {
     res = nan_bits(f);
   } else if (flags & 8) {
     res = (uint64_t)1 << (f->data_w - 1);
+  } else if (flags & 16) {
+    res = 0;
   } else if (flags) {
     res = inf_bits(f, (flags >> 2) & 1);
   } else {
-    res = pack(f, mac->r.res_sign, 0, mac->r.res_sign, mac->r.res_exp, mac->r.res_man);
+    res = pack(f, mac->rnd, mac->r.res_sign, 0, mac->r.res_sign, mac->r.res_exp, mac->r.res_man);
   }
 
   memset(&mac->r, 0, sizeof mac->r);

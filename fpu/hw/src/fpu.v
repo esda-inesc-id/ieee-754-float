@@ -3,7 +3,6 @@
 module fpu #(
    parameter DATA_W        = 32,
    parameter EXP_W         = 8,
-   parameter MAN_W         = DATA_W - EXP_W,
    parameter SPECIAL_CASES = 1
 ) (
    input clk,
@@ -11,6 +10,9 @@ module fpu #(
 
    input  valid_i,
    output valid_o,
+
+   // rounding mode, sampled with valid_i; see round.v for the encoding
+   input [2:0] rnd_mode,
 
    input [1:0] funct,
 
@@ -20,6 +22,8 @@ module fpu #(
    output [DATA_W-1:0] res
 );
 
+   // mantissa width, including the hidden bit
+   localparam MAN_W = DATA_W - EXP_W;
    localparam EXTRA = 3;
 
    wire             add = ~funct[1];
@@ -78,7 +82,7 @@ module fpu #(
    wire                 add_nsub;
    wire                 add_special;
    wire [   DATA_W-1:0] add_res_special;
-   add #(
+   fadd_core #(
       .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES)
@@ -120,7 +124,7 @@ module fpu #(
    wire [2*MAN_W-1:0] mul_man;
    wire               mul_special;
    wire [ DATA_W-1:0] mul_res_special;
-   mul #(
+   fmul_core #(
       .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES),
@@ -163,7 +167,7 @@ module fpu #(
    wire [MAN_W+EXTRA+1:0] div_man;
    wire               div_special;
    wire [ DATA_W-1:0] div_res_special;
-   div #(
+   fdiv_core #(
       .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES)
@@ -260,6 +264,28 @@ module fpu #(
    );
 
    wire pack_valid_i = norm_valid_o | div_valid_o;
+   // Rounding mode, delayed to the pack input (add or mul, and norm)
+   localparam RND_DLY = 4;
+   reg [3*RND_DLY-1:0] rnd_pipe;
+   always @(posedge clk, posedge rst) begin
+      if (rst) begin
+         rnd_pipe <= {(3 * RND_DLY) {1'b0}};
+      end else begin
+         rnd_pipe <= {rnd_pipe[3*RND_DLY-4:0], rnd_mode};
+      end
+   end
+   wire [2:0] pack_rnd_mode = rnd_pipe[3*RND_DLY-1-:3];
+
+   // Rounding mode of a division, captured with its valid_i
+   reg [2:0] div_rnd_mode;
+   always @(posedge clk, posedge rst) begin
+      if (rst) begin
+         div_rnd_mode <= 3'd0;
+      end else if (div_valid_i) begin
+         div_rnd_mode <= rnd_mode;
+      end
+   end
+
    pack #(
       .DATA_W(DATA_W),
       .EXP_W (EXP_W)
@@ -272,6 +298,7 @@ module fpu #(
 
       .inv (norm_inv),
       .nsub(norm_nsub),
+      .rnd_mode(div_valid_o ? div_rnd_mode : pack_rnd_mode),
 
       .special_i    (norm_special),
       .res_special_i(norm_res_special),

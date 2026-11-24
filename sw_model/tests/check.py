@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Checks the C model against TestFloat and the RTL, and the Python wrapper against the C model.
 
+Every check runs in the five rounding modes. The model-vs-RTL checks also run with the mode
+changing on every operation or product ("cycle"); modes other than RNE use the first
+1/MODE_FRACTION of the vectors.
+
 usage: check.py --rtl <repository root> --work <directory> --model-run <program>
 """
 
 import argparse
+import concurrent.futures
 import importlib.util
 import os
 import random
@@ -25,6 +30,11 @@ MIX = 100000
 OTHER_STREAMS = 2000
 OTHER_MIX = 20000
 SEED = 754
+# rounding modes: rnd_mode value, name and TestFloat option
+MODES = [(0, "rne", "-rnear_even"), (1, "rtz", "-rminMag"), (2, "rdn", "-rmin"),
+         (3, "rup", "-rmax"), (4, "rmm", "-rnear_maxMag")]
+MODE_FRACTION = 8
+JOBS = os.cpu_count() or 1
 
 TF_GEN = "lib/sim/testfloat-build/berkeley-testfloat-3/build/Linux-x86_64-GCC/testfloat_gen"
 LIB_SRC = ["unpack.v", "cls.v", "round.v", "pack.v"]
@@ -33,30 +43,42 @@ LIB_SRC = ["unpack.v", "cls.v", "round.v", "pack.v"]
 def rtl_sources(root, unit):
     lib = [os.path.join(root, "lib/src", name) for name in LIB_SRC]
     if unit == "fmac":
-        return [os.path.join(root, "fmac/hw/src", name) for name in ("fmac.v", "mac.v")] + lib
-    files = ["fpu/hw/src/fpu.v", "fadd/hw/src/add.v", "fmul/hw/src/mul.v", "fdiv/hw/src/div.v",
+        return [os.path.join(root, "fmac/hw/src", name) for name in ("fmac.v", "fmac_core.v")] + lib
+    files = ["fpu/hw/src/fpu.v", "fadd/hw/src/fadd_core.v", "fmul/hw/src/fmul_core.v", "fdiv/hw/src/fdiv_core.v",
              "lib/src/norm.v"]
     return [os.path.join(root, name) for name in files] + lib
 
 
-def simulate(root, work, unit, vectors, data_w, exp_w, lguard=0, rguard=0):
-    """Runs the RTL on a vector file and returns its result lines."""
+def simulate(root, work, unit, runs, data_w, exp_w, lguard=0, rguard=0):
+    """Runs the RTL on {rnd: vector file} and returns {rnd: result lines}.
+
+    rnd is a mode value or "cycle".
+    """
     run_dir = os.path.join(work, f"{unit}_{data_w}_{lguard}_{rguard}")
     os.makedirs(run_dir, exist_ok=True)
-    link = os.path.join(run_dir, "vectors.tv")
-    if os.path.lexists(link):
-        os.remove(link)
-    os.symlink(os.path.abspath(vectors), link)
-
     params = [f"-Prtl_tb.DATA_W={data_w}", f"-Prtl_tb.EXP_W={exp_w}"]
     if unit == "fmac":
         params += ["-DFMAC", f"-Prtl_tb.LGUARD_W={lguard}", f"-Prtl_tb.RGUARD_W={rguard}"]
     subprocess.run(["iverilog", "-g2005-sv", "-I", os.path.join(root, "lib/src"), "-s", "rtl_tb",
                     "-o", "sim.vvp", *params, os.path.join(HERE, "rtl_tb.v"),
                     *rtl_sources(root, unit)], cwd=run_dir, check=True)
-    subprocess.run(["vvp", "-n", "sim.vvp"], cwd=run_dir, check=True, stdout=subprocess.DEVNULL)
-    with open(os.path.join(run_dir, "results.out")) as src:
-        return [int(line, 16) for line in src.read().split()]
+
+    def run(rnd, vectors):
+        mode_dir = os.path.join(run_dir, f"rnd_{rnd}")
+        os.makedirs(mode_dir, exist_ok=True)
+        link = os.path.join(mode_dir, "vectors.tv")
+        if os.path.lexists(link):
+            os.remove(link)
+        os.symlink(os.path.abspath(vectors), link)
+        plusarg = "+rnd_cycle" if rnd == "cycle" else f"+rnd_mode={rnd}"
+        subprocess.run(["vvp", "-n", os.path.join(run_dir, "sim.vvp"), plusarg], cwd=mode_dir,
+                       check=True, stdout=subprocess.DEVNULL)
+        with open(os.path.join(mode_dir, "results.out")) as src:
+            return [int(line, 16) for line in src.read().split()]
+
+    with concurrent.futures.ThreadPoolExecutor(JOBS) as pool:
+        futures = {rnd: pool.submit(run, rnd, vectors) for rnd, vectors in runs.items()}
+        return {rnd: future.result() for rnd, future in futures.items()}
 
 
 def model(tool, mode, vectors, *args):
@@ -79,15 +101,25 @@ def report(name, expected, actual, labels=None):
 
 
 def check_testfloat(root, tool):
+    """Model against TestFloat level 1, in every format, operation and mode; mulAdd runs
+    fmac on a*b + c*1.0."""
     gen = os.path.join(root, TF_GEN)
+
+    def run(data_w, exp_w, op, rnd, option):
+        source = subprocess.Popen([gen, "-level", "1", option, f"f{data_w}_{op}"],
+                                  stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        result = subprocess.run([tool, "tf", op, str(data_w), str(exp_w), str(rnd)],
+                                stdin=source.stdout, capture_output=True, text=True)
+        source.stdout.close()
+        source.wait()
+        return result
+
+    jobs = [(data_w, exp_w, op, rnd, option) for data_w, exp_w in FORMATS
+            for op in OPS + ["mulAdd"] for rnd, _, option in MODES]
     failed = 0
-    for data_w, exp_w in FORMATS:
-        for op in OPS:
-            source = subprocess.Popen([gen, "-level", "1", "-rnear_even", f"f{data_w}_{op}"],
-                                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            result = subprocess.run([tool, "tf", op, str(data_w), str(exp_w)], stdin=source.stdout)
-            source.stdout.close()
-            source.wait()
+    with concurrent.futures.ThreadPoolExecutor(JOBS) as pool:
+        for result in pool.map(lambda job: run(*job), jobs):
+            print(result.stdout + result.stderr, end="", flush=True)
             failed |= result.returncode
     return failed
 
@@ -111,14 +143,33 @@ def read_mix(path):
     return [(int(row[0]), int(row[1], 16), int(row[2], 16)) for row in rows]
 
 
-def check_wrapper(name, fmt, mix_rows, c_results):
+def cycle_mode(k):
+    return (k * 3 + (k >> 3)) & 7
+
+
+def check_wrapper(name, fmt, mix_rows, c_results, rnd):
     ops = [fmt.add, fmt.sub, fmt.mul, fmt.div]
-    results = [ops[funct](a, b) for funct, a, b in mix_rows]
+    results = []
+    with ieee754.Rounding(0 if rnd == "cycle" else rnd):
+        for k, (funct, a, b) in enumerate(mix_rows):
+            if rnd == "cycle":
+                ieee754.set_rounding(cycle_mode(k))
+            results.append(ops[funct](a, b))
     return report(f"python vs C {name}", c_results, results)
 
 
-def check_wrapper_mac(name, fmt, streams, c_results, lguard, rguard):
-    results = [fmt.mac(terms, lguard, rguard) for terms in streams]
+def check_wrapper_mac(name, fmt, streams, c_results, lguard, rguard, rnd):
+    results = []
+    k = 0
+    with ieee754.Rounding(0 if rnd == "cycle" else rnd):
+        for terms in streams:
+            with ieee754.Mac(fmt.data_w, fmt.exp_w, lguard, rguard) as mac:
+                for a, b in terms:
+                    if rnd == "cycle":
+                        ieee754.set_rounding(cycle_mode(k))
+                        k += 1
+                    mac.push(a, b)
+                results.append(mac.result())
     return report(f"python vs C {name}", c_results, results)
 
 
@@ -185,26 +236,43 @@ def fmac_streams_module(root):
     return module
 
 
-def check_format(root, work, tool, data_w, exp_w, streams_tv, mix_tv):
+def mode_runs(path, count, write):
+    """{rnd: vector file}: all vectors in RNE, the first count / MODE_FRACTION otherwise."""
+    short = path.replace(".tv", "_short.tv")
+    write(short, max(count // MODE_FRACTION, 1))
+    runs = {0: path}
+    runs.update({rnd: short for rnd, _, _ in MODES[1:]})
+    runs["cycle"] = short
+    return runs
+
+
+def mode_name(rnd):
+    return rnd if rnd == "cycle" else MODES[rnd][1]
+
+
+def check_format(root, work, tool, data_w, exp_w, stream_runs, mix_runs):
     failed = 0
     fmt = ieee754.Format(data_w, exp_w)
     name = f"f{data_w}"
 
-    mix_rows = read_mix(mix_tv)
-    labels = [f"funct {f} a {a:x} b {b:x}" for f, a, b in mix_rows]
-    mix_model = model(tool, "mix", mix_tv, data_w, exp_w)
-    mix_rtl = simulate(root, work, "fpu", mix_tv, data_w, exp_w)
-    failed |= report(f"fpu mix {name} model vs RTL", mix_rtl, mix_model, labels)
-    failed |= check_wrapper(f"fpu mix {name}", fmt, mix_rows, mix_model)
+    mix_rtl = simulate(root, work, "fpu", mix_runs, data_w, exp_w)
+    for rnd, vectors in mix_runs.items():
+        mix_rows = read_mix(vectors)
+        labels = [f"funct {f} a {a:x} b {b:x}" for f, a, b in mix_rows]
+        mix_model = model(tool, "mix", vectors, data_w, exp_w, rnd)
+        tag = f"fpu mix {name} {mode_name(rnd)}"
+        failed |= report(f"{tag} model vs RTL", mix_rtl[rnd], mix_model, labels)
+        failed |= check_wrapper(tag, fmt, mix_rows, mix_model, rnd)
 
-    streams = read_streams(streams_tv)
     for lguard, rguard in (GUARDS_32 if data_w == 32 else GUARDS_OTHER):
-        tag = f"fmac {name} LGUARD_W={lguard} RGUARD_W={rguard}"
-        mac_model = model(tool, "mac", streams_tv, data_w, exp_w, lguard, rguard)
-        mac_rtl = simulate(root, work, "fmac", streams_tv, data_w, exp_w, lguard, rguard)
-        labels = [f"stream length {len(terms)}" for terms in streams]
-        failed |= report(f"{tag} model vs RTL", mac_rtl, mac_model, labels)
-        failed |= check_wrapper_mac(tag, fmt, streams, mac_model, lguard, rguard)
+        mac_rtl = simulate(root, work, "fmac", stream_runs, data_w, exp_w, lguard, rguard)
+        for rnd, vectors in stream_runs.items():
+            streams = read_streams(vectors)
+            tag = f"fmac {name} LGUARD_W={lguard} RGUARD_W={rguard} {mode_name(rnd)}"
+            mac_model = model(tool, "mac", vectors, data_w, exp_w, lguard, rguard, rnd)
+            labels = [f"stream length {len(terms)}" for terms in streams]
+            failed |= report(f"{tag} model vs RTL", mac_rtl[rnd], mac_model, labels)
+            failed |= check_wrapper_mac(tag, fmt, streams, mac_model, lguard, rguard, rnd)
     return failed
 
 
@@ -225,13 +293,27 @@ def main():
         streams_tv = os.path.join(work, f"streams_{data_w}.tv")
         mix_tv = os.path.join(work, f"mix_{data_w}.tv")
         if data_w == 32:
-            fmac_streams_module(root).generate(STREAMS, streams_tv)
-            subprocess.run([sys.executable, os.path.join(root, "fpu/hw/sim/src/fpu_mix.py"),
-                            os.path.join(root, TF_GEN), str(MIX), mix_tv], check=True)
+            def gen_streams(path, count):
+                fmac_streams_module(root).generate(count, path)
+
+            def gen_mix(path, count):
+                subprocess.run([sys.executable, os.path.join(root, "fpu/hw/sim/src/fpu_mix.py"),
+                                os.path.join(root, TF_GEN), str(count), path], check=True)
+
+            streams, mix = STREAMS, MIX
         else:
-            write_streams(streams_tv, data_w, exp_w, OTHER_STREAMS)
-            write_mix(root, mix_tv, data_w, OTHER_MIX)
-        failed |= check_format(root, work, tool, data_w, exp_w, streams_tv, mix_tv)
+            def gen_streams(path, count, data_w=data_w, exp_w=exp_w):
+                write_streams(path, data_w, exp_w, count)
+
+            def gen_mix(path, count, data_w=data_w):
+                write_mix(root, path, data_w, count)
+
+            streams, mix = OTHER_STREAMS, OTHER_MIX
+        gen_streams(streams_tv, streams)
+        gen_mix(mix_tv, mix)
+        failed |= check_format(root, work, tool, data_w, exp_w,
+                               mode_runs(streams_tv, streams, gen_streams),
+                               mode_runs(mix_tv, mix, gen_mix))
 
     print("check: PASS" if not failed else "check: FAIL")
     return 1 if failed else 0

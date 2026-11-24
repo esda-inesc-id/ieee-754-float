@@ -1,8 +1,9 @@
-// Self-checking tests of the C++ type and the streaming MAC.
+// Self-checking tests of the C++ type, the streaming MAC and the rounding modes.
 //
 // usage: ieee754_tests -i <data file> -w <weight file> -d <double out> -f <float out>
 //                      -p <ieee754 out>
 
+#include <fenv.h>
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
@@ -144,6 +145,72 @@ static void mac_tests(double *data, unsigned n, double *weights, unsigned m, FIL
   }
 }
 
+static Ieee754 sp(uint32_t bits) { return Ieee754::from_bits(bits); }
+
+static void rounding_tests() {
+  expect(ieee754_get_rounding() == IEEE754_RNE, "RNE is the default mode");
+
+  // The host has every mode but RMM
+  static const int modes[4][2] = {{IEEE754_RNE, FE_TONEAREST},
+                                  {IEEE754_RTZ, FE_TOWARDZERO},
+                                  {IEEE754_RDN, FE_DOWNWARD},
+                                  {IEEE754_RUP, FE_UPWARD}};
+  for (const auto &mode : modes) {
+    Ieee754Rounding rounding(mode[0]);
+    fesetround(mode[1]);
+    bool ok = true;
+    for (int i = 0; i < 50000; i++) {
+      uint32_t x = (uint32_t)rand32();
+      uint32_t y = (uint32_t)rand32();
+      volatile float fx, fy;
+      memcpy((void *)&fx, (const void *)&x, sizeof x);
+      memcpy((void *)&fy, (const void *)&y, sizeof y);
+      ok = ok && same(sp(x) + sp(y), fx + fy) && same(sp(x) - sp(y), fx - fy) &&
+           same(sp(x) * sp(y), fx * fy) && same(sp(x) / sp(y), fx / fy);
+    }
+    fesetround(FE_TONEAREST);
+    expect(ok, "operations match the host in its rounding modes");
+  }
+  expect(ieee754_get_rounding() == IEEE754_RNE, "Ieee754Rounding restores the mode");
+
+  Ieee754 one = 1.0;
+  Ieee754 tie = Ieee754::from_bits(0x33800000u);  // 2**-24, half a unit of 1.0
+  Ieee754 max = Ieee754::from_bits(0x7F7FFFFFu);
+  {
+    Ieee754Rounding rounding(IEEE754_RMM);
+    expect((one + tie).bits() == 0x3F800001u, "RMM rounds a tie away from zero");
+    expect((max * 2).bits() == 0x7F800000u, "RMM overflows to infinity");
+  }
+  expect((one + tie).bits() == 0x3F800000u, "RNE rounds a tie to even");
+  {
+    Ieee754Rounding rounding(IEEE754_RTZ);
+    expect((max * 2).bits() == 0x7F7FFFFFu && (-max * 2).bits() == 0xFF7FFFFFu,
+           "RTZ overflows to the largest finite number");
+  }
+  {
+    Ieee754Rounding rounding(IEEE754_RDN);
+    expect((max * 2).bits() == 0x7F7FFFFFu && (-max * 2).bits() == 0xFF800000u,
+           "RDN overflow");
+    expect((one - one).bits() == 0x80000000u, "RDN gives -0 for x - x");
+    expect(sqrt(Ieee754(2.0)).bits() == 0x3FB504F3u, "math functions round to nearest");
+    Ieee754Mac mac;
+    mac.push(one, one);
+    mac.push(-one, one);
+    expect(mac.result().bits() == 0x80000000u, "RDN gives -0 for an exact MAC cancellation");
+    mac.push(Ieee754(0.0), one);
+    expect(mac.result().bits() == 0, "MAC of +0 products is +0 in RDN");
+  }
+  {
+    Ieee754Rounding rounding(IEEE754_RUP);
+    expect((-max * 2).bits() == 0xFF7FFFFFu && (one - one).bits() == 0, "RUP");
+    Ieee754Mac mac;
+    mac.push(tie, one);
+    ieee754_set_rounding(IEEE754_RTZ);
+    mac.push(one, one);
+    expect(mac.result().bits() == 0x3F800000u, "MAC rounds in the mode of its last product");
+  }
+}
+
 static void usage(const char *name) {
   printf("usage: %s -i <data file> -w <weight file> -d <double out> -f <float out> "
          "-p <ieee754 out>\n", name);
@@ -187,6 +254,7 @@ int main(int argc, char **argv) {
   comparator_tests();
   memory_tests();
   mac_tests(data, n, weights, m, fp_d, fp_f, fp_ieee754);
+  rounding_tests();
 
   fclose(fp_d);
   fclose(fp_f);

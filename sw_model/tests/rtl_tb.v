@@ -3,6 +3,9 @@
 // Applies vectors.tv to fmac (define FMAC) or fpu and writes results.out.
 // fmac: product streams separated by the minimum idle gap.
 // fpu: add, sub and mul on consecutive cycles; div held until its result.
+// +rnd_mode=<n> sets the rounding mode (default 0). +rnd_cycle instead gives operation or
+// product k (from 0) the mode (3k + k/8) mod 8, and idle cycles another mode, as
+// model_run does with "cycle".
 
 module rtl_tb;
 
@@ -19,8 +22,34 @@ module rtl_tb;
    reg               valid_i = 0;
    reg  [DATA_W-1:0] op_a = 0;
    reg  [DATA_W-1:0] op_b = 0;
+   reg  [       2:0] rnd_mode = 0;
    wire              valid_o;
    wire [DATA_W-1:0] res;
+
+   integer           rnd_arg = 0;
+   integer           rnd_cycle = 0;
+   integer           k = 0;
+
+   function [2:0] cycle_mode(input integer idx);
+      cycle_mode = idx * 3 + idx / 8;
+   endfunction
+
+   // mode of the next operation or product
+   task next_mode;
+      begin
+         if (rnd_cycle) begin
+            rnd_mode = cycle_mode(k);
+            k = k + 1;
+         end
+      end
+   endtask
+
+   // mode while idle, which must not affect results
+   task idle_mode;
+      begin
+         if (rnd_cycle) rnd_mode = ~rnd_mode;
+      end
+   endtask
 
 `ifdef FMAC
    fmac #(
@@ -33,6 +62,7 @@ module rtl_tb;
       .rst    (rst),
       .valid_i(valid_i),
       .valid_o(valid_o),
+      .rnd_mode(rnd_mode),
       .op_a   (op_a),
       .op_b   (op_b),
       .res    (res)
@@ -48,6 +78,7 @@ module rtl_tb;
       .rst    (rst),
       .valid_i(valid_i),
       .valid_o(valid_o),
+      .rnd_mode(rnd_mode),
       .funct  (funct),
       .op_a   (op_a),
       .op_b   (op_b),
@@ -77,6 +108,8 @@ module rtl_tb;
    endtask
 
    initial begin
+      if ($value$plusargs("rnd_mode=%d", rnd_arg)) rnd_mode = rnd_arg[2:0];
+      rnd_cycle = $test$plusargs("rnd_cycle");
       vec_fd = $fopen("vectors.tv", "r");
       res_fd = $fopen("results.out", "w");
       if (vec_fd == 0) begin
@@ -97,10 +130,12 @@ module rtl_tb;
          valid_i = 1;
          for (i = 0; i < n; i = i + 1) begin
             n_read = $fscanf(vec_fd, "%h %h\n", op_a, op_b);
+            next_mode;
             @(posedge clk);
             #1;
          end
          valid_i = 0;
+         idle_mode;
          sent    = sent + 1;
          repeat (GAP + ((sent % 4 == 0) ? sent % 3 : 0)) @(posedge clk);
          #1;
@@ -112,12 +147,14 @@ module rtl_tb;
          n_read  = $fgets(line, vec_fd);
          funct   = code[1:0];
          valid_i = 1;
+         next_mode;
          sent    = sent + 1;
          @(posedge clk);
          #1;
          if (code == 3) begin
             valid_i = 0;
             funct   = 0;
+            idle_mode;
             wait_results;
             @(posedge clk);
             #1;
@@ -125,6 +162,7 @@ module rtl_tb;
          n_read = $fscanf(vec_fd, "%d %h %h", code, op_a, op_b);
       end
       valid_i = 0;
+      idle_mode;
 `endif
 
       wait_results;

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module mac #(
+module fmac_core #(
    parameter DATA_W        = 32,
    parameter EXP_W         = 8,
    parameter MAN_W         = DATA_W - EXP_W,
@@ -263,29 +263,34 @@ module mac #(
    wire term_nan = op_a_nan | op_b_nan | (op_a_inf & op_b_zero) | (op_a_zero & op_b_inf);
    wire term_inf = (op_a_inf | op_b_inf) & ~term_nan;
    wire term_sign = op_a_sign ^ op_b_sign;
-   wire term_nzero = (op_a_zero | op_b_zero) & ~term_nan & term_sign;
-   wire [3:0] term_flags = {term_nzero, term_inf & term_sign, term_inf & ~term_sign, term_nan};
+   wire term_zero = (op_a_zero | op_b_zero) & ~term_nan;
+   wire [4:0] term_flags = {
+      term_zero & ~term_sign, term_zero & term_sign, term_inf & term_sign, term_inf & ~term_sign,
+      term_nan
+   };
 
-   reg [3:0] acc_flags;
-   reg [4*SPECIAL_DELAY-1:0] flags_pipe;
-   wire [3:0] acc_merge = {acc_flags[3] & term_flags[3], acc_flags[2:0] | term_flags[2:0]};
+   reg [4:0] acc_flags;
+   reg [5*SPECIAL_DELAY-1:0] flags_pipe;
+   wire [4:0] acc_merge = {acc_flags[4:3] & term_flags[4:3], acc_flags[2:0] | term_flags[2:0]};
    always @(posedge clk, posedge rst) begin
       if (rst) begin
-         acc_flags  <= 4'b0000;
-         flags_pipe <= {(4 * SPECIAL_DELAY) {1'b0}};
+         acc_flags  <= 5'b00000;
+         flags_pipe <= {(5 * SPECIAL_DELAY) {1'b0}};
       end else begin
-         // NaN and infinities are sticky; -0 needs every term to be -0
+         // NaN and infinities are sticky; a signed zero needs every term to be a zero
+         // of that sign, so the result keeps that sign in every rounding mode
          if (valid_i) acc_flags <= valid_d1 ? acc_merge : term_flags;
-         flags_pipe <= {flags_pipe[4*SPECIAL_DELAY-5:0], acc_flags};
+         flags_pipe <= {flags_pipe[5*SPECIAL_DELAY-6:0], acc_flags};
       end
    end
 
-   wire [3:0] res_flags = flags_pipe[4*SPECIAL_DELAY-1-:4];
+   wire [4:0] res_flags = flags_pipe[5*SPECIAL_DELAY-1-:5];
    wire       res_nan = res_flags[0] | (res_flags[1] & res_flags[2]);
 
    assign special = (SPECIAL_CASES != 0) & (|res_flags);
    assign res_special = res_nan ? {1'b0, {EXP_W{1'b1}}, 1'b1, {(MAN_W-2){1'b0}}} :
       res_flags[3] ? {1'b1, {(DATA_W-1){1'b0}}} :
+      res_flags[4] ? {DATA_W{1'b0}} :
       {res_flags[2], {EXP_W{1'b1}}, {(MAN_W-1){1'b0}}};
 
    // Convert final result to sign-magnitude
@@ -325,7 +330,10 @@ module mac #(
    };
    wire [ACC_W+EXTRA:0] man_norm = exp_diff2[EXP_W+1] ? acc_man_reg << lshift : man_rsht_st;
 
-   wire [EXP_W+1:0] exp_adjust = exp_norm;
+   // A zero sum takes exponent 0: normalizing it would subtract the full leading-zero
+   // count and can wrap the exponent into overflow in narrow formats
+   wire             acc_zero = ~|acc_man_reg;
+   wire [EXP_W+1:0] exp_adjust = acc_zero ? {(EXP_W + 2) {1'b0}} : exp_norm;
    wire [MAN_W+EXTRA-1:0] man_adjust = {
       man_norm[ACC_W+EXTRA-:MAN_W+EXTRA-1], |man_norm[ACC_W+EXTRA-(MAN_W+EXTRA-1):0]
    };

@@ -32,8 +32,13 @@ waveforms to \file{<unit>.vcd}. Table~\ref{tab:tbs} lists what each one applies.
 
 The test applies vectors from Berkeley TestFloat to each unit, through the
 testbench \file{lib/\allowbreak sim/\allowbreak src/\allowbreak testfloat\_tb.v}. The tool \sig{testfloat\_gen}
-generates the vectors for the binary32 format and round-to-nearest-even. Each
+generates the vectors for the binary32 format. Each
 vector holds the operands, the expected result and the expected exception flags.
+
+The test runs every operation in the five rounding modes of
+Table~\ref{tab:rnd_mode}: \sig{testfloat\_gen} generates the vectors of each
+mode, and the testbench drives the same mode on \sig{rnd\_mode}. The stream and
+mixed-operation tests use mode 0.
 
 The testbench applies one vector at a time and waits for \sig{valid\_o}, for at most
 1,000 clock cycles. It compares the result bits only, because the units have no
@@ -61,9 +66,9 @@ Full & The smoke run, then the regular run with all 6,133,248 \sig{f32\_mulAdd} 
 The test writes these files to \file{<unit>/hw/sim}:
 
 \begin{itemize}
-\item \file{testfloat\_<op>.rpt}: the simulator output, ending in a line with the
+\item \file{testfloat\_<op>\_<mode>.rpt}: the simulator output, ending in a line with the
   number of vectors and failures.
-\item \file{fails\_<op>.tv}: one line per failing vector, with the operands, the
+\item \file{fails\_<op>\_<mode>.tv}: one line per failing vector, with the operands, the
   expected result and the result of the unit.
 \end{itemize}
 

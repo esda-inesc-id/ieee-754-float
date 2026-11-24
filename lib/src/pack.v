@@ -11,8 +11,10 @@ module pack #(
    input      valid_i,
    output reg valid_o,
 
-   input inv,
-   input nsub,
+   input       inv,
+   input       nsub,
+   // rounding mode, as in round
+   input [2:0] rnd_mode,
 
    input              special_i,
    input [DATA_W-1:0] res_special_i,
@@ -37,6 +39,8 @@ module pack #(
       .exponent_i(exp_i),
       .mantissa_i(man_i),
       .inv       (inv),
+      .sign      (sign_i),
+      .rnd_mode  (rnd_mode),
 
       .exponent_o(exp_rnd),
       .mantissa_o(man_rnd),
@@ -48,7 +52,9 @@ module pack #(
    // Pack
    wire [   F_W-1:0] fraction = man_rnd[F_W-1:0];
    wire [ EXP_W-1:0] exponent = man_rnd[MAN_W-1] ? exp_rnd : {EXP_W{1'b0}};
-   wire              sign = (nzero | nsub) & sign_i;
+   // An exact zero from operands of opposite signs is +0, or -0 when rounding
+   // toward -infinity
+   wire              sign = (nzero | nsub) ? sign_i : (rnd_mode == 3'd2);
 
    wire [DATA_W-1:0] data_o_int = {sign, exponent, fraction};
 

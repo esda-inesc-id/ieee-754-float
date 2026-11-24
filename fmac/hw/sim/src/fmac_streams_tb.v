@@ -22,6 +22,7 @@ module fmac_streams_tb;
       .rst    (rst),
       .valid_i(valid_i),
       .valid_o(valid_o),
+      .rnd_mode(3'd0),
       .op_a   (op_a),
       .op_b   (op_b),
       .res    (res)

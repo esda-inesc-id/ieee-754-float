@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module mul #(
+module fmul_core #(
    parameter DATA_W        = 32,
    parameter EXP_W         = 8,
    parameter MAN_W         = DATA_W - EXP_W,

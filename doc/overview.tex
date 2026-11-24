@@ -25,7 +25,8 @@ synthesis (Chapter~\ref{ch:syn}) and the software model (Chapter~\ref{ch:sw}).
 \begin{itemize}
 \item Parameterizable word and exponent widths; the default is binary32.
 \item Subnormal operands and results.
-\item Round to nearest, ties to even. This is the only rounding mode.
+\item The five IEEE-754 rounding modes, selected per operation by \sig{rnd\_mode}
+  (Table~\ref{tab:rnd_mode}).
 \item Optional handling of NaN and infinity operands.
 \item One operation per clock cycle in \sig{fadd} and \sig{fmul}, and in any mix
   of additions, subtractions and multiplications in \sig{fpu}.
@@ -78,16 +79,29 @@ fraction are not propagated.
 \section{Common Parameters}
 \label{sec:params}
 
-All units have the parameters of Table~\ref{tab:common_params}. Of these, set only
-\sig{DATA\_W}, \sig{EXP\_W} and \sig{SPECIAL\_CASES}. The test suite runs with
+All units have the parameters of Table~\ref{tab:common_params}. This guide writes
+\sig{MAN\_W} for $\mathtt{DATA\_W}-\mathtt{EXP\_W}$, the mantissa width including the
+hidden bit; it is a local parameter of each unit. The test suite runs with
 \sig{DATA\_W}~=~32 and \sig{EXP\_W}~=~8 (Section~\ref{sec:testfloat}).
 
 \begin{paramtable}{Common Parameters}{tab:common_params}
 DATA\_W & 32 & Word width in bits. \\ \hline
 EXP\_W & 8 & Exponent field width in bits. \\ \hline
-MAN\_W & DATA\_W-EXP\_W & Mantissa width, including the hidden bit. Derived; do not override it. \\ \hline
 SPECIAL\_CASES & 1 & 1: handle NaN and infinity operands (and, in division, a zero divisor) as described in each unit's chapter. 0: remove this handling, so these operands go through the datapath as ordinary numbers and the result is not defined by this guide. \\
 \end{paramtable}
+
+\begin{twotable}{Rounding Modes}{tab:rnd_mode}{\sig{rnd\_mode}}{Rounding}{2.6cm}
+\sig{0} & To nearest, ties to even. The IEEE-754 default. \\ \hline
+\sig{1} & Toward zero. \\ \hline
+\sig{2} & Toward $-\infty$. \\ \hline
+\sig{3} & Toward $+\infty$. \\ \hline
+\sig{4} & To nearest, ties away from zero. \\ \hline
+\sig{5}--\sig{7} & As \sig{0}. \\
+\end{twotable}
+
+The encoding is that of the RISC-V \sig{frm} field. On overflow, a mode that rounds
+toward zero for the sign of the result gives the largest finite number instead of
+infinity. An exact zero from operands of opposite signs is $+0$, or $-0$ in mode 2.
 
 \section{Valid Protocol}
 \label{sec:protocol}
@@ -134,11 +148,11 @@ shared modules are in \file{lib/src}. Table~\ref{tab:files} lists the Verilog
 files needed to compile each unit, as in its \file{hw/hw.mk}.
 
 \begin{twotable}{Source Files of Each Unit}{tab:files}{Unit}{Files}{1.6cm}
-\sig{fadd} & \file{fadd/hw/src/fadd.v}, \file{fadd/hw/src/add.v}, and the \file{lib/src} files \file{unpack.v}, \file{cls.v}, \file{norm.v}, \file{round.v}, \file{pack.v} \\ \hline
-\sig{fmul} & \file{fmul/hw/src/fmul.v}, \file{fmul/hw/src/mul.v}, and the same \file{lib/src} files \\ \hline
-\sig{fdiv} & \file{fdiv/hw/src/fdiv.v}, \file{fdiv/hw/src/div.v}, and the same \file{lib/src} files \\ \hline
-\sig{fmac} & \file{fmac/hw/src/fmac.v}, \file{fmac/hw/src/mac.v}, and the \file{lib/src} files except \file{norm.v} \\ \hline
-\sig{fpu} & \file{fpu/hw/src/fpu.v}, \file{fadd/hw/src/add.v}, \file{fmul/hw/src/mul.v}, \file{fdiv/hw/src/div.v}, and the same \file{lib/src} files as \sig{fadd} \\
+\sig{fadd} & \file{fadd/hw/src/fadd.v}, \file{fadd/hw/src/fadd\_core.v}, and the \file{lib/src} files \file{unpack.v}, \file{cls.v}, \file{norm.v}, \file{round.v}, \file{pack.v} \\ \hline
+\sig{fmul} & \file{fmul/hw/src/fmul.v}, \file{fmul/hw/src/fmul\_core.v}, and the same \file{lib/src} files \\ \hline
+\sig{fdiv} & \file{fdiv/hw/src/fdiv.v}, \file{fdiv/hw/src/fdiv\_core.v}, and the same \file{lib/src} files \\ \hline
+\sig{fmac} & \file{fmac/hw/src/fmac.v}, \file{fmac/hw/src/fmac\_core.v}, and the \file{lib/src} files except \file{norm.v} \\ \hline
+\sig{fpu} & \file{fpu/hw/src/fpu.v}, \file{fadd/hw/src/fadd\_core.v}, \file{fmul/hw/src/fmul\_core.v}, \file{fdiv/hw/src/fdiv\_core.v}, and the same \file{lib/src} files as \sig{fadd} \\
 \end{twotable}
 
 Each unit directory also has \file{hw/sim} (Chapter~\ref{ch:sim}), \file{hw/fpga}
@@ -155,6 +169,7 @@ clk & Input & 1 & Clock. The unit uses its rising edge. \\ \hline
 rst & Input & 1 & Asynchronous reset, active high. \\ \hline
 valid\_i & Input & 1 & Input valid: the operands of a new operation are on the inputs. \\ \hline
 valid\_o & Output & 1 & Output valid: the result is valid in this clock cycle. \\ \hline
+rnd\_mode & Input & 3 & Rounding mode (Table~\ref{tab:rnd_mode}), sampled with the operands. \\ \hline
 op\_a & Input & DATA\_W & First operand. \\ \hline
 op\_b & Input & DATA\_W & Second operand. \\ \hline
 res & Output & DATA\_W & Result. \\

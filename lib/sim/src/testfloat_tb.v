@@ -6,6 +6,10 @@
 
 module testfloat_tb;
 
+`ifndef TF_RND
+`define TF_RND 0
+`endif
+
    parameter clk_per = 20;
    parameter MAX_CYCLES = 1000;
 
@@ -25,6 +29,7 @@ module testfloat_tb;
       .rst    (rst),
       .valid_i(valid_i),
       .valid_o(valid_o),
+      .rnd_mode(3'd`TF_RND),
 `ifdef TF_FPU
       .funct  (2'd`TF_FUNCT),
 `endif

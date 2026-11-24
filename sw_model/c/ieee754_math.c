@@ -162,7 +162,7 @@ uint64_t ieee754_fabs(uint64_t a, int data_w, int exp_w) {
   return a & ~f.sign;
 }
 
-uint64_t ieee754_sqrt(uint64_t a, int data_w, int exp_w) {
+static uint64_t sqrt_rne(uint64_t a, int data_w, int exp_w) {
   fmt f = make_fmt(data_w, exp_w);
   uint64_t mag = a & ~f.sign;
   if (is_special(&f, a) && (a & f.frac)) return nan_bits(&f);
@@ -189,7 +189,7 @@ uint64_t ieee754_sqrt(uint64_t a, int data_w, int exp_w) {
   return scale(&f, y, e / 2);
 }
 
-uint64_t ieee754_exp(uint64_t a, int data_w, int exp_w) {
+static uint64_t exp_rne(uint64_t a, int data_w, int exp_w) {
   fmt f = make_fmt(data_w, exp_w);
   int negative = (a & f.sign) != 0;
   if (is_special(&f, a)) {
@@ -220,7 +220,7 @@ uint64_t ieee754_exp(uint64_t a, int data_w, int exp_w) {
   return scale(&f, y, to_int(&f, kd));
 }
 
-uint64_t ieee754_log(uint64_t a, int data_w, int exp_w) {
+static uint64_t log_rne(uint64_t a, int data_w, int exp_w) {
   fmt f = make_fmt(data_w, exp_w);
   uint64_t mag = a & ~f.sign;
   if (is_special(&f, a) && (a & f.frac)) return nan_bits(&f);
@@ -257,3 +257,17 @@ uint64_t ieee754_log(uint64_t a, int data_w, int exp_w) {
   uint64_t ed = from_int(&f, e);
   return sub(&f, mul(&f, ed, hi), sub(&f, sub(&f, hfsq, add(&f, tail, mul(&f, ed, lo))), d));
 }
+
+// The functions round to nearest even whatever the model rounding mode.
+#define IEEE754_MATH_RNE(name)                               \
+  uint64_t ieee754_##name(uint64_t a, int data_w, int exp_w) { \
+    int mode = ieee754_get_rounding();                       \
+    ieee754_set_rounding(IEEE754_RNE);                       \
+    uint64_t res = name##_rne(a, data_w, exp_w);             \
+    ieee754_set_rounding(mode);                              \
+    return res;                                              \
+  }
+
+IEEE754_MATH_RNE(sqrt)
+IEEE754_MATH_RNE(exp)
+IEEE754_MATH_RNE(log)

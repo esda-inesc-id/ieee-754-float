@@ -10,8 +10,8 @@ compile them with it (Section~\ref{sec:files}).
 
 \begin{threetable}{Shared Modules and the Units That Use Them}{tab:lib_use}{Module}{Clocked}{Used by}{2.4cm}{1.8cm}
 \sig{unpack} & No & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{fpu} \\ \hline
-\sig{cls} & No & \sig{norm}, and the \sig{div} and \sig{mac} datapaths \\ \hline
-\sig{norm} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fpu}; \sig{fmac} normalizes inside \sig{mac} \\ \hline
+\sig{cls} & No & \sig{norm}, and the \sig{fdiv\_core} and \sig{fmac\_core} datapaths \\ \hline
+\sig{norm} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fpu}; \sig{fmac} normalizes inside \sig{fmac\_core} \\ \hline
 \sig{round} & No & \sig{pack} \\ \hline
 \sig{pack} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{fpu} \\
 \end{threetable}
@@ -100,10 +100,12 @@ nsub\_o & Output & 1 & Registered \sig{nsub\_i}. \\
 \section{round}
 \label{sec:round}
 
-\sig{round} rounds to nearest, ties to even, from the three bits below the
-mantissa: guard, round and sticky. It is combinational. If the rounded mantissa
-overflows, it shifts it right and increments the exponent. If the exponent
-exceeds the largest finite exponent, the output is the infinity encoding.
+\sig{round} rounds in the mode \sig{rnd\_mode} (Table~\ref{tab:rnd_mode}), from
+the three bits below the mantissa: guard, round and sticky. It is combinational.
+If the rounded mantissa overflows, it shifts it right and increments the exponent.
+If the exponent exceeds the largest finite exponent, the output is the infinity
+encoding, or the largest finite number when the mode rounds toward zero for
+\sig{sign}.
 
 Its parameter \sig{DATA\_W} is the \emph{mantissa} width (default 24), and
 \sig{EXP\_W} is the exponent width (default 8). The module always takes three
@@ -113,6 +115,8 @@ extra bits. Its signals are listed in Table~\ref{tab:round}.
 exponent\_i & Input & EXP\_W+2 & Exponent. \\ \hline
 mantissa\_i & Input & DATA\_W+3 & Mantissa followed by the guard, round and sticky bits. \\ \hline
 inv & Input & 1 & Invert \sig{mantissa\_i} before rounding (one's complement input). \\ \hline
+sign & Input & 1 & Sign of the result, for the directed modes. \\ \hline
+rnd\_mode & Input & 3 & Rounding mode. \\ \hline
 exponent\_o & Output & EXP\_W & Rounded exponent. \\ \hline
 mantissa\_o & Output & DATA\_W & Rounded mantissa. \\ \hline
 round & Output & 1 & The mantissa was incremented. \\
@@ -134,7 +138,8 @@ rst & Input & 1 & Asynchronous reset, active high. \\ \hline
 valid\_i & Input & 1 & Input data valid. \\ \hline
 valid\_o & Output & 1 & \sig{valid\_i} delayed by one clock cycle. \\ \hline
 inv & Input & 1 & One's complement mantissa, passed to \sig{round}. \\ \hline
-nsub & Input & 1 & When high, a zero result keeps \sig{sign\_i}. When low, a zero result is positive. \\ \hline
+nsub & Input & 1 & When high, a zero result keeps \sig{sign\_i}. When low, a zero result is positive, or negative when \sig{rnd\_mode} is 2. \\ \hline
+rnd\_mode & Input & 3 & Rounding mode, passed to \sig{round}. \\ \hline
 special\_i & Input & 1 & Output \sig{res\_special\_i} instead of the computed result. \\ \hline
 res\_special\_i & Input & DATA\_W & Special result. \\ \hline
 sign\_i & Input & 1 & Sign. \\ \hline

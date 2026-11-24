@@ -3,7 +3,7 @@
 // Ieee754 holds one encoding of the format IEEE754_DATA_W / IEEE754_EXP_W. Add, subtract,
 // multiply and divide run on the model, and fabs, sqrt, exp and log on the model math
 // library, which namespace ieee754 also provides for float and double.
-// Ieee754Mac is the streaming fmac.
+// Ieee754Mac is the streaming fmac. Ieee754Rounding sets the rounding mode for a scope.
 
 #ifndef IEEE754_H
 #define IEEE754_H
@@ -220,6 +220,22 @@ inline void *memcpy(Ieee754 *dst, const T *src, size_t n) {
   while (n--) dst[n] = Ieee754(src[n]);
   return dst;
 }
+
+// Sets the model rounding mode (IEEE754_RNE, IEEE754_RTZ, IEEE754_RDN, IEEE754_RUP or
+// IEEE754_RMM) for the lifetime of the object, then restores the previous mode.
+class Ieee754Rounding {
+ public:
+  explicit Ieee754Rounding(int mode) : saved_(ieee754_get_rounding()) {
+    ieee754_set_rounding(mode);
+  }
+  ~Ieee754Rounding() { ieee754_set_rounding(saved_); }
+
+  Ieee754Rounding(const Ieee754Rounding &) = delete;
+  Ieee754Rounding &operator=(const Ieee754Rounding &) = delete;
+
+ private:
+  int saved_;
+};
 
 class Ieee754Mac {
  public:

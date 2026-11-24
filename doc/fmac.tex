@@ -5,9 +5,9 @@
 
 \sig{fmac} computes the sum of a stream of products,
 $\sum_i \mathtt{op\_a}_i\times\mathtt{op\_b}_i$, and returns one rounded result
-per stream. Two \sig{unpack} modules split the operands. The \sig{mac} module
+per stream. Two \sig{unpack} modules split the operands. The \sig{fmac\_core} module
 multiplies them, adds each product to a two's complement accumulator and
-normalizes the sum. \sig{pack} rounds the sum to nearest, ties to even, as
+normalizes the sum. \sig{pack} rounds the sum in the mode of \sig{rnd\_mode}, as
 Figure~\ref{fig:fmac} shows.
 
 The value fed back to the accumulator is rounded to odd: the bits shifted out are
@@ -17,8 +17,8 @@ value is inexact. The output normalization uses the full adder word.
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[node distance=7mm]
-  \node[ugblock] (u) {\sig{unpack}\\(2)};
-  \node[ugblock,right=of u,minimum width=44mm] (a) {\sig{mac}\\multiply, accumulate, normalize};
+  \node[ugblock] (u) {2 $\times$ \sig{unpack}};
+  \node[ugblock,right=of u,minimum width=44mm] (a) {\sig{fmac\_core}\\multiply, accumulate, normalize};
   \node[ugblock,right=of a] (p) {\sig{pack}\\1 cycle};
   \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
   \draw[ugarrow] (u) -- (a); \draw[ugarrow] (a) -- (p);
@@ -33,7 +33,8 @@ value is inexact. The output normalization uses the full adder word.
 \begin{itemize}
 \item Accumulation of a stream of products, with one product per clock cycle.
 \item A latency of 8 clock cycles from the last product.
-\item Rounding to odd inside the accumulator, and to nearest, ties to even, at the
+\item The rounding mode of a stream is \sig{rnd\_mode} with its last product.
+\item Rounding to odd inside the accumulator, and in the selected mode at the
   output.
 \item Accumulator width set by \sig{LGUARD\_W} and \sig{RGUARD\_W}.
 \item Subnormal operands and results.
@@ -70,13 +71,14 @@ fmac #(
    .LGUARD_W     (0),
    .RGUARD_W     (0)
 ) fmac0 (
-   .clk    (clk),
-   .rst    (rst),
-   .valid_i(valid_i),
-   .valid_o(valid_o),
-   .op_a   (op_a),
-   .op_b   (op_b),
-   .res    (res)
+   .clk     (clk),
+   .rst     (rst),
+   .valid_i (valid_i),
+   .valid_o (valid_o),
+   .rnd_mode(rnd_mode),
+   .op_a    (op_a),
+   .op_b    (op_b),
+   .res     (res)
 );
 \end{vcode}
 
@@ -113,13 +115,14 @@ cycle & 2D{0} 2D{1} 2D{2} 2D{3} 2D{4} 2D{5} 2D{6} 2D{7} 2D{8} 2D{9} 2D{10} 2D{11
 
 Table~\ref{tab:fmac_special} lists the results for special operands when
 \sig{SPECIAL\_CASES} is 1. The conditions apply over all the products of a stream.
-An exact cancellation gives $+0$.
+An exact cancellation gives $+0$, or $-0$ when \sig{rnd\_mode} is 2.
 
 \begin{twotable}{\sig{fmac} Special Results}{tab:fmac_special}{Products in the stream}{Result}{9cm}
 Any operand is NaN, or any product is infinity times zero & NaN \\ \hline
 Both $+\infty$ and $-\infty$ products & NaN \\ \hline
 Infinite products of one sign only & That infinity \\ \hline
-Every product has a zero operand and a negative sign & $-0$ \\
+Every product has a zero operand and a negative sign & $-0$ \\ \hline
+Every product has a zero operand and a positive sign & $+0$ \\
 \end{twotable}
 
 \section{Accuracy}

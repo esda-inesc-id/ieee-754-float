@@ -41,6 +41,7 @@ fdiv #(
 
       .valid_i(valid_i),
       .valid_o(valid_o),
+      .rnd_mode(3'd0),
 
       .op_a(op_a_),
       .op_b(op_b_),

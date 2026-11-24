@@ -4,19 +4,19 @@
 \section{Introduction}
 
 \sig{fpu} computes the addition, subtraction, multiplication or division of two
-operands, selected by \sig{funct}. It holds the \sig{add}, \sig{mul} and \sig{div}
+operands, selected by \sig{funct}. It holds the \sig{fadd\_core}, \sig{fmul\_core} and \sig{fdiv\_core}
 datapaths of Chapters~\ref{ch:fadd}, \ref{ch:fmul} and~\ref{ch:fdiv}, and they
 share the \sig{unpack}, \sig{norm} and \sig{pack} modules, as
-Figure~\ref{fig:fpu} shows. Subtraction uses \sig{add} with the sign of
+Figure~\ref{fig:fpu} shows. Subtraction uses \sig{fadd\_core} with the sign of
 \sig{op\_b} inverted.
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[node distance=5mm and 9mm]
-  \node[ugblock] (u) {\sig{unpack}\\(2)};
-  \node[ugblock,right=of u] (m) {\sig{mul}};
-  \node[ugblock,above=of m] (a) {\sig{add}};
-  \node[ugblock,below=of m] (d) {\sig{div}};
+  \node[ugblock] (u) {2 $\times$ \sig{unpack}};
+  \node[ugblock,right=of u] (m) {\sig{fmul\_core}};
+  \node[ugblock,above=of m] (a) {\sig{fadd\_core}};
+  \node[ugblock,below=of m] (d) {\sig{fdiv\_core}};
   \node[ugblock,right=of m] (n) {\sig{norm}};
   \node[ugblock,right=of n] (p) {\sig{pack}};
   \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
@@ -41,7 +41,7 @@ Figure~\ref{fig:fpu} shows. Subtraction uses \sig{add} with the sign of
 \item One new operation per clock cycle for any mix of additions, subtractions
   and multiplications, with results in issue order.
 \item Subnormal operands and results.
-\item Round to nearest, ties to even.
+\item The five rounding modes of Table~\ref{tab:rnd_mode}.
 \item NaN, infinity and zero-divisor handling, selected by \sig{SPECIAL\_CASES}.
 \end{itemize}
 
@@ -70,14 +70,15 @@ fpu #(
    .EXP_W        (8),
    .SPECIAL_CASES(1)
 ) fpu0 (
-   .clk    (clk),
-   .rst    (rst),
-   .valid_i(valid_i),
-   .valid_o(valid_o),
-   .funct  (funct),
-   .op_a   (op_a),
-   .op_b   (op_b),
-   .res    (res)
+   .clk     (clk),
+   .rst     (rst),
+   .valid_i (valid_i),
+   .valid_o (valid_o),
+   .rnd_mode(rnd_mode),
+   .funct   (funct),
+   .op_a    (op_a),
+   .op_b    (op_b),
+   .res     (res)
 );
 \end{vcode}
 
@@ -98,7 +99,7 @@ formats.
 \item \textbf{Function select.} \sig{funct} is used in the cycle with
   \sig{valid\_i} high and can change after it.
 \item \textbf{Addition, subtraction and multiplication.} These operations have
-  equal latency, because \sig{fpu} sets \sig{OUT\_REG} to 1 in \sig{mul}. They can
+  equal latency, because \sig{fpu} sets \sig{OUT\_REG} to 1 in \sig{fmul\_core}. They can
   be mixed in any order on consecutive clock cycles. The unit samples their
   operands in the \sig{valid\_i} cycle, and the results return in issue order.
 \item \textbf{Division.} A division can start right after any operation, and
