@@ -156,9 +156,10 @@ static uint64_t pack(const format *f, int rnd, int inv, int nsub, int sign_i, ui
   man_rnd &= (uint64_t)mask(f->man_w);
 
   // Overflow gives infinity, or the largest finite number when the mode rounds toward
-  // zero for the sign of the result
+  // zero for the sign of the result. A zero mantissa is never an overflow: the exponent
+  // of a zero sum can wrap.
   uint32_t exp_max = (1u << f->exp_w) - 2;
-  if (exp_negative(f, (exp_max - exp_rnd) & f->exp_mask)) {
+  if (man_rnd != 0 && exp_negative(f, (exp_max - exp_rnd) & f->exp_mask)) {
     int ovf_inf = rnd == IEEE754_RTZ ? 0 : rnd == IEEE754_RDN ? sign_i : rnd == IEEE754_RUP ? !sign_i : 1;
     exp_rnd = ovf_inf ? (1u << f->exp_w) - 1 : exp_max;
     man_rnd = ovf_inf ? (uint64_t)1 << f->f_w : (uint64_t)mask(f->man_w);
@@ -431,8 +432,7 @@ static void mac_normalize(const ieee754_mac *m, uint32_t *exp_o, uint64_t *man_o
     man_norm = (shifted & ~(u128)1) | (u128)sticky;
   }
 
-  // A zero sum takes exponent 0, as in fmac_core.v
-  *exp_o = acc_man == 0 ? 0 : (acc_exp + (~lshift & f->exp_mask) + offset) & f->exp_mask;
+  *exp_o = (acc_exp + (~lshift & f->exp_mask) + offset) & f->exp_mask;
   int low_w = word_w - f->man_w - 2;
   uint64_t top = (uint64_t)((man_norm >> low_w) & mask(f->man_w + 2));
   *man_o = (top << 1) | (uint64_t)((man_norm & mask(low_w)) != 0);

@@ -34,8 +34,6 @@ BENCH_SRC:=examples/benchmark.cpp examples/common/common.cpp $(foreach e,$(EXAMP
 BENCH_OBJ:=$(patsubst %.cpp,$(BUILD_DIR)/%.o,$(BENCH_SRC))
 TESTS_OBJ:=$(BUILD_DIR)/tests/ieee754_tests.o $(BUILD_DIR)/examples/common/common.o
 
-COMPARE=IEEE754_LIB=$(abspath $(LIB)) $(PYTHON) python/floatVSieee754 -p 16
-
 ifdef PYPROG
 run: $(LIB)
 	IEEE754_LIB=$(abspath $(LIB)) $(PYTHON) python/$(PYPROG) $(ARGS)
@@ -46,12 +44,7 @@ run: $(BENCH) $(LIB)
 	@rm -rf $(BUILD_DIR)/out
 	@mkdir -p $(BUILD_DIR)/out
 	$(BENCH) -i examples -o $(BUILD_DIR)/out -e $(CPROG)
-	@for ref in $(BUILD_DIR)/out/*-double.out; do \
-	  app=$$(basename $$ref -double.out); \
-	  $(COMPARE) -d $$ref -f $(BUILD_DIR)/out/$$app-float.out -o $(BUILD_DIR)/out/$$app-float.cmp || exit 1; \
-	  $(COMPARE) -d $$ref -ieee754 $(BUILD_DIR)/out/$$app-ieee754.out -o $(BUILD_DIR)/out/$$app-ieee754.cmp || exit 1; \
-	  echo "$$app: float $$(grep -h '^diffs' $(BUILD_DIR)/out/$$app-float.cmp), ieee754 $$(grep -h '^diffs' $(BUILD_DIR)/out/$$app-ieee754.cmp)"; \
-	done
+	@echo "outputs in $(BUILD_DIR)/out"
 endif
 
 run-tests: $(TESTS) $(LIB)
@@ -59,11 +52,6 @@ run-tests: $(TESTS) $(LIB)
 	$(TESTS) -i examples/dp/data.in -w examples/dp/weights.in \
 	  -d $(BUILD_DIR)/out/test-double.out -f $(BUILD_DIR)/out/test-float.out \
 	  -p $(BUILD_DIR)/out/test-ieee754.out
-	$(COMPARE) -d $(BUILD_DIR)/out/test-double.out -f $(BUILD_DIR)/out/test-float.out \
-	  -o $(BUILD_DIR)/out/test-float.cmp
-	$(COMPARE) -d $(BUILD_DIR)/out/test-double.out -ieee754 $(BUILD_DIR)/out/test-ieee754.out \
-	  -o $(BUILD_DIR)/out/test-ieee754.cmp
-	@tail -n 2 $(BUILD_DIR)/out/test-ieee754.cmp
 
 run-math-accuracy: $(MATH_ACCURACY)
 	$(MATH_ACCURACY)

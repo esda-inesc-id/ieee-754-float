@@ -13,7 +13,6 @@ Section~\ref{sec:make_sw}, and Table~\ref{tab:sw_files} lists the contents.
 \file{c/ieee754\_model.h}, \file{c/ieee754\_model.c} & C model. \\ \hline
 \file{cpp/ieee754.h} & C++ types \sig{Ieee754} and \sig{Ieee754Mac}. \\ \hline
 \file{python/ieee754.py} & Python wrapper of the C model. \\ \hline
-\file{python/floatVSieee754} & Tool that compares two output files. \\ \hline
 \file{tests/ieee754\_tests.cpp} & Self-checking test program. \\ \hline
 \file{tests/check.py}, \file{tests/model\_run.c}, \file{tests/rtl\_tb.v} & Comparison with TestFloat and the RTL. \\ \hline
 \file{examples} & Example applications. \\
@@ -73,11 +72,6 @@ and \sig{mac}, and the class \sig{Mac} is the streaming \sig{fmac}. The function
 \sig{set\_rounding} and \sig{get\_rounding}, the constants \sig{RNE}, \sig{RTZ},
 \sig{RDN}, \sig{RUP} and \sig{RMM}, and the context manager \sig{Rounding} give the
 rounding mode.
-
-\file{python/floatVSieee754} compares a reference file in binary64 with a target
-file in \sig{float} or in the model format. For each differing line it writes the
-error and the symmetric relative error. It ends with the maximum and mean of both,
-and the numbers of differing and total lines.
 
 \section{Self-Checking Tests}
 \label{sec:sw_tests}

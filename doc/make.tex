@@ -80,6 +80,8 @@ TestFloat, every unit & First \sig{SMOKE\_N} vectors per operation & Level 1; fi
 \sig{SMOKE\_STREAMS} & \sig{300} & \sig{fmac} streams in \sig{test-smoke}. \\ \hline
 \sig{SMOKE\_MIX} & \sig{2000} & \sig{fpu} operations in \sig{test-smoke}. \\ \hline
 \sig{TF\_LEVEL} & \sig{1} & TestFloat level. \\ \hline
+\sig{SMOKE\_FMTS} & \sig{f16 f32 f64} & TestFloat formats in \sig{test-smoke}. \\ \hline
+\sig{TF\_FMTS} & \sig{f32} & TestFloat formats in \sig{test-regular}. \\ \hline
 \sig{TF\_MODES} & \sig{rne rtz rdn rup rmm} & Rounding modes of the TestFloat runs: to nearest even, toward zero, down, up, to nearest away. \\ \hline
 \sig{TF\_N} & empty; \sig{200000} for \sig{fmac} & Keep only the first \sig{TF\_N} vectors of each operation in \sig{test-regular}. Empty runs the full level. \\ \hline
 \sig{STREAM\_N} & \sig{6000} & \sig{fmac} streams in \sig{test-regular}. \\ \hline
@@ -147,7 +149,6 @@ variables of \sig{make run}. For example:
 make run CPROG=fft
 make run CPROG=all
 make run CPROG=ieee754_tests
-make run PYPROG=floatVSieee754 ARGS="-d ref.out -f target.out"
 make sw-test
 make sw-check
 \end{shcode}

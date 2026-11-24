@@ -9,21 +9,32 @@ module testfloat_tb;
 `ifndef TF_RND
 `define TF_RND 0
 `endif
+`ifndef TF_DATA_W
+`define TF_DATA_W 32
+`endif
+`ifndef TF_EXP_W
+`define TF_EXP_W 8
+`endif
 
    parameter clk_per = 20;
    parameter MAX_CYCLES = 1000;
+   localparam DATA_W = `TF_DATA_W;
+   localparam EXP_W = `TF_EXP_W;
+   localparam F_W = DATA_W - EXP_W - 1;
+   // 1.0, the second factor of c in a*b + c*1.0
+   localparam [DATA_W-1:0] ONE = {2'b00, {(EXP_W - 1) {1'b1}}, {F_W{1'b0}}};
 
    reg         clk = 0;
    reg         rst = 0;
    reg         valid_i = 0;
    wire        valid_o;
-   reg  [31:0] op_a = 0;
-   reg  [31:0] op_b = 0;
-   wire [31:0] res;
+   reg  [DATA_W-1:0] op_a = 0;
+   reg  [DATA_W-1:0] op_b = 0;
+   wire [DATA_W-1:0] res;
 
    `TF_DUT #(
-      .DATA_W(32),
-      .EXP_W (8)
+      .DATA_W(DATA_W),
+      .EXP_W (EXP_W)
    ) dut (
       .clk    (clk),
       .rst    (rst),
@@ -38,16 +49,16 @@ module testfloat_tb;
       .res    (res)
    );
 
-   function is_nan(input [31:0] x);
-      is_nan = (&x[30:23]) & (|x[22:0]);
+   function is_nan(input [DATA_W-1:0] x);
+      is_nan = (&x[DATA_W-2-:EXP_W]) & (|x[F_W-1:0]);
    endfunction
 
    integer vec_fd, fail_fd, n_read, cycles;
    integer        vectors = 0;
    integer        fails = 0;
-   reg     [31:0] expected;
+   reg     [DATA_W-1:0] expected;
    reg     [ 7:0] flags;
-   reg [31:0] vec_a, vec_b, vec_c;
+   reg [DATA_W-1:0] vec_a, vec_b, vec_c;
 
    task read_vector;
       begin
@@ -82,7 +93,7 @@ module testfloat_tb;
 `ifdef TF_3OP
          // a*b + c*1.0
          op_a = vec_c;
-         op_b = 32'h3f800000;
+         op_b = ONE;
          @(negedge clk);
 `endif
          valid_i = 0;

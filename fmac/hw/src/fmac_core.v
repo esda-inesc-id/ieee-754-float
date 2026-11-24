@@ -330,10 +330,7 @@ module fmac_core #(
    };
    wire [ACC_W+EXTRA:0] man_norm = exp_diff2[EXP_W+1] ? acc_man_reg << lshift : man_rsht_st;
 
-   // A zero sum takes exponent 0: normalizing it would subtract the full leading-zero
-   // count and can wrap the exponent into overflow in narrow formats
-   wire             acc_zero = ~|acc_man_reg;
-   wire [EXP_W+1:0] exp_adjust = acc_zero ? {(EXP_W + 2) {1'b0}} : exp_norm;
+   wire [EXP_W+1:0] exp_adjust = exp_norm;
    wire [MAN_W+EXTRA-1:0] man_adjust = {
       man_norm[ACC_W+EXTRA-:MAN_W+EXTRA-1], |man_norm[ACC_W+EXTRA-(MAN_W+EXTRA-1):0]
    };

@@ -1,18 +1,11 @@
-"""Python wrapper of the C model (libieee754.so), with binary64 field helpers.
+"""Python wrapper of the C model (libieee754.so).
 
 The library path is taken from the IEEE754_LIB environment variable, or defaults to
 sw_model/build/libieee754.so.
 """
 
 import ctypes
-import math
 import os
-import struct
-
-DP_F_W = 52
-DP_EXP_W = 11
-DP_BIAS = 1023
-SP_MAN_W = 24
 
 # Rounding modes, encoded as the rnd_mode input of the units
 RNE, RTZ, RDN, RUP, RMM = range(5)
@@ -143,23 +136,3 @@ class Format:
             for a, b in terms:
                 mac.push(a, b)
             return mac.result()
-
-
-def double_fields(value):
-    """Returns (sign, biased exponent, fraction) of a binary64 value."""
-    raw = struct.unpack("<Q", struct.pack("<d", value))[0]
-    return raw >> 63, (raw >> DP_F_W) & ((1 << DP_EXP_W) - 1), raw & ((1 << DP_F_W) - 1)
-
-
-def double_base2(value, precision):
-    """Formats a binary64 value as <significand>*2**<exponent>."""
-    if value == 0.0:
-        return "0.0"
-    if math.isinf(value):
-        return "inf"
-    if math.isnan(value):
-        return "nan"
-    sign, exp, frac = double_fields(value)
-    man = frac if exp == 0 else frac | (1 << DP_F_W)
-    scaled = man * 2.0 ** (-DP_F_W)
-    return f"{-scaled if sign else scaled:.{precision}f}*2**{exp - DP_BIAS}"

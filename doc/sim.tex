@@ -32,7 +32,8 @@ waveforms to \file{<unit>.vcd}. Table~\ref{tab:tbs} lists what each one applies.
 
 The test applies vectors from Berkeley TestFloat to each unit, through the
 testbench \file{lib/\allowbreak sim/\allowbreak src/\allowbreak testfloat\_tb.v}. The tool \sig{testfloat\_gen}
-generates the vectors for the binary32 format. Each
+generates the vectors for the binary16, binary32 and binary64 formats: the smoke
+run tests all three, and the regular run binary32. Each
 vector holds the operands, the expected result and the expected exception flags.
 
 The test runs every operation in the five rounding modes of
@@ -66,9 +67,9 @@ Full & The smoke run, then the regular run with all 6,133,248 \sig{f32\_mulAdd} 
 The test writes these files to \file{<unit>/hw/sim}:
 
 \begin{itemize}
-\item \file{testfloat\_<op>\_<mode>.rpt}: the simulator output, ending in a line with the
+\item \file{testfloat\_<format>\_<op>\_<mode>.rpt}: the simulator output, ending in a line with the
   number of vectors and failures.
-\item \file{fails\_<op>\_<mode>.tv}: one line per failing vector, with the operands, the
+\item \file{fails\_<format>\_<op>\_<mode>.tv}: one line per failing vector, with the operands, the
   expected result and the result of the unit.
 \end{itemize}
 
@@ -127,7 +128,8 @@ NaN equal to any NaN. The smoke run applies 2,000 operations and the regular run
 \section{Test Coverage}
 \label{sec:coverage}
 
-The tests of this chapter cover only \sig{DATA\_W}~=~32 and \sig{EXP\_W}~=~8, and
-the default values of the other parameters. The model comparison of
+TestFloat covers the binary16 (16/5), binary32 (32/8) and binary64 (64/11)
+formats; the other tests of this chapter cover binary32 only. All use the default
+values of the other parameters. The model comparison of
 Section~\ref{sec:sw_check} also simulates \sig{fpu} and \sig{fmac} at 16/5 and
 64/11, and \sig{fmac} with other guard widths.

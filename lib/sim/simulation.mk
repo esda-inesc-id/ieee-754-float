@@ -18,6 +18,14 @@ VSRC+=$(FPU_DIR)/lib/sim/src/testfloat_tb.v
 DEFINE+=$(defmacro)TF_DUT=$(CORE)
 TF_RND?=0
 DEFINE+=$(defmacro)TF_RND=$(TF_RND)
+TF_FMT?=f32
+TF_DATA_W_f16=16
+TF_EXP_W_f16=5
+TF_DATA_W_f32=32
+TF_EXP_W_f32=8
+TF_DATA_W_f64=64
+TF_EXP_W_f64=11
+DEFINE+=$(defmacro)TF_DATA_W=$(TF_DATA_W_$(TF_FMT)) $(defmacro)TF_EXP_W=$(TF_EXP_W_$(TF_FMT))
 ifeq ($(TF_OP),mulAdd)
 DEFINE+=$(defmacro)TF_3OP
 endif

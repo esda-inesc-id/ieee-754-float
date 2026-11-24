@@ -12,11 +12,13 @@ CORES = $(if $(filter command line,$(origin CORE)),$(CORE),$(CORE_LIST))
 SMOKE_N ?= 1000
 SMOKE_STREAMS ?= 300
 SMOKE_MIX ?= 2000
+# TestFloat formats of the smoke run
+SMOKE_FMTS ?= f16 f32 f64
 
 MAKE_SUB = make --no-print-directory
 
 # Variables passed on to a remote run
-FWD_VARS = CORE VCD TF_N TF_LEVEL STREAM_N MIX_N SMOKE_N SMOKE_STREAMS SMOKE_MIX
+FWD_VARS = CORE VCD TF_N TF_LEVEL TF_MODES TF_FMTS STREAM_N MIX_N SMOKE_N SMOKE_STREAMS SMOKE_MIX SMOKE_FMTS
 FWD = SIMULATOR=$(SIMULATOR) $(foreach v,$(FWD_VARS),$(if $(filter command line,$(origin $(v))),$(v)=$($(v))))
 
 # $(1): SIM or FPGA; $(2): command run in the copy of this directory on $(1)_SERVER
@@ -56,7 +58,7 @@ test-full: test-smoke
 
 test-smoke:
 	@for c in $(CORES); do \
-	  $(MAKE_SUB) -C $$c/hw/sim testfloat CORE=$$c TF_N=$(SMOKE_N) || { echo "SMOKE FAILED: $$c"; exit 1; }; \
+	  $(MAKE_SUB) -C $$c/hw/sim testfloat CORE=$$c TF_N=$(SMOKE_N) TF_FMTS="$(SMOKE_FMTS)" || { echo "SMOKE FAILED: $$c"; exit 1; }; \
 	done
 ifneq ($(filter fmac,$(CORES)),)
 	@$(MAKE_SUB) -C fmac/hw/sim streams CORE=fmac STREAM_N=$(SMOKE_STREAMS) || { echo "SMOKE FAILED: fmac streams"; exit 1; }

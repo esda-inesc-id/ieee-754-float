@@ -65,7 +65,8 @@ module round #(
    localparam [EXP_W-1:0] EXP_MAX = {{(EXP_W - 1) {1'b1}}, 1'b0};
 
    wire [EXP_W+1:0] exp_diff = {2'd0, EXP_MAX} - exponent_rnd;
-   wire             overflow = exp_diff[EXP_W+1];
+   // a zero mantissa is never an overflow: the exponent of a zero sum can wrap
+   wire             overflow = exp_diff[EXP_W+1] & (|mantissa_rnd_int);
    wire             ovf_inf = (rnd_mode == RTZ) ? 1'b0 :
                               (rnd_mode == RDN) ? sign :
                               (rnd_mode == RUP) ? ~sign : 1'b1;
