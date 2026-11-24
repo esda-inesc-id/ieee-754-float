@@ -135,10 +135,12 @@ Section~\ref{sec:sw_check} also simulates \sig{fpu} and \sig{fmac} at 16/5 and
 64/11, and \sig{fmac} with other guard widths.
 
 \sig{make coverage} runs the regular tests in Verilator with line and toggle
-coverage, merges the runs of each unit and writes
-\file{<unit>/hw/sim/cov/coverage.rpt}, with the coverage of each source file, the
-lines never executed and the signals whose bits never toggle both ways, and
-annotated sources in \file{<unit>/hw/sim/cov/annotated}. Every line of every unit
-is executed. The bits that never toggle are constants by design, such as the low
+coverage, and the regular TestFloat runs also in binary16 and binary64
+(\sig{COV\_FMTS}). It merges the runs of each unit and format and writes
+\file{<unit>/hw/sim/cov/coverage\_<format>.rpt}, with the coverage of each source
+file, the lines never executed and the signals whose bits never toggle both ways,
+and annotated sources in \file{<unit>/hw/sim/cov/annotated\_<format>}. A format is
+a different circuit, so each has its own report. Every line of every unit is
+executed in all three formats. The bits that never toggle are constants by design, such as the low
 bits of the special-result encodings, zero extensions and shift limits, and
 \sig{rnd\_mode}, which each TestFloat run holds at one mode.

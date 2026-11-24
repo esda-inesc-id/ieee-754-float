@@ -14,6 +14,8 @@ SMOKE_STREAMS ?= 300
 SMOKE_MIX ?= 2000
 # TestFloat formats of the smoke run
 SMOKE_FMTS ?= f16 f32 f64
+# formats added to the binary32 regular tests in make coverage
+COV_FMTS ?= f16 f64
 
 MAKE_SUB = make --no-print-directory
 
@@ -82,7 +84,12 @@ endif
 coverage:
 	@for c in $(CORES); do rm -rf $$c/hw/sim/cov; done
 	-@$(MAKE_SUB) test-regular SIMULATOR=verilator COV=1 CADENCE_SERVER=
-	@for c in $(CORES); do echo; python3 lib/sim/coverage.py $$c $$c/hw/sim/cov || exit 1; done
+	-@for c in $(CORES); do \
+	  $(MAKE_SUB) -C $$c/hw/sim testfloat CORE=$$c TF_FMTS="$(COV_FMTS)" SIMULATOR=verilator COV=1; \
+	done
+	@for c in $(CORES); do for f in f32 $(COV_FMTS); do \
+	  echo; python3 lib/sim/coverage.py $$c $$c/hw/sim/cov $$f || exit 1; \
+	done; done
 
 sim-waves:
 	gtkwave $(SIM_DIR)/*.vcd &

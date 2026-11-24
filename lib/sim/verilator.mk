@@ -10,7 +10,9 @@ VERILATOR_FLAGS=--binary --timing -j 0 -O2 --top-module $(TB_TOP) -Wno-fatal -Wn
 ifeq ($(COV),1)
 VERILATOR_FLAGS+=--coverage-line --coverage-toggle
 COV_DIR=cov
-COV_FILE=$(COV_DIR)/$(TB_TOP)_$(TF_FMT)_$(TF_OP)_$(TF_RND)_$(STREAMS)$(FPU_MIX).dat
+# the stream and mix tests are binary32
+COV_FMT=$(if $(TF_FMT),$(TF_FMT),f32)
+COV_FILE=$(COV_DIR)/$(COV_FMT)_$(TB_TOP)_$(TF_OP)_$(TF_RND)_$(STREAMS)$(FPU_MIX).dat
 COV_RUN=+verilator+coverage+file+$(COV_FILE)
 endif
 

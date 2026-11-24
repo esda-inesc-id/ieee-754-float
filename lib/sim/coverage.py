@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Merges the Verilator coverage of one unit and reports it per source file.
 
-usage: coverage.py <unit> <coverage directory>
+usage: coverage.py <unit> <coverage directory> <format>
 
-Writes <dir>/merged.dat, annotated sources in <dir>/annotated and the report
-<dir>/coverage.rpt, and prints the summary. A point covers all the instances of its
+Writes <dir>/merged_<format>.dat, annotated sources in <dir>/annotated_<format> and
+the report <dir>/coverage_<format>.rpt, and prints the summary. A point covers all the instances of its
 source line: it is hit if any instance hits it. Testbench files are left out.
 """
 
@@ -29,17 +29,17 @@ def points(dat):
 
 
 def main():
-    unit = sys.argv[1]
+    unit, fmt = sys.argv[1], sys.argv[3]
     # the source paths in the data are relative to the simulation directory
     os.chdir(os.path.dirname(os.path.abspath(sys.argv[2])))
     cov_dir = os.path.basename(os.path.abspath(sys.argv[2]))
-    dats = sorted(glob.glob(os.path.join(cov_dir, "*_*.dat")))
+    dats = sorted(glob.glob(os.path.join(cov_dir, f"{fmt}_*.dat")))
     if not dats:
         sys.exit(f"coverage.py: no coverage data in {cov_dir}")
-    merged = os.path.join(cov_dir, "merged.dat")
+    merged = os.path.join(cov_dir, f"merged_{fmt}.dat")
     subprocess.run(["verilator_coverage", "--write", merged] + dats, check=True,
                    stdout=subprocess.DEVNULL)
-    subprocess.run(["verilator_coverage", "--annotate", os.path.join(cov_dir, "annotated"),
+    subprocess.run(["verilator_coverage", "--annotate", os.path.join(cov_dir, f"annotated_{fmt}"),
                     "--annotate-min", "1", merged], check=True, stdout=subprocess.DEVNULL)
 
     # (file, kind, line, name) -> count summed over instances
@@ -52,7 +52,7 @@ def main():
         hits[(path, kind, int(fields.get("l", 0)), fields.get("o", ""))] += count
 
     files = sorted({k[0] for k in hits})
-    lines = [f"Coverage of {unit} ({len(dats)} runs)", "",
+    lines = [f"Coverage of {unit}, {fmt} ({len(dats)} runs)", "",
              f"{'File':<40} {'Lines':>13} {'Toggles':>15}"]
     detail = []
     for path in files:
@@ -82,10 +82,10 @@ def main():
             detail.append(f"  {sig}: {len(bits)} bit(s) not toggled both ways: {bits}")
 
     report = "\n".join(lines + ["", "Not covered:"] + detail) + "\n"
-    with open(os.path.join(cov_dir, "coverage.rpt"), "w") as f:
+    with open(os.path.join(cov_dir, f"coverage_{fmt}.rpt"), "w") as f:
         f.write(report)
     print("\n".join(lines))
-    print(f"details: {os.path.join(os.getcwd(), cov_dir, 'coverage.rpt')}")
+    print(f"details: {os.path.join(os.getcwd(), cov_dir, f'coverage_{fmt}.rpt')}")
 
 
 if __name__ == "__main__":

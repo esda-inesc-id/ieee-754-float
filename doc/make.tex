@@ -25,7 +25,7 @@ command line. Table~\ref{tab:make_targets} lists the targets.
 \sig{make test-smoke} & Run the smoke tests. Stops at the first failure. \\ \hline
 \sig{make test-regular} & Run the regular tests. It runs them all even if one fails, and then reports the failure. \\ \hline
 \sig{make test-full} & Run \sig{test-smoke} and, if it passes, \sig{test-regular} with every TestFloat vector of the level. \\ \hline
-\sig{make coverage} & Run \sig{test-regular} in Verilator with coverage and report it per unit (Section~\ref{sec:coverage}). \\ \hline
+\sig{make coverage} & Run \sig{test-regular} in Verilator with coverage, and TestFloat also in binary16 and binary64, and report it per unit and format (Section~\ref{sec:coverage}). \\ \hline
 \sig{make fpga-build} & Compile the unit out of context with Vivado. \\ \hline
 \sig{make syn-build} & Synthesize the unit with Genus. \\ \hline
 \sig{make run} & Run a program of the software model, selected by \sig{CPROG} or \sig{PYPROG}. \\ \hline
