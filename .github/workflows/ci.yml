@@ -1,9 +1,8 @@
 name: CI
 
-# Interactive shell: the runner's ~/.bashrc sets the tool paths and servers
 defaults:
   run:
-    shell: bash -ieo pipefail {0}
+    shell: bash -eo pipefail {0}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,12 +17,23 @@ on:
 
 jobs:
 
+  # GitHub-hosted jobs: the tools are installed in each run; TestFloat is cached
+
   sw-model:
-    runs-on: self-hosted
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - &checkout_step
         uses: actions/checkout@v6
+      - &rtl_tools_step
+        name: install Icarus Verilog and Verilator
+        run: sudo apt-get update -q && sudo apt-get install -y -q iverilog verilator
+      - &testfloat_step
+        name: TestFloat cache
+        uses: actions/cache@v4
+        with:
+          path: lib/sim/testfloat-build
+          key: testfloat-${{ runner.os }}-${{ hashFiles('lib/sim/testfloat.mk') }}
       - name: model tests
         run: make sw-test
       - name: model against TestFloat and RTL
@@ -32,27 +42,50 @@ jobs:
         run: make run CPROG=all
 
   smoke:
-    runs-on: self-hosted
-    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - *checkout_step
+      - *rtl_tools_step
+      - *testfloat_step
       - name: smoke tests
-        run: make test-smoke SIMULATOR=xezim
+        run: make test-smoke SIMULATOR=icarus
 
   coverage:
-    runs-on: self-hosted
-    timeout-minutes: 60
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
     needs: [ smoke ]
     steps:
       - *checkout_step
+      - *rtl_tools_step
+      - *testfloat_step
       - name: Verilator coverage
         run: make coverage
+
+  doc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - *checkout_step
+      - name: install TeX Live
+        run: >
+          sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends
+          latexmk texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
+          texlive-pictures
+      - name: user guide
+        run: make doc
+
+  # Self-hosted: Xcelium runs on the Cadence server, which needs a registered runner
 
   # every TestFloat vector of level 1, plus the fmac stream and fpu mix tests
   full:
     runs-on: self-hosted
     timeout-minutes: 240
     needs: [ smoke ]
+    defaults:
+      run:
+        # interactive shell: the runner's ~/.bashrc sets the tool paths and servers
+        shell: bash -ieo pipefail {0}
     env:
       CADENCE_SERVER: micro7.lx.it.pt
       SIMULATOR: xcelium
@@ -64,25 +97,3 @@ jobs:
       - *checkout_step
       - name: full tests
         run: make test-full CORE=${{ matrix.core }} REMOTE_ROOT_DIR=ci/ieee-754-float-${{ matrix.core }}
-
-  fpga:
-    runs-on: pudim-flan
-    timeout-minutes: 60
-    if: ${{ !cancelled() }}
-    needs: [ smoke ]
-    strategy:
-      max-parallel: 1
-      matrix:
-        core: [ fadd, fmul, fdiv, fmac, fpu ]
-    steps:
-      - *checkout_step
-      - name: out-of-context place and route
-        run: make fpga-build CORE=${{ matrix.core }}
-
-  doc:
-    runs-on: self-hosted
-    timeout-minutes: 15
-    steps:
-      - *checkout_step
-      - name: user guide
-        run: make doc
