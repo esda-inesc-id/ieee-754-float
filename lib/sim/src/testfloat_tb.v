@@ -4,17 +4,11 @@
 // The units have no exception flags, so only the result is compared, and any
 // NaN matches any NaN. Failing vectors are written to fails.tv.
 
-module testfloat_tb;
+// The run configuration (TF_DUT, TF_DATA_W, TF_EXP_W, TF_RND, TF_FPU, TF_FUNCT, TF_3OP,
+// TF_RESTART) comes from sim_config.vh, written by the make flow
+`include "sim_config.vh"
 
-`ifndef TF_RND
-`define TF_RND 0
-`endif
-`ifndef TF_DATA_W
-`define TF_DATA_W 32
-`endif
-`ifndef TF_EXP_W
-`define TF_EXP_W 8
-`endif
+module testfloat_tb;
 
    parameter clk_per = 20;
    parameter MAX_CYCLES = 1000;

@@ -17,6 +17,7 @@ xcelium.d
 obj_dir
 cov
 verilator_build.log
+sim_config.vh
 xsim.dir
 *.log
 *.jou

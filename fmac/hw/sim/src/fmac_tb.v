@@ -1,5 +1,8 @@
 `timescale 1ns / 1ps
 
+// VCD comes from sim_config.vh, written by the make flow
+`include "sim_config.vh"
+
 `include "mac_tbdefs.vh"
 
 module fmac_tb;

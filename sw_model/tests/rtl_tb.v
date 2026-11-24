@@ -7,21 +7,11 @@
 // product k (from 0) the mode (3k + k/8) mod 8, and idle cycles another mode, as
 // model_run does with "cycle".
 
+`include "sim_config.vh"
+
 module rtl_tb;
 
-   // the format and guard widths come from macros, set by check.py
-`ifndef RTL_DATA_W
-`define RTL_DATA_W 32
-`endif
-`ifndef RTL_EXP_W
-`define RTL_EXP_W 8
-`endif
-`ifndef RTL_LGUARD_W
-`define RTL_LGUARD_W 0
-`endif
-`ifndef RTL_RGUARD_W
-`define RTL_RGUARD_W 0
-`endif
+   // the format, guard widths and unit (FMAC) come from sim_config.vh, written by check.py
    parameter DATA_W = `RTL_DATA_W;
    parameter EXP_W = `RTL_EXP_W;
    parameter LGUARD_W = `RTL_LGUARD_W;

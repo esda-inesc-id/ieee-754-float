@@ -1,5 +1,8 @@
 `timescale 1ns / 1ps
 
+// VCD comes from sim_config.vh, written by the make flow
+`include "sim_config.vh"
+
 `define FUNCT_W 2
 
 module fpu_tb;

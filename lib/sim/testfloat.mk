@@ -36,6 +36,6 @@ testfloat: $(TF_GEN)
 	done; done; done; rm -f vectors.tv; $(MAKE) --no-print-directory clean; exit $$status
 
 testfloat-clean:
-	@rm -f vectors.tv fails.tv fails_*.tv testfloat_*.rpt
+	@rm -f vectors.tv fails.tv fails_*.tv testfloat_*.rpt sim_config.vh
 
 .PHONY: testfloat testfloat-clean

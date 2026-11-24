@@ -1,5 +1,8 @@
 `timescale 1ns / 1ps
 
+// VCD comes from sim_config.vh, written by the make flow
+`include "sim_config.vh"
+
 module fdiv_tb;
    parameter DATA_W = 32;
    parameter EXP_W = 8;
