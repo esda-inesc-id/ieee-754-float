@@ -28,6 +28,9 @@ MODEL_RUN:=$(BUILD_DIR)/model_run
 TESTS:=$(BUILD_DIR)/ieee754_tests
 MATH_ACCURACY:=$(BUILD_DIR)/math_accuracy
 BENCH:=$(BUILD_DIR)/bench
+GEN_INPUTS:=$(BUILD_DIR)/gen_inputs
+# synthetic example inputs, generated from a fixed seed
+INPUTS:=$(BUILD_DIR)/in/.done
 CXX_HDR:=cpp/ieee754.h $(MODEL_HDR) examples/common/common.h
 
 BENCH_SRC:=examples/benchmark.cpp examples/common/common.cpp $(foreach e,$(EXAMPLES),examples/$(e)/$(e).cpp)
@@ -40,16 +43,16 @@ run: $(LIB)
 else ifeq ($(CPROG),ieee754_tests)
 run: run-tests
 else
-run: $(BENCH) $(LIB)
+run: $(BENCH) $(LIB) $(INPUTS)
 	@rm -rf $(BUILD_DIR)/out
 	@mkdir -p $(BUILD_DIR)/out
-	$(BENCH) -i examples -o $(BUILD_DIR)/out -e $(CPROG)
+	$(BENCH) -i $(BUILD_DIR)/in -o $(BUILD_DIR)/out -e $(CPROG)
 	@echo "outputs in $(BUILD_DIR)/out"
 endif
 
-run-tests: $(TESTS) $(LIB)
+run-tests: $(TESTS) $(LIB) $(INPUTS)
 	@mkdir -p $(BUILD_DIR)/out
-	$(TESTS) -i examples/dp/data.in -w examples/dp/weights.in \
+	$(TESTS) -i $(BUILD_DIR)/in/dp/data.in -w $(BUILD_DIR)/in/dp/weights.in \
 	  -d $(BUILD_DIR)/out/test-double.out -f $(BUILD_DIR)/out/test-float.out \
 	  -p $(BUILD_DIR)/out/test-ieee754.out
 
@@ -80,6 +83,14 @@ $(BENCH): $(BENCH_OBJ) $(MODEL_OBJ)
 
 $(TESTS): $(TESTS_OBJ) $(MODEL_OBJ)
 	$(CXX) $^ -lm -o $@
+
+$(GEN_INPUTS): examples/common/gen_inputs.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(INPUTS): $(GEN_INPUTS)
+	$(GEN_INPUTS) $(BUILD_DIR)/in
+	@touch $@
 
 $(BUILD_DIR)/%.o: %.cpp $(CXX_HDR)
 	@mkdir -p $(dir $@)

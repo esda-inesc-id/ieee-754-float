@@ -175,7 +175,7 @@ unsigned int read_input(char *inputFile, double **data) {
     fprintf(stderr, "memory allocation failed\n");
     exit(1);
   }
-  memcpy(*data, data_f, sizeof(float)*n);
+  for (int i = 0; i < n; i++) (*data)[i] = data_f[i];
 
   free(data_f);
 

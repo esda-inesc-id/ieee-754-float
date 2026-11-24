@@ -120,8 +120,10 @@ simulated by the check.
 
 The directory \file{examples} has the six applications of Table~\ref{tab:sw_apps}.
 Each one computes its result in \sig{double}, \sig{float} and model arithmetic and
-writes each to a file in \file{sw\_model/build/out}. \sig{make run} then compares
-the \sig{float} and model files with the \sig{double} file.
+writes each to a file in \file{sw\_model/build/out}. The inputs are synthetic:
+\file{examples/common/gen\_inputs.cpp} generates them from a fixed seed into
+\file{sw\_model/build/in} before the first run, in a fraction of a second, so
+every run uses the same data.
 
 \begin{twotable}{Example Applications}{tab:sw_apps}{\sig{CPROG}}{Application}{3.4cm}
 \sig{dp} & Dot product. \\ \hline
