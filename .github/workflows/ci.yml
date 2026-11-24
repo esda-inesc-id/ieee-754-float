@@ -17,7 +17,8 @@ on:
 
 jobs:
 
-  # GitHub-hosted jobs: the tools are installed in each run; TestFloat is cached
+  # GitHub-hosted jobs: xezim (built from source) and TestFloat are cached; the other
+  # tools are installed in each run
 
   sw-model:
     runs-on: ubuntu-24.04
@@ -25,9 +26,23 @@ jobs:
     steps:
       - &checkout_step
         uses: actions/checkout@v6
-      - &rtl_tools_step
-        name: install Icarus Verilog and Verilator
-        run: sudo apt-get update -q && sudo apt-get install -y -q iverilog verilator
+      - &xezim_cache_step
+        name: xezim cache
+        id: xezim
+        uses: actions/cache@v4
+        with:
+          path: ~/xezim
+          key: xezim-0.11.7-${{ runner.os }}
+      - &xezim_build_step
+        name: build xezim
+        if: steps.xezim.outputs.cache-hit != 'true'
+        run: >
+          rustup toolchain install stable --profile minimal &&
+          cargo +stable install --git https://github.com/aionhw/xezim --tag 0.11.7 --locked
+          --root ~/xezim
+      - &xezim_path_step
+        name: xezim path
+        run: echo "$HOME/xezim/bin" >> "$GITHUB_PATH"
       - &testfloat_step
         name: TestFloat cache
         uses: actions/cache@v4
@@ -46,10 +61,12 @@ jobs:
     timeout-minutes: 60
     steps:
       - *checkout_step
-      - *rtl_tools_step
+      - *xezim_cache_step
+      - *xezim_build_step
+      - *xezim_path_step
       - *testfloat_step
       - name: smoke tests
-        run: make test-smoke SIMULATOR=icarus
+        run: make test-smoke SIMULATOR=xezim
 
   coverage:
     runs-on: ubuntu-24.04
@@ -57,7 +74,8 @@ jobs:
     needs: [ smoke ]
     steps:
       - *checkout_step
-      - *rtl_tools_step
+      - name: install Verilator
+        run: sudo apt-get update -q && sudo apt-get install -y -q verilator
       - *testfloat_step
       - name: Verilator coverage
         run: make coverage

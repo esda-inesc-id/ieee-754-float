@@ -56,12 +56,11 @@ def simulate(root, work, unit, runs, data_w, exp_w, lguard=0, rguard=0):
     """
     run_dir = os.path.join(work, f"{unit}_{data_w}_{lguard}_{rguard}")
     os.makedirs(run_dir, exist_ok=True)
-    params = [f"-Prtl_tb.DATA_W={data_w}", f"-Prtl_tb.EXP_W={exp_w}"]
+    defines = [f"-DRTL_DATA_W={data_w}", f"-DRTL_EXP_W={exp_w}"]
     if unit == "fmac":
-        params += ["-DFMAC", f"-Prtl_tb.LGUARD_W={lguard}", f"-Prtl_tb.RGUARD_W={rguard}"]
-    subprocess.run(["iverilog", "-g2005-sv", "-I", os.path.join(root, "lib/src"), "-s", "rtl_tb",
-                    "-o", "sim.vvp", *params, os.path.join(HERE, "rtl_tb.v"),
-                    *rtl_sources(root, unit)], cwd=run_dir, check=True)
+        defines += ["-DFMAC", f"-DRTL_LGUARD_W={lguard}", f"-DRTL_RGUARD_W={rguard}"]
+    xezim = ["xezim", "--max-time", "1000s", "-s", "rtl_tb", "-I", os.path.join(root, "lib/src"),
+             *defines, os.path.join(HERE, "rtl_tb.v"), *rtl_sources(root, unit)]
 
     def run(rnd, vectors):
         mode_dir = os.path.join(run_dir, f"rnd_{rnd}")
@@ -71,8 +70,7 @@ def simulate(root, work, unit, runs, data_w, exp_w, lguard=0, rguard=0):
             os.remove(link)
         os.symlink(os.path.abspath(vectors), link)
         plusarg = "+rnd_cycle" if rnd == "cycle" else f"+rnd_mode={rnd}"
-        subprocess.run(["vvp", "-n", os.path.join(run_dir, "sim.vvp"), plusarg], cwd=mode_dir,
-                       check=True, stdout=subprocess.DEVNULL)
+        subprocess.run([*xezim, plusarg], cwd=mode_dir, check=True, stdout=subprocess.DEVNULL)
         with open(os.path.join(mode_dir, "results.out")) as src:
             return [int(line, 16) for line in src.read().split()]
 

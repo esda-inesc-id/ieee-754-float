@@ -9,10 +9,23 @@
 
 module rtl_tb;
 
-   parameter DATA_W = 32;
-   parameter EXP_W = 8;
-   parameter LGUARD_W = 0;
-   parameter RGUARD_W = 0;
+   // the format and guard widths come from macros, set by check.py
+`ifndef RTL_DATA_W
+`define RTL_DATA_W 32
+`endif
+`ifndef RTL_EXP_W
+`define RTL_EXP_W 8
+`endif
+`ifndef RTL_LGUARD_W
+`define RTL_LGUARD_W 0
+`endif
+`ifndef RTL_RGUARD_W
+`define RTL_RGUARD_W 0
+`endif
+   parameter DATA_W = `RTL_DATA_W;
+   parameter EXP_W = `RTL_EXP_W;
+   parameter LGUARD_W = `RTL_LGUARD_W;
+   parameter RGUARD_W = `RTL_RGUARD_W;
    parameter CLK_PER = 20;
    parameter GAP = 2;
    parameter MAX_WAIT = 1024;
