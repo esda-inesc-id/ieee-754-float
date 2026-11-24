@@ -28,13 +28,13 @@ module fmac_core #(
    input             op_b_inf,
    input             op_b_zero,
 
-   output              special,
-   output [DATA_W-1:0] res_special,
+   // special result code {kind, sign}, as in pack
+   output [       2:0] res_special,
 
    output reg               res_sign,
-   output reg [  EXP_W+1:0] res_exp,
-   output reg [MAN_W+3-1:0] res_man,
-   output                   res_inv
+   // never negative and below 2**(EXP_W+1)
+   output reg [    EXP_W:0] res_exp,
+   output reg [MAN_W+3-1:0] res_man
 );
 
    localparam EXTRA = 3;
@@ -51,7 +51,6 @@ module fmac_core #(
       .DATA_W(MAN_W)
    ) cls_a (
       .data_in (op_a_man),
-      .symbol  (1'b0),
       .data_out(A_lz)
    );
 
@@ -60,7 +59,6 @@ module fmac_core #(
       .DATA_W(MAN_W)
    ) cls_b (
       .data_in (op_b_man),
-      .symbol  (1'b0),
       .data_out(B_lz)
    );
 
@@ -110,11 +108,9 @@ module fmac_core #(
    // Multiplication
    wire mul_sign = A_sign_reg ^ B_sign_reg;
    wire mul_zero = ~(|A_Mantissa_reg & |B_Mantissa_reg);
-   wire [EXP_W+1:0] A_lz_ext = {{(EXP_W + 2 - LZ_W) {1'b0}}, A_lz_reg};
-   wire [EXP_W+1:0] B_lz_ext = {{(EXP_W + 2 - LZ_W) {1'b0}}, B_lz_reg};
    // a zero product must not take part in the alignment
    wire [EXP_W+1:0] mul_exp = mul_zero ? EXP_ZERO :
-      {2'd0, A_Exponent_reg} + {2'd0, B_Exponent_reg} - BIAS - A_lz_ext - B_lz_ext;
+      {2'd0, A_Exponent_reg} + {2'd0, B_Exponent_reg} - BIAS - A_lz_reg - B_lz_reg;
    wire [2*MAN_W-1:0] mul_man = A_Mantissa_reg * B_Mantissa_reg;
 
    // pipeline stage 2
@@ -149,7 +145,8 @@ module fmac_core #(
 
    reg [EXP_W+1:0] acc_exp_reg, acc_exp_reg2;
    reg [ACC_W+EXTRA:0] acc_man_reg;
-   reg [ACC_W+EXTRA:0] acc_man_reg2;
+   // the EXTRA-1 bits below the round-to-odd accumulator are zero and not stored
+   reg [ACC_W+1:0] acc_man_reg2;
 
    // Round to odd: keeps the final rounding correct
    wire [ACC_W:0] acc_odd = {
@@ -157,7 +154,7 @@ module fmac_core #(
    };
 
    wire [EXP_W+1:0] A_exp_int = valid_d2 ? mul_exp_reg : acc_exp_reg2;
-   wire [ACC_W+EXTRA:0] A_man_int = valid_d2 ? mul_man_c : acc_man_reg2;
+   wire [ACC_W+EXTRA:0] A_man_int = valid_d2 ? mul_man_c : {acc_man_reg2, {(EXTRA - 1) {1'b0}}};
 
    wire cin_int = valid_d2 & mul_sign_reg;
 
@@ -172,11 +169,11 @@ module fmac_core #(
       ovf_int ? acc_exp_reg + 1'b1 :
       undf_int ? acc_exp_reg - 1'b1 :
       acc_exp_reg;
-   wire [ACC_W+EXTRA:0] B_man_int =
-      acc_clr ? {(ACC_W + 1 + EXTRA) {1'b0}} :
-      ovf_int ? {acc_man_reg[ACC_W+EXTRA], acc_odd, {(EXTRA-1){1'b0}}} :
-      undf_int ? {acc_odd[ACC_W-1:0], {(EXTRA+1){1'b0}}} :
-      {acc_odd, {EXTRA{1'b0}}};
+   wire [ACC_W+1:0] B_man_hi =
+      acc_clr ? {(ACC_W + 2) {1'b0}} :
+      ovf_int ? {acc_man_reg[ACC_W+EXTRA], acc_odd} :
+      undf_int ? {acc_odd[ACC_W-1:0], 2'b00} :
+      {acc_odd, 1'b0};
 
    wire comp = ($signed(
        A_exp_int
@@ -185,16 +182,17 @@ module fmac_core #(
    )) ? 1'b1 : 1'b0;  // exponents can be negative
 
    wire [EXP_W+1:0] A_exp = comp ? A_exp_int : B_exp_int;
-   wire [ACC_W+EXTRA:0] A_man = comp ? A_man_int : B_man_int;
+   wire [ACC_W+EXTRA:0] A_man = comp ? A_man_int : {B_man_hi, {(EXTRA - 1) {1'b0}}};
 
    wire [EXP_W+1:0] B_exp = comp ? B_exp_int : A_exp_int;
-   wire [ACC_W+EXTRA:0] B_man = comp ? B_man_int : A_man_int;
+   wire [ACC_W+EXTRA:0] B_man = comp ? {B_man_hi, {(EXTRA - 1) {1'b0}}} : A_man_int;
 
    localparam STICKY_BITS = ACC_W + EXTRA + 2;
 
    // Align significants
    wire [EXP_W+1:0] diff_exp = A_exp - B_exp;
-   wire [EXP_W+1:0] shift = (diff_exp > STICKY_BITS[EXP_W+1:0]) ? STICKY_BITS[EXP_W+1:0] : diff_exp;
+   localparam SH_W = $clog2(STICKY_BITS + 1);
+   wire [SH_W-1:0] shift = (diff_exp > STICKY_BITS) ? STICKY_BITS[SH_W-1:0] : diff_exp[SH_W-1:0];
    wire [ACC_W+EXTRA+STICKY_BITS:0] B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> shift;
 
    // Sticky
@@ -250,10 +248,10 @@ module fmac_core #(
    always @(posedge clk, posedge rst) begin
       if (rst) begin
          acc_exp_reg2 <= {(EXP_W + 2) {1'b0}};
-         acc_man_reg2 <= {(ACC_W + 1 + EXTRA) {1'b0}};
+         acc_man_reg2 <= {(ACC_W + 2) {1'b0}};
       end else begin
          acc_exp_reg2 <= B_exp_int;
-         acc_man_reg2 <= B_man_int;
+         acc_man_reg2 <= B_man_hi;
       end
    end
 
@@ -287,14 +285,17 @@ module fmac_core #(
    wire [4:0] res_flags = flags_pipe[5*SPECIAL_DELAY-1-:5];
    wire       res_nan = res_flags[0] | (res_flags[1] & res_flags[2]);
 
-   assign special = (SPECIAL_CASES != 0) & (|res_flags);
-   assign res_special = res_nan ? {1'b0, {EXP_W{1'b1}}, 1'b1, {(MAN_W-2){1'b0}}} :
-      res_flags[3] ? {1'b1, {(DATA_W-1){1'b0}}} :
-      res_flags[4] ? {DATA_W{1'b0}} :
-      {res_flags[2], {EXP_W{1'b1}}, {(MAN_W-1){1'b0}}};
+   wire       special = (SPECIAL_CASES != 0) & (|res_flags);
+   // a NaN, -0 or +0 for streams of signed zeros, or an infinity
+   wire       res_zero = res_flags[3] | res_flags[4];
+   assign res_special = {
+      ~special ? 2'b00 : res_nan ? 2'b01 : res_zero ? 2'b11 : 2'b10,
+      res_flags[3] | (~res_flags[4] & res_flags[2])
+   };
 
    // Convert final result to sign-magnitude
    wire res_sign_int = acc_man_reg[ACC_W+EXTRA];
+   // the leading sign bits of the accumulator are the leading zeros of its XOR with the sign
 
    // exponent at which the normalized result has the subnormal exponent (1)
    localparam EXP_MIN = -(LGUARD_W + 2);
@@ -308,8 +309,7 @@ module fmac_core #(
    cls #(
       .DATA_W(ACC_W + EXTRA + 1)
    ) cls0 (
-      .data_in (acc_man_reg),
-      .symbol  (res_sign_int),
+      .data_in (acc_man_reg ^ {(ACC_W + EXTRA + 1) {res_sign_int}}),
       .data_out(lsc)
    );
 
@@ -318,19 +318,20 @@ module fmac_core #(
    wire [EXP_W+1:0] exp_diff2_1 = acc_exp_reg - EXP_MIN[EXP_W+1:0];
 
    wire [EXP_W+1:0] lshift = exp_diff[EXP_W+1] ? lsc : exp_diff2_1;
-   wire [EXP_W+1:0] lshift_inv = ~lshift;
 
-   wire [EXP_W+1:0] rshift_lim = RSHIFT_LIM[EXP_W+1:0];
-   wire [EXP_W+1:0] rshift = (exp_diff2 > rshift_lim) ? rshift_lim : exp_diff2;
+   localparam RSH_W = $clog2(RSHIFT_LIM + 1);
+   wire [RSH_W-1:0] rshift = (exp_diff2 > RSHIFT_LIM) ? RSHIFT_LIM[RSH_W-1:0] :
+      exp_diff2[RSH_W-1:0];
    wire [ACC_W+EXTRA+RSHIFT_LIM:0] man_rsht = $signed({acc_man_reg, {RSHIFT_LIM{1'b0}}}) >>> rshift;
 
-   wire [EXP_W+1:0] exp_norm = acc_exp_reg + lshift_inv + OFFSET[EXP_W+1:0];
+   // never negative and below 2**(EXP_W+1), so computed in EXP_W+1 bits
+   wire [EXP_W:0] exp_norm = acc_exp_reg[EXP_W:0] - lshift[EXP_W:0] + (OFFSET - 1);
    wire [ACC_W+EXTRA:0] man_rsht_st = {
       man_rsht[ACC_W+EXTRA+RSHIFT_LIM:RSHIFT_LIM+1], |man_rsht[RSHIFT_LIM:0]
    };
    wire [ACC_W+EXTRA:0] man_norm = exp_diff2[EXP_W+1] ? acc_man_reg << lshift : man_rsht_st;
 
-   wire [EXP_W+1:0] exp_adjust = exp_norm;
+   wire [EXP_W:0] exp_adjust = exp_norm;
    wire [MAN_W+EXTRA-1:0] man_adjust = {
       man_norm[ACC_W+EXTRA-:MAN_W+EXTRA-1], |man_norm[ACC_W+EXTRA-(MAN_W+EXTRA-1):0]
    };
@@ -340,7 +341,7 @@ module fmac_core #(
    always @(posedge clk, posedge rst) begin
       if (rst) begin
          res_sign <= 1'b0;
-         res_exp  <= {(EXP_W + 2) {1'b0}};
+         res_exp  <= {(EXP_W + 1) {1'b0}};
          res_man  <= {(MAN_W + EXTRA) {1'b0}};
 
          valid_d5 <= 1'b0;
@@ -357,6 +358,5 @@ module fmac_core #(
       end
    end
 
-   assign res_inv = res_sign;
 
 endmodule

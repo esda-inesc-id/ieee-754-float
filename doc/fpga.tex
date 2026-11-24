@@ -10,7 +10,8 @@ The script \file{lib/fpga/vivado.tcl} runs these steps in batch mode:
 
 \begin{enumerate}
 \item Read the Verilog sources of the unit.
-\item Synthesize out of context for the selected part, keeping the hierarchy.
+\item Synthesize out of context for the selected part, with the default hierarchy
+  flattening.
 \item Read \file{constrains.xdc}, which defines the clock on \sig{clk} and
   excludes \sig{rst} from timing analysis.
 \item Optimize, place and route.
@@ -41,11 +42,11 @@ and the default parameters (binary32). \sig{fpu} instantiates \sig{fmul} with
 \begin{tabular}{|l|r|r|r|r|}
 \hline
 \rowcolor{ug-head}\bfseries Unit & \bfseries LUTs & \bfseries Registers & \bfseries DSPs & \bfseries Slack (ns) \\ \hline\hline
-\sig{fadd} & 404 & 266 & 0 & 4.635 \\ \hline
-\sig{fmul} & 441 & 178 & 2 & 4.595 \\ \hline
-\sig{fdiv} & 482 & 172 & 0 & 4.415 \\ \hline
-\sig{fmac} & 1,263 & 452 & 2 & 0.974 \\ \hline
-\sig{fpu} & 947 & 470 & 2 & 2.725 \\ \hline
+\sig{fadd} & 379 & 250 & 0 & 4.985 \\ \hline
+\sig{fmul} & 479 & 175 & 2 & 5.507 \\ \hline
+\sig{fdiv} & 503 & 167 & 0 & 4.897 \\ \hline
+\sig{fmac} & 1,260 & 446 & 2 & 1.476 \\ \hline
+\sig{fpu} & 940 & 461 & 2 & 3.058 \\ \hline
 \end{tabular}
 \caption{FPGA Results at 100~MHz}
 \label{tab:fpga_results}

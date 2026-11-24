@@ -37,7 +37,7 @@ remote run copies the logs, the reports and the netlist back to
 
 Table~\ref{tab:syn_results} gives the Genus 19.1 synthesis results in UMC
 130~nm, with the Faraday \sig{fsc0l\_d} 2009Q2v3.0 low-leakage library at the
-slow corner (1.08~V, 125~\textdegree C), an 8~ns clock (125~MHz) and the default
+slow corner (1.08~V, 125~\textdegree C), an 8.2~ns clock (122~MHz) and the default
 parameters (binary32). The critical period is the clock period minus the worst
 slack. The power is estimated with the default switching activity, without
 simulation vectors.
@@ -48,17 +48,18 @@ simulation vectors.
 \begin{tabular}{|l|r|r|r|r|r|}
 \hline
 \rowcolor{ug-head}\bfseries Unit & \bfseries Cells & \bfseries Area ($\mu$m$^2$) & \bfseries Slack (ns) & \bfseries Period (ns) & \bfseries Power (mW) \\ \hline\hline
-\sig{fadd} & 1,362 & 16,800 & 0.002 & 8.00 & 0.9 \\ \hline
-\sig{fmul} & 3,273 & 39,956 & 0.000 & 8.00 & 1.6 \\ \hline
-\sig{fdiv} & 1,366 & 15,763 & 0.003 & 8.00 & 0.7 \\ \hline
-\sig{fmac} & 8,222 & 90,856 & 0.000 & 8.00 & 9.7 \\ \hline
-\sig{fpu} & 6,185 & 72,576 & 0.000 & 8.00 & 2.9 \\ \hline
+\sig{fadd} & 1,239 & 15,843 & 0.003 & 8.20 & 0.8 \\ \hline
+\sig{fmul} & 2,931 & 37,324 & 0.001 & 8.20 & 1.5 \\ \hline
+\sig{fdiv} & 1,382 & 15,265 & 0.001 & 8.20 & 0.7 \\ \hline
+\sig{fmac} & 7,703 & 84,739 & 0.000 & 8.20 & 8.5 \\ \hline
+\sig{fpu} & 5,749 & 67,341 & 0.000 & 8.20 & 2.5 \\ \hline
 \end{tabular}
-\caption{ASIC Synthesis Results at 125~MHz}
+\caption{ASIC Synthesis Results at 122~MHz}
 \label{tab:syn_results}
 \end{table}
 
-All units meet the 8~ns clock. The critical path of \sig{fmul} and \sig{fpu} is the
-mantissa multiplication, which takes one pipeline stage. In \sig{fmac} it is the
-normalization of the accumulator. In \sig{fadd} it is the normalization of the
-sum, and in \sig{fdiv} the rounding in \sig{pack}.
+All units meet the 8.2~ns clock. The critical path of \sig{fmul} and \sig{fpu} is
+the mantissa multiplication, which takes one pipeline stage. In \sig{fmac} it is the
+normalization of the accumulator. In \sig{fadd} it is the rounding in \sig{pack},
+and in \sig{fdiv} the exponent of the quotient, computed when the operands are
+captured.

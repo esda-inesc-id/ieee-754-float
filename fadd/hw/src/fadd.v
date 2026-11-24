@@ -71,10 +71,7 @@ module fadd #(
    wire                 add_sign;
    wire [    EXP_W-1:0] add_exp;
    wire [MAN_W+EXTRA:0] add_man;
-   wire                 add_inv;
-   wire                 add_nsub;
-   wire                 add_special;
-   wire [   DATA_W-1:0] add_res_special;
+   wire [        2:0] add_res_special;
    fadd_core #(
       .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
@@ -92,6 +89,7 @@ module fadd #(
 
       .op_a_nan(op_a_nan),
       .op_a_inf(op_a_inf),
+      .op_a_zero(op_a_zero),
 
       .op_b_sign(op_b_sign),
       .op_b_exp (op_b_exp),
@@ -99,29 +97,21 @@ module fadd #(
 
       .op_b_nan(op_b_nan),
       .op_b_inf(op_b_inf),
-
-      .special    (add_special),
+      .op_b_zero(op_b_zero),
       .res_special(add_res_special),
 
       .res_sign(add_sign),
       .res_exp (add_exp),
-      .res_man (add_man),
-      .res_inv (add_inv),
-      .res_nsub(add_nsub)
+      .res_man (add_man)
    );
-
-   wire                   special_int = add_special;
-   wire [     DATA_W-1:0] res_special_int = add_res_special;
+   wire [          2:0] res_special_int = add_res_special;
 
    wire                   norm_valid_i = add_valid_o;
    wire                   norm_valid_o;
-   wire                   norm_special;
-   wire [     DATA_W-1:0] norm_res_special;
+   wire [          2:0] norm_res_special;
    wire                   norm_sign;
-   wire [      EXP_W+1:0] norm_exp;
+   wire [      EXP_W-1:0] norm_exp;
    wire [MAN_W+EXTRA-1:0] norm_man;
-   wire                   norm_inv;
-   wire                   norm_nsub;
    norm #(
       .DATA_W(DATA_W),
       .EXP_W (EXP_W),
@@ -135,21 +125,14 @@ module fadd #(
       .valid_o(norm_valid_o),
 
       .sign_i(add_sign),
-      .exp_i ({2'd0, add_exp}),
+      .exp_i (add_exp),
       .man_i (add_man),
-      .inv_i (add_inv),
-      .nsub_i(add_nsub),
-
-      .special_i    (special_int),
       .res_special_i(res_special_int),
-      .special_o    (norm_special),
       .res_special_o(norm_res_special),
 
       .sign_o(norm_sign),
       .exp_o (norm_exp),
-      .man_o (norm_man),
-      .inv_o (norm_inv),
-      .nsub_o(norm_nsub)
+      .man_o (norm_man)
    );
 
    wire pack_valid_i = norm_valid_o;
@@ -167,19 +150,15 @@ module fadd #(
 
    pack #(
       .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
+      .EXP_W (EXP_W),
+      .EXP_I_W(EXP_W)
    ) pack0 (
       .clk(clk),
       .rst(rst),
 
       .valid_i(pack_valid_i),
       .valid_o(valid_o),
-
-      .inv (norm_inv),
-      .nsub(norm_nsub),
       .rnd_mode(pack_rnd_mode),
-
-      .special_i    (norm_special),
       .res_special_i(norm_res_special),
 
       .sign_i(norm_sign),

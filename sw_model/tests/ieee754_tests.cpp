@@ -1,7 +1,6 @@
 // Self-checking tests of the C++ type, the streaming MAC and the rounding modes.
 //
-// usage: ieee754_tests -i <data file> -w <weight file> -d <double out> -f <float out>
-//                      -p <ieee754 out>
+// usage: ieee754_tests
 
 #include <fenv.h>
 #include <float.h>
@@ -117,8 +116,7 @@ static void memory_tests() {
   free(vec);
 }
 
-static void mac_tests(double *data, unsigned n, double *weights, unsigned m, FILE *fp_d,
-                      FILE *fp_f, FILE *fp_ieee754) {
+static void mac_tests() {
   Ieee754Mac mac;
 
   mac.push(Ieee754(1.5), Ieee754(2.0));
@@ -130,19 +128,6 @@ static void mac_tests(double *data, unsigned n, double *weights, unsigned m, FIL
 
   mac.push(Ieee754(INFINITY), Ieee754(0.0));
   expect((double)mac.result() != (double)mac.result(), "MAC of infinity times zero");
-
-  for (unsigned i = 0; i + m <= n; i++) {
-    double acc_d = 0.0;
-    float acc_f = 0.0F;
-    for (unsigned j = 0; j < m; j++) {
-      acc_d += data[i + j] * weights[j];
-      acc_f += (float)data[i + j] * (float)weights[j];
-      mac.push(Ieee754(data[i + j]), Ieee754(weights[j]));
-    }
-    fprintf(fp_d, "%.16E\n", acc_d);
-    fprintf(fp_f, "%.16E\n", (double)acc_f);
-    fprintf(fp_ieee754, "%.16e\n", (double)mac.result());
-  }
 }
 
 static Ieee754 sp(uint32_t bits) { return Ieee754::from_bits(bits); }
@@ -211,56 +196,13 @@ static void rounding_tests() {
   }
 }
 
-static void usage(const char *name) {
-  printf("usage: %s -i <data file> -w <weight file> -d <double out> -f <float out> "
-         "-p <ieee754 out>\n", name);
-  exit(2);
-}
-
-static FILE *open_output(const char *path) {
-  FILE *fp = fopen(path, "w");
-  if (!fp) {
-    fprintf(stderr, "unable to open file '%s'\n", path);
-    exit(2);
-  }
-  return fp;
-}
-
-int main(int argc, char **argv) {
-  const char *paths[5] = {0, 0, 0, 0, 0};
-  static const char options[] = "iwdfp";
-
-  for (int i = 1; i + 1 < argc; i += 2) {
-    const char *option = argv[i][0] == '-' && argv[i][1] && !argv[i][2]
-                             ? strchr(options, argv[i][1])
-                             : 0;
-    if (!option) usage(argv[0]);
-    paths[option - options] = argv[i + 1];
-  }
-  for (const char *path : paths) {
-    if (!path) usage(argv[0]);
-  }
-
-  double *data, *weights;
-  unsigned n = read_input((char *)paths[0], &data);
-  unsigned m = read_input((char *)paths[1], &weights);
-
-  FILE *fp_d = open_output(paths[2]);
-  FILE *fp_f = open_output(paths[3]);
-  FILE *fp_ieee754 = open_output(paths[4]);
-
+int main() {
   conversion_tests();
   arithmetic_tests();
   comparator_tests();
   memory_tests();
-  mac_tests(data, n, weights, m, fp_d, fp_f, fp_ieee754);
+  mac_tests();
   rounding_tests();
-
-  fclose(fp_d);
-  fclose(fp_f);
-  fclose(fp_ieee754);
-  free(data);
-  free(weights);
 
   printf("ieee754_tests: %s (%d failures)\n", failures ? "FAIL" : "PASS", failures);
   return failures != 0;

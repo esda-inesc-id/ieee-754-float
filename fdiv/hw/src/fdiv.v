@@ -70,9 +70,8 @@ module fdiv #(
    wire               div_valid_o;
    wire               div_sign;
    wire [  EXP_W+1:0] div_exp;
-   wire [MAN_W+EXTRA+1:0] div_man;
-   wire               div_special;
-   wire [ DATA_W-1:0] div_res_special;
+   wire [MAN_W+EXTRA:0] div_man;
+   wire [      2:0] div_res_special;
    fdiv_core #(
       .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
@@ -99,56 +98,44 @@ module fdiv #(
       .op_b_nan (op_b_nan),
       .op_b_inf (op_b_inf),
       .op_b_zero(op_b_zero),
-
-      .special    (div_special),
       .res_special(div_res_special),
 
       .res_sign(div_sign),
       .res_exp (div_exp),
       .res_man (div_man)
    );
+   wire [          2:0] res_special_int = div_res_special;
 
-   wire                   special_int = div_special;
-   wire [     DATA_W-1:0] res_special_int = div_res_special;
-
-   wire                   norm_special;
-
-   wire [     DATA_W-1:0] norm_res_special;
+   wire [          2:0] norm_res_special;
 
    wire                   norm_sign;
-   wire [      EXP_W+1:0] norm_exp;
+   wire [        EXP_W:0] norm_exp;
    wire [MAN_W+EXTRA-1:0] norm_man;
+   wire                   norm_valid_o;
    norm #(
       .DATA_W(DATA_W),
       .EXP_W (EXP_W),
-      .IN_W  (MAN_W + EXTRA + 2),
+      .IN_W  (MAN_W + EXTRA + 1),
       .LZC_W (2)
    ) norm0 (
       .clk(clk),
       .rst(rst),
 
-      .valid_i(1'b0),
-      .valid_o(),
+      .valid_i(div_valid_o),
+      .valid_o(norm_valid_o),
 
       .sign_i(div_sign),
       .exp_i (div_exp),
       .man_i (div_man),
-      .inv_i (1'b0),
-      .nsub_i(1'b1),
-
-      .special_i    (special_int),
       .res_special_i(res_special_int),
-      .special_o    (norm_special),
       .res_special_o(norm_res_special),
 
       .sign_o(norm_sign),
       .exp_o (norm_exp),
-      .man_o (norm_man),
-      .inv_o (),
-      .nsub_o()
+      .man_o (norm_man)
    );
 
-   wire pack_valid_i = div_valid_o;
+   wire pack_valid_i = norm_valid_o;
    // Rounding mode, captured with valid_i for the whole division
    reg [2:0] rnd_reg;
    always @(posedge clk, posedge rst) begin
@@ -168,12 +155,7 @@ module fdiv #(
 
       .valid_i(pack_valid_i),
       .valid_o(valid_o),
-
-      .inv (1'b0),
-      .nsub(1'b1),
       .rnd_mode(rnd_reg),
-
-      .special_i    (norm_special),
       .res_special_i(norm_res_special),
 
       .sign_i(norm_sign),

@@ -3,17 +3,16 @@ defmacro:=-D
 
 include $(FPU_DIR)/lib/sim/simulation.mk
 
-# Verilator 5 with --timing runs the event-driven testbenches. COV=1 adds line,
-# branch and toggle coverage; each run writes its data to cov/ for make coverage.
+# Verilator 5 with --timing runs the event-driven testbenches. COV=1 adds line and
+# toggle coverage; every run adds its own data file to cov/, which make coverage
+# merges, so coverage accumulates over all runs until make clean.
 VERILATOR_FLAGS=--binary --timing -j 0 -O2 --top-module $(TB_TOP) -Wno-fatal -Wno-lint -Wno-style \
   -Wno-MULTIDRIVEN -Wno-INITIALDLY --Mdir obj_dir
 ifeq ($(COV),1)
 VERILATOR_FLAGS+=--coverage-line --coverage-toggle
 COV_DIR=cov
-# the stream and mix tests are binary32
-COV_FMT=$(if $(TF_FMT),$(TF_FMT),f32)
-COV_FILE=$(COV_DIR)/$(COV_FMT)_$(TB_TOP)_$(TF_OP)_$(TF_RND)_$(STREAMS)$(FPU_MIX).dat
-COV_RUN=+verilator+coverage+file+$(COV_FILE)
+# one file per run: the shell process number makes the name unique
+COV_RUN=+verilator+coverage+file+$(COV_DIR)/$(TB_TOP)_$(TF_FMT)$(TF_OP)$(TF_RND)_$$$$.dat
 endif
 
 run: obj_dir/V$(TB_TOP)

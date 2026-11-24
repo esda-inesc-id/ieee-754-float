@@ -18,6 +18,10 @@ VSRC+=$(FPU_DIR)/lib/sim/src/testfloat_tb.v
 DEFINE+=$(defmacro)TF_DUT=$(CORE)
 TF_RND?=0
 DEFINE+=$(defmacro)TF_RND=$(TF_RND)
+# divisions are iterative: each one first restarts a dummy division
+ifeq ($(TF_OP),div)
+DEFINE+=$(defmacro)TF_RESTART
+endif
 TF_FMT?=f32
 TF_DATA_W_f16=16
 TF_EXP_W_f16=5

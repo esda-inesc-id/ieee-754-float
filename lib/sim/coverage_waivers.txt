@@ -1,0 +1,3 @@
+# Coverage waivers: bits that never toggle both ways, for a reason.
+# <units> <file> <signal regex> <bits> <reason>
+# units: comma-separated or *; bits: all, msb, top<N>, low<N> or a list.

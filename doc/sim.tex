@@ -38,7 +38,9 @@ vector holds the operands, the expected result and the expected exception flags.
 
 The test runs every operation in the five rounding modes of
 Table~\ref{tab:rnd_mode}: \sig{testfloat\_gen} generates the vectors of each
-mode, and the testbench drives the same mode on \sig{rnd\_mode}. The stream and
+mode, and the testbench drives that mode on \sig{rnd\_mode} with the operands and
+its complement while \sig{valid\_i} is low, so a unit that samples it at the wrong
+time fails. The stream and
 mixed-operation tests use mode 0.
 
 The testbench applies one vector at a time and waits for \sig{valid\_o}, for at most
@@ -136,11 +138,15 @@ Section~\ref{sec:sw_check} also simulates \sig{fpu} and \sig{fmac} at 16/5 and
 
 \sig{make coverage} runs the regular tests in Verilator with line and toggle
 coverage, and the regular TestFloat runs also in binary16 and binary64
-(\sig{COV\_FMTS}). It merges the runs of each unit and format and writes
-\file{<unit>/hw/sim/cov/coverage\_<format>.rpt}, with the coverage of each source
-file, the lines never executed and the signals whose bits never toggle both ways,
-and annotated sources in \file{<unit>/hw/sim/cov/annotated\_<format>}. A format is
-a different circuit, so each has its own report. Every line of every unit is
-executed in all three formats. The bits that never toggle are constants by design, such as the low
-bits of the special-result encodings, zero extensions and shift limits, and
-\sig{rnd\_mode}, which each TestFloat run holds at one mode.
+(\sig{COV\_FMTS}). Any other run with \sig{SIMULATOR=verilator COV=1} adds to the
+same data, which accumulates until \sig{make coverage-clean} or \sig{make clean};
+clear it after changing the RTL. \sig{make coverage-report} merges all the runs of
+each unit, whatever their test or format: a point is covered if any run covers it.
+It writes \file{<unit>/hw/sim/cov/coverage.rpt}, with the coverage of each source
+file, the points not covered and the waived points, and annotated sources in
+\file{<unit>/hw/sim/cov/annotated}. It fails if a point is neither covered nor
+waived.
+
+The file \file{lib/sim/coverage\_waivers.txt} waives the bits that never toggle for
+a reason, each with that reason. It is empty: every line and every toggle of every
+unit is covered.

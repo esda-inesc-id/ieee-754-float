@@ -1,10 +1,11 @@
 `timescale 1ns / 1ps
 
+// Counts the leading zeros of data_in; DATA_W if all bits are zero
+
 module cls #(
    parameter DATA_W = 32
 ) (
    input      [          DATA_W-1:0] data_in,
-   input                             symbol,
    output reg [$clog2(DATA_W+1)-1:0] data_out
 );
 
@@ -15,7 +16,7 @@ module cls #(
    always @* begin
       data_out = DATA_W[BIT_W-1:0];
       for (i = 0; i < DATA_W; i = i + 1) begin
-         if (data_in[i] == ~symbol) begin
+         if (data_in[i]) begin
             data_out = (DATA_W[BIT_W-1:0] - i[BIT_W-1:0] - 1'b1);
          end
       end

@@ -71,11 +71,9 @@ module fmac #(
    wire                   mac_valid_i = valid_i;
    wire                   mac_valid_o;
    wire                   mac_sign;
-   wire [      EXP_W+1:0] mac_exp;
+   wire [        EXP_W:0] mac_exp;
    wire [MAN_W+EXTRA-1:0] mac_man;
-   wire                   mac_inv;
-   wire                   mac_special;
-   wire [     DATA_W-1:0] mac_res_special;
+   wire [          2:0] mac_res_special;
    fmac_core #(
       .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
@@ -102,14 +100,11 @@ module fmac #(
       .op_b_nan (op_b_nan),
       .op_b_inf (op_b_inf),
       .op_b_zero(op_b_zero),
-
-      .special    (mac_special),
       .res_special(mac_res_special),
 
       .res_sign(mac_sign),
       .res_exp (mac_exp),
-      .res_man (mac_man),
-      .res_inv (mac_inv)
+      .res_man (mac_man)
    );
 
    wire pack_valid_i = mac_valid_o;
@@ -127,19 +122,15 @@ module fmac #(
 
    pack #(
       .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
+      .EXP_W (EXP_W),
+      .INV   (1)
    ) pack0 (
       .clk(clk),
       .rst(rst),
 
       .valid_i(pack_valid_i),
       .valid_o(valid_o),
-
-      .inv (mac_inv),
-      .nsub(1'b0),
       .rnd_mode(pack_rnd_mode),
-
-      .special_i    (mac_special),
       .res_special_i(mac_res_special),
 
       .sign_i(mac_sign),

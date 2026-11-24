@@ -14,7 +14,7 @@ SMOKE_STREAMS ?= 300
 SMOKE_MIX ?= 2000
 # TestFloat formats of the smoke run
 SMOKE_FMTS ?= f16 f32 f64
-# formats added to the binary32 regular tests in make coverage
+# formats that make coverage adds to the binary32 regular tests
 COV_FMTS ?= f16 f64
 
 MAKE_SUB = make --no-print-directory
@@ -26,7 +26,7 @@ FWD = SIMULATOR=$(SIMULATOR) $(foreach v,$(FWD_VARS),$(if $(filter command line,
 # $(1): SIM or FPGA; $(2): command run in the copy of this directory on $(1)_SERVER
 define remote
 ssh $($(1)_SSH_FLAGS) $($(1)_USER)@$($(1)_SERVER) 'mkdir -p $(REMOTE_ROOT_DIR)'
-rsync $($(1)_SYNC_FLAGS) -az --delete --exclude .git --exclude lib/sim/testfloat-build $(FPU_DIR)/ $($(1)_USER)@$($(1)_SERVER):$(REMOTE_ROOT_DIR)
+rsync $($(1)_SYNC_FLAGS) -az --delete --exclude .git --exclude lib/sim/testfloat-build --exclude obj_dir --exclude cov $(FPU_DIR)/ $($(1)_USER)@$($(1)_SERVER):$(REMOTE_ROOT_DIR)
 ssh $($(1)_SSH_FLAGS) $($(1)_USER)@$($(1)_SERVER) 'cd $(REMOTE_ROOT_DIR) && $(if $($(1)_ENV),source $($(1)_ENV) > /dev/null && )$(2)'
 endef
 
@@ -82,14 +82,18 @@ endif
 
 # Coverage: the regular tests in Verilator, merged and reported per unit
 coverage:
-	@for c in $(CORES); do rm -rf $$c/hw/sim/cov; done
 	-@$(MAKE_SUB) test-regular SIMULATOR=verilator COV=1 CADENCE_SERVER=
 	-@for c in $(CORES); do \
 	  $(MAKE_SUB) -C $$c/hw/sim testfloat CORE=$$c TF_FMTS="$(COV_FMTS)" SIMULATOR=verilator COV=1; \
 	done
-	@for c in $(CORES); do for f in f32 $(COV_FMTS); do \
-	  echo; python3 lib/sim/coverage.py $$c $$c/hw/sim/cov $$f || exit 1; \
-	done; done
+	@$(MAKE_SUB) coverage-report
+
+# Reports every run with COV=1 since the last coverage-clean, per unit
+coverage-report:
+	@for c in $(CORES); do echo; python3 lib/sim/coverage.py $$c $$c/hw/sim/cov || exit 1; done
+
+coverage-clean:
+	@for c in $(CORES); do rm -rf $$c/hw/sim/cov; done
 
 sim-waves:
 	gtkwave $(SIM_DIR)/*.vcd &
@@ -158,5 +162,5 @@ endif
 	@$(MAKE_SUB) -C $(FPU_SW_DIR) clean > /dev/null
 	@$(MAKE_SUB) -C doc clean > /dev/null
 
-.PHONY: help sim sim-waves test test-smoke test-regular test-full coverage fpga-build syn-build \
+.PHONY: help sim sim-waves test test-smoke test-regular test-full coverage coverage-report coverage-clean fpga-build syn-build \
 	run sw-test sw-check doc clean

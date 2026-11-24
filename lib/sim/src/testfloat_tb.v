@@ -27,6 +27,11 @@ module testfloat_tb;
    reg         clk = 0;
    reg         rst = 0;
    reg         valid_i = 0;
+   // the mode under test with the operands, its complement while idle: the units
+   // must sample it with valid_i
+   localparam [2:0] RND = `TF_RND;
+   reg        dummy = 0;
+   wire [2:0] rnd_mode = (valid_i & ~dummy) ? RND : ~RND;
    wire        valid_o;
    reg  [DATA_W-1:0] op_a = 0;
    reg  [DATA_W-1:0] op_b = 0;
@@ -40,7 +45,7 @@ module testfloat_tb;
       .rst    (rst),
       .valid_i(valid_i),
       .valid_o(valid_o),
-      .rnd_mode(3'd`TF_RND),
+      .rnd_mode(rnd_mode),
 `ifdef TF_FPU
       .funct  (2'd`TF_FUNCT),
 `endif
@@ -86,6 +91,16 @@ module testfloat_tb;
 
       read_vector;
       while (n_read == 4) begin
+`ifdef TF_RESTART
+         // an iterative division: a one-cycle division in the complement mode, which
+         // the real one abandons
+         op_a    = vec_b;
+         op_b    = vec_a;
+         dummy   = 1;
+         valid_i = 1;
+         @(negedge clk);
+         dummy = 0;
+`endif
          op_a    = vec_a;
          op_b    = vec_b;
          valid_i = 1;

@@ -71,8 +71,7 @@ module fmul #(
    wire               mul_sign;
    wire [  EXP_W+1:0] mul_exp;
    wire [2*MAN_W-1:0] mul_man;
-   wire               mul_special;
-   wire [ DATA_W-1:0] mul_res_special;
+   wire [      2:0] mul_res_special;
    fmul_core #(
       .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
@@ -100,24 +99,19 @@ module fmul #(
       .op_b_nan (op_b_nan),
       .op_b_inf (op_b_inf),
       .op_b_zero(op_b_zero),
-
-      .special    (mul_special),
       .res_special(mul_res_special),
 
       .res_sign(mul_sign),
       .res_exp (mul_exp),
       .res_man (mul_man)
    );
-
-   wire                   special_int = mul_special;
-   wire [     DATA_W-1:0] res_special_int = mul_res_special;
+   wire [          2:0] res_special_int = mul_res_special;
 
    wire                   norm_valid_i = mul_valid_o;
    wire                   norm_valid_o;
-   wire                   norm_special;
-   wire [     DATA_W-1:0] norm_res_special;
+   wire [          2:0] norm_res_special;
    wire                   norm_sign;
-   wire [      EXP_W+1:0] norm_exp;
+   wire [        EXP_W:0] norm_exp;
    wire [MAN_W+EXTRA-1:0] norm_man;
    norm #(
       .DATA_W(DATA_W),
@@ -133,19 +127,12 @@ module fmul #(
       .sign_i(mul_sign),
       .exp_i (mul_exp),
       .man_i (mul_man),
-      .inv_i (1'b0),
-      .nsub_i(1'b1),
-
-      .special_i    (special_int),
       .res_special_i(res_special_int),
-      .special_o    (norm_special),
       .res_special_o(norm_res_special),
 
       .sign_o(norm_sign),
       .exp_o (norm_exp),
-      .man_o (norm_man),
-      .inv_o (),
-      .nsub_o()
+      .man_o (norm_man)
    );
 
    wire pack_valid_i = norm_valid_o;
@@ -170,12 +157,7 @@ module fmul #(
 
       .valid_i(pack_valid_i),
       .valid_o(valid_o),
-
-      .inv (1'b0),
-      .nsub(1'b1),
       .rnd_mode(pack_rnd_mode),
-
-      .special_i    (norm_special),
       .res_special_i(norm_res_special),
 
       .sign_i(norm_sign),

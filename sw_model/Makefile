@@ -50,11 +50,8 @@ run: $(BENCH) $(LIB) $(INPUTS)
 	@echo "outputs in $(BUILD_DIR)/out"
 endif
 
-run-tests: $(TESTS) $(LIB) $(INPUTS)
-	@mkdir -p $(BUILD_DIR)/out
-	$(TESTS) -i $(BUILD_DIR)/in/dp/data.in -w $(BUILD_DIR)/in/dp/weights.in \
-	  -d $(BUILD_DIR)/out/test-double.out -f $(BUILD_DIR)/out/test-float.out \
-	  -p $(BUILD_DIR)/out/test-ieee754.out
+run-tests: $(TESTS)
+	$(TESTS)
 
 run-math-accuracy: $(MATH_ACCURACY)
 	$(MATH_ACCURACY)

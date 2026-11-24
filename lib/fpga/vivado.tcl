@@ -17,7 +17,7 @@ foreach file [split $VSRC \ ] {
 
 set_property part $PART [current_project]
 
-synth_design -include_dirs $HW_INCLUDE -verilog_define $HW_DEFINE -part $PART -top $TOP -mode out_of_context -flatten_hierarchy none -verbose
+synth_design -include_dirs $HW_INCLUDE -verilog_define $HW_DEFINE -part $PART -top $TOP -mode out_of_context -verbose
 
 read_xdc ../constrains.xdc
 
@@ -26,6 +26,7 @@ place_design
 route_design
 
 report_utilization
+report_utilization -hierarchical
 report_timing
 report_clocks
 
