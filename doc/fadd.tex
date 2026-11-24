@@ -1,0 +1,81 @@
+\chapter{Adder (fadd)}
+\label{ch:fadd}
+
+\section{Introduction}
+
+\sig{fadd} computes $\mathtt{op\_a}+\mathtt{op\_b}$. Two \sig{unpack} modules
+split the operands. The \sig{add} module aligns the mantissas and adds them in
+three pipeline stages. \sig{norm} normalizes the sum, and \sig{pack} rounds it
+and forms the result, as Figure~\ref{fig:fadd} shows.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=7mm]
+  \node[ugblock] (u) {\sig{unpack}\\(2)};
+  \node[ugblock,right=of u] (a) {\sig{add}\\3 cycles};
+  \node[ugblock,right=of a] (n) {\sig{norm}\\1 cycle};
+  \node[ugblock,right=of n] (p) {\sig{pack}\\1 cycle};
+  \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
+  \draw[ugarrow] (u) -- (a); \draw[ugarrow] (a) -- (n); \draw[ugarrow] (n) -- (p);
+  \draw[ugarrow] (p) -- ($(p.east)+(9mm,0)$) node[above left,font=\footnotesize\ttfamily,xshift=1mm] {res};
+\end{tikzpicture}
+\caption{\sig{fadd} Block Diagram}
+\label{fig:fadd}
+\end{figure}
+
+\section{Features}
+
+\begin{itemize}
+\item Addition with a latency of 5 clock cycles.
+\item One new operation per clock cycle.
+\item Subnormal operands and results.
+\item Round to nearest, ties to even.
+\item NaN and infinity handling, selected by \sig{SPECIAL\_CASES}.
+\end{itemize}
+
+\section{Parameters}
+
+\sig{fadd} has the parameters of Table~\ref{tab:common_params}.
+
+\section{Interface Signals}
+
+\sig{fadd} has the signals of Table~\ref{tab:common_sigs}.
+
+\Needspace*{23\baselineskip}
+\section{Instantiation}
+
+The example below instantiates \sig{fadd} for binary32. Compile it with the files
+of Table~\ref{tab:files}.
+
+\begin{vcode}
+fadd #(
+   .DATA_W       (32),
+   .EXP_W        (8),
+   .SPECIAL_CASES(1)
+) fadd0 (
+   .clk    (clk),
+   .rst    (rst),
+   .valid_i(valid_i),
+   .valid_o(valid_o),
+   .op_a   (op_a),
+   .op_b   (op_b),
+   .res    (res)
+);
+\end{vcode}
+
+\section{Operation}
+
+\sig{fadd} follows the protocol of Section~\ref{sec:protocol}, with a latency of
+5 clock cycles. The unit samples the operands in the \sig{valid\_i} cycle, so they
+can change in the next cycle. A new operation can start in every clock cycle, and
+the results come out in order.
+
+Table~\ref{tab:fadd_special} lists the results for special operands when
+\sig{SPECIAL\_CASES} is 1. The sum of two zeros of the same sign keeps that sign.
+An exact cancellation gives $+0$.
+
+\begin{twotable}{\sig{fadd} Special Results}{tab:fadd_special}{Operands}{Result}{7cm}
+Either operand is NaN & NaN \\ \hline
+$+\infty$ and $-\infty$ & NaN \\ \hline
+Infinity and a finite number, or two infinities of the same sign & That infinity \\
+\end{twotable}

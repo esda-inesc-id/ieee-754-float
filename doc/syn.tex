@@ -1,0 +1,33 @@
+\chapter{ASIC Synthesis}
+\label{ch:syn}
+
+The ASIC flow synthesizes one unit with Cadence Genus. It is in \file{lib/syn},
+and each unit adds a Makefile and the timing constraints
+\file{<unit>/hw/syn/umc130/<unit>.sdc}. The supported node is UMC 130~nm, with
+the library setup in \file{lib/syn/umc130/genus.setup.tcl}. The commands and
+variables are in Section~\ref{sec:make_syn}.
+
+The script \file{lib/syn/genus/build.tcl} runs these steps in batch mode:
+
+\begin{enumerate}
+\item Load the technology library from the directory in \sig{UMC130\_DIR}. The
+  flow stops with an error if the variable is not set.
+\item Read the sources with the macro \sig{ASIC} defined, and elaborate the unit.
+\item Read the constraints and check the design.
+\item Run generic synthesis, mapping and optimization.
+\item Insert tie cells and remove unloaded and undriven logic.
+\item Write the reports and the netlist.
+\end{enumerate}
+
+Table~\ref{tab:syn_out} lists the outputs, in \file{<unit>/hw/syn/results}. A
+remote run copies the logs, the reports and the netlist back to
+\file{<unit>/hw/syn}.
+
+\begin{twotable}{ASIC Synthesis Output Files}{tab:syn_out}{File}{Content}{5.2cm}
+\file{<unit>\_synth.v} & Mapped netlist. \\ \hline
+\file{<unit>\_check\_design.rpt} & Design check. \\ \hline
+\file{<unit>\_lint\_gen\_timing.rpt} & Timing lint after generic synthesis. \\ \hline
+\file{<unit>\_area.rpt}, \file{<unit>\_gates.rpt} & Area and gate reports. \\ \hline
+\file{<unit>\_clk.rpt}, \file{<unit>\_timing.rpt} & Clock and timing reports. \\ \hline
+\file{<unit>\_power.rpt}, \file{<unit>\_qor.rpt} & Power and quality-of-results reports. \\
+\end{twotable}

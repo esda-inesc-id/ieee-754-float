@@ -1,0 +1,127 @@
+\chapter{Simulation and Tests}
+\label{ch:sim}
+
+Each unit has a directed testbench (Section~\ref{sec:directed}), all units share
+a test against Berkeley TestFloat (Section~\ref{sec:testfloat}), \sig{fmac} has a
+stream test (Section~\ref{sec:streams}) and \sig{fpu} has a mixed-operation test
+(Section~\ref{sec:mix}). Section~\ref{sec:coverage} states what the tests cover.
+The
+commands are in Sections~\ref{sec:make_sim} and~\ref{sec:make_test}.
+
+The flow files support four simulators: Icarus Verilog (the default), xezim,
+Vivado xsim and Cadence Xcelium. They are in \file{lib/sim}, with one
+\file{<simulator>.mk} per simulator.
+
+\section{Directed Testbenches}
+\label{sec:directed}
+
+Each testbench is \file{<unit>/hw/sim/src/<unit>\_tb.v}. It resets the unit,
+applies a fixed sequence of operands and stops. With \sig{VCD=1} it writes the
+waveforms to \file{<unit>.vcd}. Table~\ref{tab:tbs} lists what each one applies.
+
+\begin{twotable}{Directed Testbenches}{tab:tbs}{Testbench}{Stimulus and output}{2.6cm}
+\sig{fadd\_tb} & Additions of small integers, signed zeros, infinity and subnormal operands, one per clock cycle. It prints nothing; inspect the waveforms. \\ \hline
+\sig{fmul\_tb} & Directed multiplications. It prints nothing; inspect the waveforms. \\ \hline
+\sig{fdiv\_tb} & Directed divisions. It prints nothing; inspect the waveforms. \\ \hline
+\sig{fmac\_tb} & Streams of products: small integers, a simple sum, $\cos(i)$, $\sum 1/i$, $\sum 1/i^2$, a Taylor series of $e^{-2\pi}$, normally distributed values, random values, equally spaced values, heavy cancellation, and one large value with many small ones. It prints each result next to a double-precision reference, with the relative and absolute errors. \\ \hline
+\sig{fpu\_tb} & Directed additions (\sig{funct} 0), multiplications (2) and divisions (3). It prints nothing; inspect the waveforms. \\
+\end{twotable}
+
+\section{TestFloat}
+\label{sec:testfloat}
+
+The test applies vectors from Berkeley TestFloat to each unit, through the
+testbench \file{lib/\allowbreak sim/\allowbreak src/\allowbreak testfloat\_tb.v}. The tool \sig{testfloat\_gen}
+generates the vectors for the binary32 format and round-to-nearest-even. Each
+vector holds the operands, the expected result and the expected exception flags.
+
+The testbench applies one vector at a time and waits for \sig{valid\_o}, for at most
+1,000 clock cycles. It compares the result bits only, because the units have no
+exception flag outputs. Any NaN result matches any expected NaN.
+
+Table~\ref{tab:tf_ops} lists the operations of each unit, and
+Table~\ref{tab:tf_runs} the two test runs. For \sig{f32\_mulAdd}, the testbench
+sends a stream of two products to \sig{fmac}, $a \cdot b$ and $c \cdot 1.0$, so
+the expected result is $a \cdot b + c$.
+
+\begin{twotable}{TestFloat Operations of Each Unit}{tab:tf_ops}{Unit}{Operations}{2.6cm}
+\sig{fadd} & \sig{f32\_add} \\ \hline
+\sig{fmul} & \sig{f32\_mul} \\ \hline
+\sig{fdiv} & \sig{f32\_div} \\ \hline
+\sig{fmac} & \sig{f32\_mul}, \sig{f32\_mulAdd} \\ \hline
+\sig{fpu} & \sig{f32\_add}, \sig{f32\_sub}, \sig{f32\_mul}, \sig{f32\_div} \\
+\end{twotable}
+
+\begin{twotable}{TestFloat Runs}{tab:tf_runs}{Run}{Vectors}{2.6cm}
+Smoke & The first 1,000 vectors of each operation. \\ \hline
+Regular & TestFloat level 1: 46,464 vectors per two-operand operation. For \sig{fmac}, \sig{f32\_mul} and the first 200,000 of the 6,133,248 level 1 \sig{f32\_mulAdd} vectors. \\
+\end{twotable}
+
+The test writes these files to \file{<unit>/hw/sim}:
+
+\begin{itemize}
+\item \file{testfloat\_<op>.rpt}: the simulator output, ending in a line with the
+  number of vectors and failures.
+\item \file{fails\_<op>.tv}: one line per failing vector, with the operands, the
+  expected result and the result of the unit.
+\end{itemize}
+
+\section{fmac Stream Test}
+\label{sec:streams}
+
+TestFloat applies streams of at most two products to \sig{fmac}. The stream test
+applies longer ones. The script \file{fmac/hw/sim/src/fmac\_streams.py} generates
+the streams from a fixed seed and checks the results, and the testbench
+\file{fmac\_streams\_tb.v} applies them with 2 idle
+cycles between streams, and 2 to 4 after every fourth stream.
+Table~\ref{tab:streams} lists the stream types. The script uses them in turn, and
+every 200th stream is a long one. The smoke run applies 300 streams and the
+regular run 6,000.
+
+\begin{twotable}{\sig{fmac} Stream Types}{tab:streams}{Type}{Products}{2.6cm}
+Narrow & 1 to 16 products with exponent fields from 120 to 134. \\ \hline
+Wide & 1 to 32 products with exponent fields from 60 to 190. \\ \hline
+Cancel & 1 to 16 products, their negatives and one smaller product, shuffled. \\ \hline
+Ill-conditioned & 8 to 64 products of an ill-conditioned dot product. \\ \hline
+Tiny & 1 to 12 products with a zero or subnormal operand. \\ \hline
+Special & 1 to 6 products of zeros, infinities, NaN, $\pm 1$ and the smallest subnormals. \\ \hline
+Carry & 2 to 64 same-sign products of equal magnitude. \\ \hline
+Long & 256, 1,024 or 4,096 products. \\
+\end{twotable}
+
+The script compares each result with the exact rational sum of the $n$ products
+$a_i b_i$. A stream with a NaN or infinite operand, or whose products all have a
+zero operand, must give exactly the IEEE-754 result, with any NaN equal to any
+NaN. Any other result passes if it equals
+the correctly rounded sum, or if
+\[
+  |\mathit{result}-\mathit{exact}| \le \frac{\mathrm{ulp}(\mathit{exact})}{2}
+  + (n+2)\,2^{-46}\sum_i |a_i b_i| .
+\]
+An infinite result passes only if it has the sign of the exact sum and the bound
+allows the sum to reach the overflow threshold.
+
+The test writes \file{streams.tv}, \file{streams.out}, \file{streams.rpt} and
+\file{fails\_streams.tv} to \file{fmac/hw/sim}, and prints the numbers of streams,
+correctly rounded results and failures.
+
+\section{fpu Mixed-Operation Test}
+\label{sec:mix}
+
+The script \file{fpu/hw/sim/src/fpu\_mix.py} draws a random sequence from the
+TestFloat level 1 vectors of \sig{f32\_add}, \sig{f32\_sub}, \sig{f32\_mul} and
+\sig{f32\_div}, with weights 30, 30, 35 and 5 and a fixed seed. The testbench
+\file{fpu\_mix\_tb.v} issues additions, subtractions and multiplications on
+consecutive clock cycles. It holds the operands of a division until its result,
+and issues nothing else meanwhile. It checks the results in issue order, with any
+NaN equal to any NaN. The smoke run applies 2,000 operations and the regular run
+100,000. The test writes \file{mix.tv}, \file{mix.rpt} and \file{fails\_mix.tv} to
+\file{fpu/hw/sim}.
+
+\section{Test Coverage}
+\label{sec:coverage}
+
+The tests of this chapter cover only \sig{DATA\_W}~=~32 and \sig{EXP\_W}~=~8, and
+the default values of the other parameters. The model comparison of
+Section~\ref{sec:sw_check} also simulates \sig{fpu} and \sig{fmac} at 16/5 and
+64/11, and \sig{fmac} with other guard widths.

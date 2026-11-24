@@ -1,47 +1,21 @@
 # float
 
-## How to use
+IEEE-754 floating-point units in Verilog: adder (`fadd`), multiplier (`fmul`),
+divider (`fdiv`), multiply-accumulate (`fmac`) and a combined unit (`fpu`).
+The user guide is `doc/ieee754_float_ug.pdf`.
 
-First, **clone the repository recursively** to ensure all submodules are included:
+## Usage
 
 ```bash
-git clone --init --recursive <repository_url>
+make help                    # list the targets
+make sim CORE=fmul           # run a core's testbench
+make test                    # smoke tests, then regular tests if they pass
+make test-smoke CORE=fdiv    # smoke tests of one core
+make fpga-build CORE=fmac    # Vivado out-of-context place and route
+make syn-build CORE=fadd     # Genus ASIC synthesis
+make run CPROG=fft           # run an example of the software model
+make run PYPROG=<program>    # run a Python program of the software model
+make clean                   # remove generated files
 ```
 
-Then, to simulate the various modules, use the following commands:
-
-  * **Floating-point unit (FPU):**
-
-    ```bash
-    make sim-clean sim TOP_MODULE=ieee754_fpu
-    ```
-
-  * **Adder:**
-
-    ```bash
-    make sim-clean sim TOP_MODULE=ieee754_add
-    ```
-
-  * **Multiplier:**
-
-    ```bash
-    make sim-clean sim TOP_MODULE=ieee754_mul
-    ```
-
-  * **Divider:**
-
-    ```bash
-    make sim-clean sim TOP_MODULE=ieee754_div
-    ```
-
-  * **Multiply-Accumulate (MAC):**
-
-    ```bash
-    make sim-clean sim TOP_MODULE=ieee754_mac
-    ```
-
------
-
-## Configuration
-
-To select the floating-point format, edit the testbench file and pass the parameters **DATA\_W** (word length) and **EXP\_W** (exponent length).
+`SIMULATOR` selects `icarus` (default), `xezim`, `xsim` or `xcelium`.

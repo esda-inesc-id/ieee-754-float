@@ -1,0 +1,157 @@
+\chapter{Make Targets and Variables}
+\label{ch:make}
+
+This chapter holds every \sig{make} command of this guide. All commands run from
+the top directory of the repository, on Linux with a bash shell, and need the
+tools of the flow they run. Section~\ref{sec:make_targets} lists the targets. The
+following sections give the variables and examples for simulation
+(Section~\ref{sec:make_sim}), tests (Section~\ref{sec:make_test}), FPGA compilation
+(Section~\ref{sec:make_fpga}), ASIC synthesis (Section~\ref{sec:make_syn}) and the
+software model (Section~\ref{sec:make_sw}).
+
+\section{Targets}
+\label{sec:make_targets}
+
+A command has the form \sig{make <target> CORE=<unit>}, where \sig{CORE} is
+\sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac} or \sig{fpu}. Its default is
+\sig{fpu}. The test and clean targets cover every unit unless \sig{CORE} is on the
+command line. Table~\ref{tab:make_targets} lists the targets.
+
+\begin{twotable}{Make Targets}{tab:make_targets}{Command}{Description}{3.2cm}
+\sig{make help} & Print the command forms and the targets. \\ \hline
+\sig{make sim} & Build and run the directed testbench of the unit. \\ \hline
+\sig{make sim-waves} & Open the waveform file of the unit with GTKWave. \\ \hline
+\sig{make test} & Run \sig{test-smoke} and, if it passes, \sig{test-regular}. \\ \hline
+\sig{make test-smoke} & Run the smoke tests. Stops at the first failure. \\ \hline
+\sig{make test-regular} & Run the regular tests. It runs them all even if one fails, and then reports the failure. \\ \hline
+\sig{make fpga-build} & Compile the unit out of context with Vivado. \\ \hline
+\sig{make syn-build} & Synthesize the unit with Genus. \\ \hline
+\sig{make run} & Run a program of the software model, selected by \sig{CPROG} or \sig{PYPROG}. \\ \hline
+\sig{make sw-test} & Run the self-checking tests of the software model. Needs no RTL tools. \\ \hline
+\sig{make sw-check} & Compare the software model bit for bit with TestFloat and the RTL. \\ \hline
+\sig{make doc} & Build this document. \\ \hline
+\sig{make clean} & Remove the generated files of the selected units, the software model and the document build, on the local machine only. It keeps the PDF of this guide. \\
+\end{twotable}
+
+\section{Simulation}
+\label{sec:make_sim}
+
+Table~\ref{tab:make_sim_vars} lists the simulation variables, and
+Chapter~\ref{ch:sim} describes the testbenches. Clean before a run that changes
+\sig{VCD}, because the Icarus executable depends only on the source files:
+
+\begin{shcode}
+make clean CORE=fadd
+make sim CORE=fadd VCD=1
+make sim-waves CORE=fadd
+\end{shcode}
+
+\begin{threetable}{Simulation Variables}{tab:make_sim_vars}{Variable}{Default}{Description}{3.3cm}{2.5cm}
+\sig{SIMULATOR} & \sig{icarus} & One of \sig{icarus}, \sig{xezim}, \sig{xsim}, \sig{xcelium}. \\ \hline
+\sig{VCD} & not set & \sig{1} dumps the waveforms to \file{<unit>.vcd} in \file{<unit>/hw/sim}. \\ \hline
+\sig{SIM\_SERVER} & \sig{localhost} & Server that runs \sig{make sim} through \sig{ssh}. With \sig{SIMULATOR=xcelium} the default is \sig{CADENCE\_SERVER} if that variable is set; otherwise the simulation runs locally. \\ \hline
+\sig{SIM\_USER} & \sig{\$USER} & User on the server. With \sig{SIMULATOR=xcelium} and \sig{CADENCE\_SERVER} set, the default is \sig{CADENCE\_USER}. \\ \hline
+\sig{REMOTE\_ROOT\_DIR} & \sig{sandbox/float} & Directory on the server that receives a copy of the repository through \sig{rsync -{}-delete}. \\ \hline
+\sig{XEZIM\_MAX\_TIME} & \sig{1000s} & Limit of simulated time with \sig{xezim}. \\
+\end{threetable}
+
+\section{Tests}
+\label{sec:make_test}
+
+Table~\ref{tab:make_test} lists the tests that \sig{test-smoke} and
+\sig{test-regular} run, and Table~\ref{tab:make_test_vars} their variables.
+Chapter~\ref{ch:sim} describes them. The first run clones Berkeley SoftFloat and
+TestFloat at fixed commits and builds them in
+\file{lib/\allowbreak sim/\allowbreak testfloat-build}, so it needs \sig{git},
+network access and \sig{gcc}.
+
+\begin{threetable}{Tests of Each Run}{tab:make_test}{Test}{Smoke}{Regular}{4.2cm}{4.6cm}
+TestFloat, every unit & First \sig{SMOKE\_N} vectors per operation & Level 1; first 200,000 vectors per operation for \sig{fmac} \\ \hline
+\sig{fmac} streams & \sig{SMOKE\_STREAMS} streams & \sig{STREAM\_N} streams \\ \hline
+\sig{fpu} mix & \sig{SMOKE\_MIX} operations & \sig{MIX\_N} operations \\
+\end{threetable}
+
+\begin{threetable}{Test Variables}{tab:make_test_vars}{Variable}{Default}{Description}{3.3cm}{2.5cm}
+\sig{SMOKE\_N} & \sig{1000} & TestFloat vectors per operation in \sig{test-smoke}. \\ \hline
+\sig{SMOKE\_STREAMS} & \sig{300} & \sig{fmac} streams in \sig{test-smoke}. \\ \hline
+\sig{SMOKE\_MIX} & \sig{2000} & \sig{fpu} operations in \sig{test-smoke}. \\ \hline
+\sig{TF\_LEVEL} & \sig{1} & TestFloat level. \\ \hline
+\sig{TF\_N} & empty; \sig{200000} for \sig{fmac} & Keep only the first \sig{TF\_N} vectors of each operation in \sig{test-regular}. Empty runs the full level. \\ \hline
+\sig{STREAM\_N} & \sig{6000} & \sig{fmac} streams in \sig{test-regular}. \\ \hline
+\sig{MIX\_N} & \sig{100000} & \sig{fpu} operations in \sig{test-regular}. \\
+\end{threetable}
+
+The stream and mixed-operation tests can also run alone, and the first command
+below runs the smoke tests of one unit:
+
+\begin{shcode}
+make test-smoke CORE=fdiv
+make -C fmac/hw/sim streams
+make -C fpu/hw/sim mix
+\end{shcode}
+
+\section{FPGA Compilation}
+\label{sec:make_fpga}
+
+Table~\ref{tab:make_fpga} lists the FPGA variables, and Chapter~\ref{ch:fpga}
+describes the flow. If \sig{vivado} is on the \sig{PATH}, the compilation runs
+locally. Otherwise it runs on the server named in \file{lib/config.mk}, and only
+the Vivado log is copied back. For example:
+
+\begin{shcode}
+make fpga-build CORE=fadd
+\end{shcode}
+
+\begin{threetable}{FPGA Variables}{tab:make_fpga}{Variable}{Default}{Description}{3.3cm}{3.9cm}
+\sig{FPGA\_SERVER} & \sig{localhost} if \sig{vivado} is on the \sig{PATH}; otherwise set in \file{lib/config.mk} & Server that runs Vivado through \sig{ssh}; \sig{localhost} runs it locally. \\ \hline
+\sig{FPGA\_USER} & \sig{\$USER} & User on the server. \\ \hline
+\sig{FPGA\_FAMILY} & \sig{XCKU} & Name of the output directory in \file{<unit>/hw/fpga}. \\ \hline
+\sig{FPGA\_PART} & \sig{xcku040-fbva676-1-c} & FPGA part. A remote run does not forward this variable, so it uses the default. \\ \hline
+\sig{REMOTE\_ROOT\_DIR} & \sig{sandbox/float} & As in Table~\ref{tab:make_sim_vars}. \\
+\end{threetable}
+
+\section{ASIC Synthesis}
+\label{sec:make_syn}
+
+Chapter~\ref{ch:syn} describes the flow, and Table~\ref{tab:make_syn} lists its
+variables. For example:
+
+\begin{shcode}
+make syn-build CORE=fadd NODE=umc130
+\end{shcode}
+
+\begin{threetable}{ASIC Synthesis Variables}{tab:make_syn}{Variable}{Default}{Description}{3.9cm}{2.1cm}
+\sig{NODE} & \sig{umc130} & Technology node: a directory of \file{lib/syn} and of \file{<unit>/hw/syn}. \\ \hline
+\sig{SYNTHESIZER} & \sig{genus} & Synthesis tool. \\ \hline
+\sig{UMC130\_DIR} & none & Directory of the UMC 130~nm libraries. Required. \\ \hline
+\sig{CADENCE\_SERVER} & not set & If set, the synthesis runs on this server through \sig{ssh}. If not set, Genus runs locally. \\ \hline
+\sig{CADENCE\_USER} & not set & User on the server. \\ \hline
+\sig{CADENCE\_SSH\_FLAGS}, \sig{CADENCE\_SCP\_FLAGS}, \sig{CADENCE\_SYNC\_FLAGS} & not set & Extra flags for \sig{ssh}, \sig{scp} and \sig{rsync}. \\
+\end{threetable}
+
+\section{Software Model}
+\label{sec:make_sw}
+
+Chapter~\ref{ch:sw} describes the model, and Table~\ref{tab:make_sw} lists the
+variables of \sig{make run}. For example:
+
+\begin{shcode}
+make run CPROG=fft
+make run CPROG=all
+make run CPROG=ieee754_tests
+make run PYPROG=floatVSieee754 ARGS="-d ref.out -f target.out"
+make sw-test
+make sw-check
+\end{shcode}
+
+\begin{threetable}{Software Model Variables}{tab:make_sw}{Variable}{Default}{Description}{2.2cm}{1.8cm}
+\sig{CPROG} & none & An example of Table~\ref{tab:sw_apps}, \sig{all} for all of them, or \sig{ieee754\_tests}. \\ \hline
+\sig{PYPROG} & none & A program in \file{sw\_model/python}. \\ \hline
+\sig{ARGS} & empty & Arguments of the Python program. \\
+\end{threetable}
+
+\section{This Document}
+\label{sec:make_doc}
+
+\sig{make doc} builds \file{doc/ieee754\_float\_ug.pdf} with \sig{latexmk} and
+\sig{pdflatex}.

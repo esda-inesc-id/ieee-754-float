@@ -1,0 +1,115 @@
+\chapter{Divider (fdiv)}
+\label{ch:fdiv}
+
+\section{Introduction}
+
+\sig{fdiv} computes $\mathtt{op\_a}/\mathtt{op\_b}$. Two \sig{unpack} modules
+split the operands. The \sig{div} module normalizes the mantissas and divides them
+with \sig{div\_subshift}, an iterative subtract-and-shift divider. \sig{norm}
+normalizes the quotient, and \sig{pack} rounds it and forms the result, as
+Figure~\ref{fig:fdiv} shows.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=7mm]
+  \node[ugblock] (u) {\sig{unpack}\\(2)};
+  \node[ugblock,right=of u,minimum width=30mm] (a) {\sig{div}\\with \sig{div\_subshift}};
+  \node[ugblock,right=of a] (n) {\sig{norm}};
+  \node[ugblock,right=of n] (p) {\sig{pack}};
+  \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
+  \draw[ugarrow] (u) -- (a); \draw[ugarrow] (a) -- (n); \draw[ugarrow] (n) -- (p);
+  \draw[ugarrow] (p) -- ($(p.east)+(9mm,0)$) node[above left,font=\footnotesize\ttfamily,xshift=1mm] {res};
+\end{tikzpicture}
+\caption{\sig{fdiv} Block Diagram}
+\label{fig:fdiv}
+\end{figure}
+
+\section{Features}
+
+\begin{itemize}
+\item Iterative division with a latency of $2\cdot\mathtt{MAN\_W}+9$ clock
+  cycles: 57 for binary32.
+\item One operation at a time.
+\item Subnormal operands and results.
+\item Round to nearest, ties to even.
+\item NaN, infinity and zero-divisor handling, selected by \sig{SPECIAL\_CASES}.
+\end{itemize}
+
+\section{Parameters}
+
+\sig{fdiv} has the parameters of Table~\ref{tab:common_params}.
+
+\section{Interface Signals}
+
+\sig{fdiv} has the signals of Table~\ref{tab:common_sigs}.
+
+\Needspace*{23\baselineskip}
+\section{Instantiation}
+
+The example below instantiates \sig{fdiv} for binary32. Compile it with the files
+of Table~\ref{tab:files}.
+
+\begin{vcode}
+fdiv #(
+   .DATA_W       (32),
+   .EXP_W        (8),
+   .SPECIAL_CASES(1)
+) fdiv0 (
+   .clk    (clk),
+   .rst    (rst),
+   .valid_i(valid_i),
+   .valid_o(valid_o),
+   .op_a   (op_a),
+   .op_b   (op_b),
+   .res    (res)
+);
+\end{vcode}
+
+\section{Operation}
+
+\sig{fdiv} follows the protocol of Section~\ref{sec:protocol}, with these
+differences:
+
+\begin{itemize}
+\item \textbf{Operands.} Hold \sig{op\_a} and \sig{op\_b} stable from the
+  \sig{valid\_i} cycle until \sig{valid\_o} is high. The divider loads the mantissas
+  after \sig{valid\_i} falls, and the sign and exponent paths follow the operands
+  during the division.
+\item \textbf{Latency.} The latency is $2\cdot\mathtt{MAN\_W}+9$ clock cycles,
+  counted from the last cycle in which \sig{valid\_i} is high. It was measured as
+  31, 57 and 115 cycles for the 16-, 32- and 64-bit formats ($\mathtt{MAN\_W}$ of
+  11, 24 and 53), for normal, subnormal, zero, infinite and NaN operands.
+\item \textbf{Next operation.} A new division can start in the clock cycle in
+  which \sig{valid\_o} is high.
+\item \textbf{Restart.} A \sig{valid\_i} during a division abandons it: only the new
+  division produces a \sig{valid\_o} pulse.
+\end{itemize}
+
+Figure~\ref{fig:timing_div} shows a binary32 division.
+
+\begin{figure}[H]
+\centering
+\begin{tikztimingtable}[timing/.style={x=3.2mm,y=3mm},timing/d/text/.style={font=\scriptsize}]
+cycle & 2D{0} 2D{1} 6D{$\cdots$} 2D{56} 2D{57} 2D{58} \\
+\sig{clk} & 2{HL} 6D{$\cdots$} 3{HL} \\
+\sig{valid\_i} & 2H 14L \\
+\sig{op\_a}, \sig{op\_b} & 14D{stable} 2U \\
+\sig{valid\_o} & 12L 2H 2L \\
+\sig{res} & 12U 2D{res} 2U \\
+\end{tikztimingtable}
+\caption{Timing Diagram, Binary32 Division}
+\label{fig:timing_div}
+\end{figure}
+
+Table~\ref{tab:fdiv_special} lists the results for special operands when
+\sig{SPECIAL\_CASES} is 1. The sign of an infinite or zero result is the
+exclusive OR of the operand signs.
+
+\begin{twotable}{\sig{fdiv} Special Results}{tab:fdiv_special}{Operands}{Result}{7cm}
+Either operand is NaN & NaN \\ \hline
+Infinity / infinity & NaN \\ \hline
+Zero / zero & NaN \\ \hline
+Finite number / infinity & Zero \\ \hline
+Nonzero number or infinity / zero & Infinity \\ \hline
+Infinity / finite nonzero number & Infinity \\
+\end{twotable}

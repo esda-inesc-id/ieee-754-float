@@ -1,0 +1,198 @@
+// Self-checking tests of the C++ type and the streaming MAC.
+//
+// usage: ieee754_tests -i <data file> -w <weight file> -d <double out> -f <float out>
+//                      -p <ieee754 out>
+
+#include <float.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "common.h"
+#include "ieee754.h"
+
+static int failures = 0;
+
+static void expect(bool condition, const char *name) {
+  if (!condition) {
+    fprintf(stderr, "FAILED: %s\n", name);
+    failures++;
+  }
+}
+
+static uint32_t float_bits(float value) {
+  uint32_t bits;
+  memcpy((void *)&bits, (const void *)&value, sizeof bits);
+  return bits;
+}
+
+static bool same(const Ieee754 &value, float reference) {
+  if (reference != reference) return (double)value != (double)value;
+  return value.bits() == float_bits(reference);
+}
+
+static void conversion_tests() {
+  expect((double)Ieee754(0.5) == 0.5, "double conversion");
+  expect((float)Ieee754(78.34F) == 78.34F, "float conversion");
+  expect((int)Ieee754(400) == 400, "int conversion");
+  expect((int)Ieee754(37.48) == 37, "int truncation");
+  expect(Ieee754(1e300).bits() == 0x7F800000u, "overflow to infinity");
+  expect(Ieee754(1e-60).bits() == 0, "underflow to zero");
+  expect(Ieee754(-0.0).bits() == 0x80000000u, "negative zero");
+
+  srand(754);
+  for (int i = 0; i < 200000; i++) {
+    double value = ldexp((double)rand32() * (double)rand32(), rand() % 400 - 260);
+    expect(same(Ieee754(value), (float)value), "conversion matches the host");
+  }
+}
+
+static void arithmetic_tests() {
+  Ieee754 a = 1.0;
+  Ieee754 b = 2.0F;
+  Ieee754 c;
+
+  expect((double)(c++) == 0.0 && (double)c == 1.0, "post-increment");
+  expect((double)(++c) == 2.0, "pre-increment");
+  expect((double)(c--) == 2.0 && (double)(--c) == 0.0, "decrement");
+  expect((double)(a + b) == 3.0 && (double)(b + 4.0) == 6.0, "add");
+  expect((double)(7 + b) == 9.0 && (double)(3.0F + b) == 5.0, "add with a left constant");
+  expect((double)(a - b) == -1.0 && (double)(4.0 - b) == 2.0, "sub");
+  expect((double)(-b) == -2.0, "negate");
+  expect((double)(b * 7) == 14.0 && (double)(4.0 * b) == 8.0, "mul");
+  expect((double)(a / b) == 0.5 && (double)(7 / b) == 3.5, "div");
+  c = 3;
+  c += b;
+  c -= a;
+  c *= b;
+  c /= 4;
+  expect((double)c == 2.0, "compound assignment");
+
+  for (int i = 0; i < 200000; i++) {
+    uint32_t x = (uint32_t)rand32();
+    uint32_t y = (uint32_t)rand32();
+    float fx, fy;
+    memcpy((void *)&fx, (const void *)&x, sizeof x);
+    memcpy((void *)&fy, (const void *)&y, sizeof y);
+    Ieee754 ex = Ieee754::from_bits(x);
+    Ieee754 ey = Ieee754::from_bits(y);
+    expect(same(ex + ey, fx + fy), "add matches the host");
+    expect(same(ex - ey, fx - fy), "sub matches the host");
+    expect(same(ex * ey, fx * fy), "mul matches the host");
+    expect(same(ex / ey, fx / fy), "div matches the host");
+  }
+}
+
+static void comparator_tests() {
+  Ieee754 one = 1;
+  Ieee754 two = 2;
+  Ieee754 nan = Ieee754::from_bits(0x7FC00000u);
+  expect(one < two && one <= two && two > one && two >= one, "ordering");
+  expect(one != two && two == 2 && 2 == two, "equality");
+  expect(!(nan == nan) && nan != nan && !(nan < one), "NaN comparisons");
+  expect(Ieee754(0.0) == Ieee754(-0.0), "signed zeros compare equal");
+}
+
+static void memory_tests() {
+  const int n = 10;
+  Ieee754 *vec = (Ieee754 *)calloc(n, sizeof(Ieee754));
+  expect((double)vec[n - 1] == 0.0, "calloc gives zero");
+
+  double vec_d[n];
+  float vec_f[n];
+  int vec_i[n];
+  for (int i = 0; i < n; i++) {
+    vec_d[i] = i + 0.5;
+    vec_f[i] = i + 0.25F;
+    vec_i[i] = i;
+  }
+  memcpy(vec, vec_d, sizeof vec_d);
+  expect((double)vec[3] == 3.5, "memcpy from double");
+  memcpy(vec, vec_f, sizeof vec_f);
+  expect((double)vec[3] == 3.25, "memcpy from float");
+  memcpy(vec, vec_i, sizeof vec_i);
+  expect((double)vec[3] == 3.0, "memcpy from int");
+  free(vec);
+}
+
+static void mac_tests(double *data, unsigned n, double *weights, unsigned m, FILE *fp_d,
+                      FILE *fp_f, FILE *fp_ieee754) {
+  Ieee754Mac mac;
+
+  mac.push(Ieee754(1.5), Ieee754(2.0));
+  mac.push(Ieee754(-1.0), Ieee754(1.0));
+  expect((double)mac.result() == 2.0, "MAC of two products");
+
+  mac.push(Ieee754(-0.0), Ieee754(1.0));
+  expect(mac.result().bits() == 0x80000000u, "MAC keeps -0");
+
+  mac.push(Ieee754(INFINITY), Ieee754(0.0));
+  expect((double)mac.result() != (double)mac.result(), "MAC of infinity times zero");
+
+  for (unsigned i = 0; i + m <= n; i++) {
+    double acc_d = 0.0;
+    float acc_f = 0.0F;
+    for (unsigned j = 0; j < m; j++) {
+      acc_d += data[i + j] * weights[j];
+      acc_f += (float)data[i + j] * (float)weights[j];
+      mac.push(Ieee754(data[i + j]), Ieee754(weights[j]));
+    }
+    fprintf(fp_d, "%.16E\n", acc_d);
+    fprintf(fp_f, "%.16E\n", (double)acc_f);
+    fprintf(fp_ieee754, "%.16e\n", (double)mac.result());
+  }
+}
+
+static void usage(const char *name) {
+  printf("usage: %s -i <data file> -w <weight file> -d <double out> -f <float out> "
+         "-p <ieee754 out>\n", name);
+  exit(2);
+}
+
+static FILE *open_output(const char *path) {
+  FILE *fp = fopen(path, "w");
+  if (!fp) {
+    fprintf(stderr, "unable to open file '%s'\n", path);
+    exit(2);
+  }
+  return fp;
+}
+
+int main(int argc, char **argv) {
+  const char *paths[5] = {0, 0, 0, 0, 0};
+  static const char options[] = "iwdfp";
+
+  for (int i = 1; i + 1 < argc; i += 2) {
+    const char *option = argv[i][0] == '-' && argv[i][1] && !argv[i][2]
+                             ? strchr(options, argv[i][1])
+                             : 0;
+    if (!option) usage(argv[0]);
+    paths[option - options] = argv[i + 1];
+  }
+  for (const char *path : paths) {
+    if (!path) usage(argv[0]);
+  }
+
+  double *data, *weights;
+  unsigned n = read_input((char *)paths[0], &data);
+  unsigned m = read_input((char *)paths[1], &weights);
+
+  FILE *fp_d = open_output(paths[2]);
+  FILE *fp_f = open_output(paths[3]);
+  FILE *fp_ieee754 = open_output(paths[4]);
+
+  conversion_tests();
+  arithmetic_tests();
+  comparator_tests();
+  memory_tests();
+  mac_tests(data, n, weights, m, fp_d, fp_f, fp_ieee754);
+
+  fclose(fp_d);
+  fclose(fp_f);
+  fclose(fp_ieee754);
+  free(data);
+  free(weights);
+
+  printf("ieee754_tests: %s (%d failures)\n", failures ? "FAIL" : "PASS", failures);
+  return failures != 0;
+}

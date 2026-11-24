@@ -1,0 +1,161 @@
+\chapter{Overview}
+\label{ch:overview}
+
+This library holds five synthesizable Verilog floating-point units in the
+IEEE-754 binary format. Each \emph{unit} takes two operands with an input valid
+strobe, and returns a result with an output valid strobe. Table~\ref{tab:units} lists the units and
+their latencies in clock cycles (Section~\ref{sec:protocol}).
+
+\begin{threetable}{Floating-Point Units}{tab:units}{Unit}{Latency}{Function}{1.6cm}{4.2cm}
+\sig{fadd} & 5 & Addition (Chapter~\ref{ch:fadd}). \\ \hline
+\sig{fmul} & 4 & Multiplication (Chapter~\ref{ch:fmul}). \\ \hline
+\sig{fdiv} & $2\cdot\mathtt{MAN\_W}+9$ (57 for binary32) & Division (Chapter~\ref{ch:fdiv}). \\ \hline
+\sig{fmac} & 8, from the last product & Sum of a stream of products (Chapter~\ref{ch:fmac}). \\ \hline
+\sig{fpu} & 5 for addition, subtraction and multiplication; as \sig{fdiv} for division & Addition, subtraction, multiplication and division (Chapter~\ref{ch:fpu}). \\
+\end{threetable}
+
+The units share the modules described in Chapter~\ref{ch:lib}. The remaining
+chapters cover the make targets and variables (Chapter~\ref{ch:make}), simulation
+and tests (Chapter~\ref{ch:sim}), FPGA compilation (Chapter~\ref{ch:fpga}), ASIC
+synthesis (Chapter~\ref{ch:syn}) and the software model (Chapter~\ref{ch:sw}).
+
+\section{Features}
+\label{sec:features}
+
+\begin{itemize}
+\item Parameterizable word and exponent widths; the default is binary32.
+\item Subnormal operands and results.
+\item Round to nearest, ties to even. This is the only rounding mode.
+\item Optional handling of NaN and infinity operands.
+\item One operation per clock cycle in \sig{fadd} and \sig{fmul}, and in any mix
+  of additions, subtractions and multiplications in \sig{fpu}.
+\item Iterative division.
+\item Accumulation of a stream of products in \sig{fmac}, with one product per
+  clock cycle.
+\item Simple interface with an input and an output valid strobe.
+\item Asynchronous, active-high reset.
+\end{itemize}
+
+The units have no exception flag outputs: they do not report invalid operation,
+division by zero, overflow, underflow or inexact results.
+
+\section{Number Format}
+\label{sec:format}
+
+A word of \sig{DATA\_W} bits has a sign bit, an exponent field of \sig{EXP\_W}
+bits and a fraction of $\mathtt{DATA\_W}-\mathtt{EXP\_W}-1$ bits, as
+Figure~\ref{fig:format} shows. The \emph{mantissa} is the fraction with its
+hidden bit on top, so it has $\mathtt{MAN\_W}=\mathtt{DATA\_W}-\mathtt{EXP\_W}$
+bits. The hidden bit is 1 for a normal number and 0 for a subnormal number or
+zero. Table~\ref{tab:classes} lists the encodings.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1mm,y=1mm]
+  \draw[fill=ug-head] (0,0) rectangle (10,8) node[midway,font=\small] {sign};
+  \draw[fill=ug-block] (10,0) rectangle (50,8) node[midway,font=\small] {exponent};
+  \draw[fill=white] (50,0) rectangle (130,8) node[midway,font=\small] {fraction};
+  \node[font=\footnotesize,above] at (5,8) {1};
+  \node[font=\footnotesize\ttfamily,above] at (30,8) {EXP\_W};
+  \node[font=\footnotesize\ttfamily,above] at (90,8) {DATA\_W$-$EXP\_W$-$1};
+\end{tikzpicture}
+\caption{Word Format}
+\label{fig:format}
+\end{figure}
+
+\begin{threetable}{Encodings}{tab:classes}{Class}{Exponent field}{Fraction}{3.2cm}{3.6cm}
+Zero & All zeros & Zero \\ \hline
+Subnormal & All zeros & Not zero \\ \hline
+Normal & Neither all zeros nor all ones & Any \\ \hline
+Infinity & All ones & Zero \\ \hline
+NaN & All ones & Not zero \\
+\end{threetable}
+
+When a unit generates a NaN, the sign is 0, the exponent field is all ones, the
+top fraction bit is 1 and the other fraction bits are 0. A NaN operand's sign and
+fraction are not propagated.
+
+\section{Common Parameters}
+\label{sec:params}
+
+All units have the parameters of Table~\ref{tab:common_params}. Of these, set only
+\sig{DATA\_W}, \sig{EXP\_W} and \sig{SPECIAL\_CASES}. The test suite runs with
+\sig{DATA\_W}~=~32 and \sig{EXP\_W}~=~8 (Section~\ref{sec:testfloat}).
+
+\begin{paramtable}{Common Parameters}{tab:common_params}
+DATA\_W & 32 & Word width in bits. \\ \hline
+EXP\_W & 8 & Exponent field width in bits. \\ \hline
+MAN\_W & DATA\_W-EXP\_W & Mantissa width, including the hidden bit. Derived; do not override it. \\ \hline
+SPECIAL\_CASES & 1 & 1: handle NaN and infinity operands (and, in division, a zero divisor) as described in each unit's chapter. 0: remove this handling, so these operands go through the datapath as ordinary numbers and the result is not defined by this guide. \\
+\end{paramtable}
+
+\section{Valid Protocol}
+\label{sec:protocol}
+
+All units use the same signals to start an operation and return its result:
+
+\begin{enumerate}
+\item After reset, drive the operands and raise \sig{valid\_i} for one clock cycle.
+  The unit samples \sig{valid\_i} on the rising edge of \sig{clk}.
+\item Wait for \sig{valid\_o}, which is high for one clock cycle per result.
+\item Read \sig{res} in the clock cycle in which \sig{valid\_o} is high. \sig{res} is
+  valid only in that cycle.
+\end{enumerate}
+
+The \emph{latency} $L$ is the distance in clock cycles between the cycle in which
+\sig{valid\_i} is high (cycle 0) and the cycle in which \sig{valid\_o} is high (cycle
+$L$). All latencies in this guide were measured in simulation, with Icarus
+Verilog, and did not change between normal, subnormal, zero, infinite and NaN
+operands.
+Figure~\ref{fig:timing_pipe} shows an operation with $L=5$.
+
+\begin{figure}[H]
+\centering
+\begin{tikztimingtable}[timing/.style={x=3.2mm,y=3mm},timing/d/text/.style={font=\scriptsize}]
+cycle & 2D{0} 2D{1} 2D{2} 2D{3} 2D{4} 2D{5} 2D{6} \\
+\sig{clk} & 7{HL} \\
+\sig{valid\_i} & 2H 12L \\
+\sig{op\_a}, \sig{op\_b} & 2D{op} 12U \\
+\sig{valid\_o} & 10L 2H 2L \\
+\sig{res} & 10U 2D{res} 2U \\
+\end{tikztimingtable}
+\caption{Timing Diagram, Operation With a Latency of 5}
+\label{fig:timing_pipe}
+\end{figure}
+
+The unit chapters state what differs: how long the operands must stay stable, and
+when the next operation can start.
+
+\section{Source Files}
+\label{sec:files}
+
+Each unit is in its own directory, with its sources in \file{<unit>/hw/src}. The
+shared modules are in \file{lib/src}. Table~\ref{tab:files} lists the Verilog
+files needed to compile each unit, as in its \file{hw/hw.mk}.
+
+\begin{twotable}{Source Files of Each Unit}{tab:files}{Unit}{Files}{1.6cm}
+\sig{fadd} & \file{fadd/hw/src/fadd.v}, \file{fadd/hw/src/add.v}, and the \file{lib/src} files \file{unpack.v}, \file{cls.v}, \file{norm.v}, \file{round.v}, \file{pack.v} \\ \hline
+\sig{fmul} & \file{fmul/hw/src/fmul.v}, \file{fmul/hw/src/mul.v}, and the same \file{lib/src} files \\ \hline
+\sig{fdiv} & \file{fdiv/hw/src/fdiv.v}, \file{fdiv/hw/src/div.v}, \file{fdiv/hw/src/div\_subshift.v}, and the same \file{lib/src} files \\ \hline
+\sig{fmac} & \file{fmac/hw/src/fmac.v}, \file{fmac/hw/src/mac.v}, and the \file{lib/src} files except \file{norm.v} \\ \hline
+\sig{fpu} & \file{fpu/hw/src/fpu.v}, \file{fadd/hw/src/add.v}, \file{fmul/hw/src/mul.v}, \file{fdiv/hw/src/div.v}, \file{fdiv/hw/src/div\_subshift.v}, and the same \file{lib/src} files as \sig{fadd} \\
+\end{twotable}
+
+Each unit directory also has \file{hw/sim} (Chapter~\ref{ch:sim}), \file{hw/fpga}
+(Chapter~\ref{ch:fpga}) and \file{hw/syn} (Chapter~\ref{ch:syn}).
+
+\section{Common Interface Signals}
+\label{sec:signals}
+
+Table~\ref{tab:common_sigs} lists the signals of all the units. \sig{fpu} adds
+\sig{funct} (Table~\ref{tab:fpu_sigs}). All outputs are registered.
+
+\begin{sigtable}{Common Interface Signals}{tab:common_sigs}
+clk & Input & 1 & Clock. The unit uses its rising edge. \\ \hline
+rst & Input & 1 & Asynchronous reset, active high. \\ \hline
+valid\_i & Input & 1 & Input valid: the operands of a new operation are on the inputs. \\ \hline
+valid\_o & Output & 1 & Output valid: the result is valid in this clock cycle. \\ \hline
+op\_a & Input & DATA\_W & First operand. \\ \hline
+op\_b & Input & DATA\_W & Second operand. \\ \hline
+res & Output & DATA\_W & Result. \\
+\end{sigtable}

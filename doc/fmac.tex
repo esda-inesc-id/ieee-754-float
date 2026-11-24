@@ -1,0 +1,136 @@
+\chapter{Multiply-Accumulate Unit (fmac)}
+\label{ch:fmac}
+
+\section{Introduction}
+
+\sig{fmac} computes the sum of a stream of products,
+$\sum_i \mathtt{op\_a}_i\times\mathtt{op\_b}_i$, and returns one rounded result
+per stream. Two \sig{unpack} modules split the operands. The \sig{mac} module
+multiplies them, adds each product to a two's complement accumulator and
+normalizes the sum. \sig{pack} rounds the sum to nearest, ties to even, as
+Figure~\ref{fig:fmac} shows.
+
+The value fed back to the accumulator is rounded to odd: the bits shifted out are
+ORed into its least significant bit, so that the final rounding can see that the
+value is inexact. The output normalization uses the full adder word.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=7mm]
+  \node[ugblock] (u) {\sig{unpack}\\(2)};
+  \node[ugblock,right=of u,minimum width=44mm] (a) {\sig{mac}\\multiply, accumulate, normalize};
+  \node[ugblock,right=of a] (p) {\sig{pack}\\1 cycle};
+  \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
+  \draw[ugarrow] (u) -- (a); \draw[ugarrow] (a) -- (p);
+  \draw[ugarrow] (p) -- ($(p.east)+(9mm,0)$) node[above left,font=\footnotesize\ttfamily,xshift=1mm] {res};
+\end{tikzpicture}
+\caption{\sig{fmac} Block Diagram}
+\label{fig:fmac}
+\end{figure}
+
+\section{Features}
+
+\begin{itemize}
+\item Accumulation of a stream of products, with one product per clock cycle.
+\item A latency of 8 clock cycles from the last product.
+\item Rounding to odd inside the accumulator, and to nearest, ties to even, at the
+  output.
+\item Accumulator width set by \sig{LGUARD\_W} and \sig{RGUARD\_W}.
+\item Subnormal operands and results.
+\item NaN and infinity handling, selected by \sig{SPECIAL\_CASES}.
+\end{itemize}
+
+\section{Parameters}
+
+\sig{fmac} has the parameters of Table~\ref{tab:common_params} and those of
+Table~\ref{tab:fmac_params}. The accumulator word has
+$\mathtt{LGUARD\_W}+2\cdot\mathtt{MAN\_W}+\mathtt{RGUARD\_W}+5$ bits.
+
+\begin{paramtable}{\sig{fmac} Additional Parameters}{tab:fmac_params}
+LGUARD\_W & 0 & Guard bits added above the product in the accumulator. \\ \hline
+RGUARD\_W & 0 & Guard bits added below the product in the accumulator. \\
+\end{paramtable}
+
+\section{Interface Signals}
+
+\sig{fmac} has the signals of Table~\ref{tab:common_sigs}. \sig{valid\_i} is high for
+as many clock cycles as the stream has products.
+
+\Needspace*{23\baselineskip}
+\section{Instantiation}
+
+The example below instantiates \sig{fmac} for binary32.
+Compile it with the files of Table~\ref{tab:files}.
+
+\begin{vcode}
+fmac #(
+   .DATA_W       (32),
+   .EXP_W        (8),
+   .SPECIAL_CASES(1),
+   .LGUARD_W     (0),
+   .RGUARD_W     (0)
+) fmac0 (
+   .clk    (clk),
+   .rst    (rst),
+   .valid_i(valid_i),
+   .valid_o(valid_o),
+   .op_a   (op_a),
+   .op_b   (op_b),
+   .res    (res)
+);
+\end{vcode}
+
+\section{Operation}
+
+A \emph{stream} is a run of consecutive clock cycles with \sig{valid\_i} high:
+
+\begin{enumerate}
+\item Raise \sig{valid\_i} and apply one pair of operands per clock cycle. The unit
+  samples the operands only in these cycles.
+\item Lower \sig{valid\_i} after the last pair. This ends the stream.
+\item \sig{valid\_o} is high for one clock cycle, 8 cycles after the last cycle with
+  \sig{valid\_i} high, whatever the stream length. Read \sig{res} in that cycle.
+\end{enumerate}
+
+A stream of one pair returns the rounded product. Keep \sig{valid\_i} low for at
+least 2 clock cycles between two streams. The next stream can then start before
+the \sig{valid\_o} of the previous one. A single idle cycle is illegal: the result
+of the earlier stream is wrong. Figure~\ref{fig:timing_mac} shows a stream of three products.
+
+\begin{figure}[H]
+\centering
+\begin{tikztimingtable}[timing/.style={x=2.7mm,y=3mm},timing/d/text/.style={font=\scriptsize}]
+cycle & 2D{0} 2D{1} 2D{2} 2D{3} 2D{4} 2D{5} 2D{6} 2D{7} 2D{8} 2D{9} 2D{10} 2D{11} \\
+\sig{clk} & 12{HL} \\
+\sig{valid\_i} & 6H 18L \\
+\sig{op\_a}, \sig{op\_b} & 2D{p0} 2D{p1} 2D{p2} 18U \\
+\sig{valid\_o} & 20L 2H 2L \\
+\sig{res} & 20U 2D{res} 2U \\
+\end{tikztimingtable}
+\caption{Timing Diagram, Stream of Three Products}
+\label{fig:timing_mac}
+\end{figure}
+
+Table~\ref{tab:fmac_special} lists the results for special operands when
+\sig{SPECIAL\_CASES} is 1. The conditions apply over all the products of a stream.
+An exact cancellation gives $+0$.
+
+\begin{twotable}{\sig{fmac} Special Results}{tab:fmac_special}{Products in the stream}{Result}{9cm}
+Any operand is NaN, or any product is infinity times zero & NaN \\ \hline
+Both $+\infty$ and $-\infty$ products & NaN \\ \hline
+Infinite products of one sign only & That infinity \\ \hline
+Every product has a zero operand and a negative sign & $-0$ \\
+\end{twotable}
+
+\section{Accuracy}
+\label{sec:fmac_accuracy}
+
+\sig{fmac} passes all 6,133,248 TestFloat level 1 \sig{f32\_mulAdd} vectors,
+applied as a stream of two products, $a \cdot b + c \cdot 1.0$. The regular test
+run applies the first 200,000 of them (Section~\ref{sec:testfloat}).
+
+A longer stream is not always correctly rounded, because the value fed back to the
+accumulator is rounded to odd. The stream test (Section~\ref{sec:streams}) checks
+each result against the exact sum, with the error bound given there. In its regular
+run of 6,000 streams, with the default \sig{LGUARD\_W} and \sig{RGUARD\_W}, 4,448
+results are correctly rounded and the others are within the bound.

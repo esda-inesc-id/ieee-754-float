@@ -6,8 +6,30 @@
 *.o
 *.a
 *.so
-software/ieee754_tests
+sw_model/ieee754_tests
 
 *.summary
 
 *__pycache__
+
+# simulation and FPGA run outputs
+xcelium.d
+xsim.dir
+*.log
+*.jou
+*.pb
+*.key
+*.history
+XCKU
+
+# ASIC synthesis outputs
+*/hw/syn/*
+!*/hw/syn/Makefile
+!*/hw/syn/umc130
+
+# TestFloat
+lib/sim/testfloat-build
+*.tv
+testfloat_*.rpt
+streams.rpt
+mix.rpt

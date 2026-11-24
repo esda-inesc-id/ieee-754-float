@@ -1,0 +1,138 @@
+\chapter{Shared Library Modules}
+\label{ch:lib}
+
+The units share five modules in \file{lib/src}: \sig{unpack}
+(Section~\ref{sec:unpack}), \sig{cls} (Section~\ref{sec:cls}), \sig{norm}
+(Section~\ref{sec:norm}), \sig{round} (Section~\ref{sec:round}) and \sig{pack}
+(Section~\ref{sec:pack}). Table~\ref{tab:lib_use} shows which unit uses which
+module. A user does not instantiate them directly when using a unit, but must
+compile them with it (Section~\ref{sec:files}).
+
+\begin{threetable}{Shared Modules and the Units That Use Them}{tab:lib_use}{Module}{Clocked}{Used by}{2.4cm}{1.8cm}
+\sig{unpack} & No & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{fpu} \\ \hline
+\sig{cls} & No & \sig{norm}, and the \sig{div} and \sig{mac} datapaths \\ \hline
+\sig{norm} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fpu}; \sig{fmac} normalizes inside \sig{mac} \\ \hline
+\sig{round} & No & \sig{pack} \\ \hline
+\sig{pack} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{fpu} \\
+\end{threetable}
+
+\section{unpack}
+\label{sec:unpack}
+
+\sig{unpack} splits one operand into sign, exponent and mantissa and classifies
+it. It is combinational. For a subnormal operand it outputs the exponent 1 and a
+mantissa with a zero hidden bit. Its parameters are \sig{DATA\_W}, \sig{EXP\_W}
+and \sig{MAN\_W} (Table~\ref{tab:common_params}), and its signals are listed in
+Table~\ref{tab:unpack}.
+
+\begin{sigtable}{\sig{unpack} Signals}{tab:unpack}
+data\_i & Input & DATA\_W & Operand in the format of Section~\ref{sec:format}. \\ \hline
+nan & Output & 1 & Exponent field all ones and fraction not zero. \\ \hline
+infinite & Output & 1 & Exponent field all ones and fraction zero. \\ \hline
+zero & Output & 1 & Exponent field and fraction zero. \\ \hline
+sign & Output & 1 & Sign bit. \\ \hline
+exponent & Output & EXP\_W & Exponent field, or 1 if the exponent field is zero. \\ \hline
+mantissa & Output & MAN\_W & Hidden bit (1 if the exponent field is not zero) followed by the fraction. \\
+\end{sigtable}
+
+\section{cls}
+\label{sec:cls}
+
+\sig{cls} (count leading symbols) counts how many bits, from the most
+significant bit down, equal \sig{symbol}. It is combinational and has one
+parameter, \sig{DATA\_W}, the input width (default 32). Its signals are listed
+in Table~\ref{tab:cls}.
+
+\begin{sigtable}{\sig{cls} Signals}{tab:cls}
+data\_in & Input & DATA\_W & Word to scan. \\ \hline
+symbol & Input & 1 & Bit value to count. \\ \hline
+data\_out & Output & $\lceil\log_2(\mathtt{DATA\_W}+1)\rceil$ & Number of leading bits equal to \sig{symbol}; \sig{DATA\_W} if all bits are. \\
+\end{sigtable}
+
+\section{norm}
+\label{sec:norm}
+
+\sig{norm} normalizes a mantissa of $2\cdot\mathtt{MAN\_W}$ bits, whose top bit
+has weight 2, and reduces it to $\mathtt{MAN\_W}+3$ bits. Its output
+is registered, so it adds one clock cycle.
+
+\begin{itemize}
+\item It shifts the mantissa left by its leading-symbol count from \sig{cls},
+  limited so that a subnormal result keeps the minimum exponent.
+\item If the exponent is below the minimum, it shifts the mantissa right
+  instead, by at most $\mathtt{MAN\_W}+2$ positions, and collects the lost bits
+  in a sticky bit.
+\item The least significant output bit is the sticky bit of all the bits
+  dropped by the reduction.
+\end{itemize}
+
+Its parameters are \sig{DATA\_W}, \sig{EXP\_W} and \sig{MAN\_W}
+(Table~\ref{tab:common_params}), and its signals are listed in
+Table~\ref{tab:norm}.
+
+\begin{sigtable}{\sig{norm} Signals}{tab:norm}
+clk & Input & 1 & Clock. \\ \hline
+rst & Input & 1 & Asynchronous reset, active high. \\ \hline
+valid\_i & Input & 1 & Input data valid. \\ \hline
+valid\_o & Output & 1 & \sig{valid\_i} delayed by one clock cycle. \\ \hline
+sign\_i & Input & 1 & Sign. \\ \hline
+exp\_i & Input & EXP\_W+2 & Exponent. \\ \hline
+man\_i & Input & 2*MAN\_W & Mantissa. \\ \hline
+inv\_i & Input & 1 & The mantissa is in one's complement: \sig{cls} counts leading ones. \\ \hline
+nsub\_i & Input & 1 & Passed to \sig{nsub\_o}; see \sig{nsub} in Table~\ref{tab:pack}. \\ \hline
+special\_i & Input & 1 & Passed to \sig{special\_o}. \\ \hline
+res\_special\_i & Input & DATA\_W & Passed to \sig{res\_special\_o}. \\ \hline
+special\_o & Output & 1 & Registered \sig{special\_i}. \\ \hline
+res\_special\_o & Output & DATA\_W & Registered \sig{res\_special\_i}. \\ \hline
+sign\_o & Output & 1 & Registered sign. \\ \hline
+exp\_o & Output & EXP\_W+2 & Normalized exponent. \\ \hline
+man\_o & Output & MAN\_W+3 & Normalized mantissa with sticky bit. \\ \hline
+inv\_o & Output & 1 & Registered \sig{inv\_i}. \\ \hline
+nsub\_o & Output & 1 & Registered \sig{nsub\_i}. \\
+\end{sigtable}
+
+\section{round}
+\label{sec:round}
+
+\sig{round} rounds to nearest, ties to even, from the three bits below the
+mantissa: guard, round and sticky. It is combinational. If the rounded mantissa
+overflows, it shifts it right and increments the exponent. If the exponent
+exceeds the largest finite exponent, the output is the infinity encoding.
+
+Its parameter \sig{DATA\_W} is the \emph{mantissa} width (default 24), and
+\sig{EXP\_W} is the exponent width (default 8). The module always takes three
+extra bits. Its signals are listed in Table~\ref{tab:round}.
+
+\begin{sigtable}{\sig{round} Signals}{tab:round}
+exponent\_i & Input & EXP\_W+2 & Exponent. \\ \hline
+mantissa\_i & Input & DATA\_W+3 & Mantissa followed by the guard, round and sticky bits. \\ \hline
+inv & Input & 1 & Invert \sig{mantissa\_i} before rounding (one's complement input). \\ \hline
+exponent\_o & Output & EXP\_W & Rounded exponent. \\ \hline
+mantissa\_o & Output & DATA\_W & Rounded mantissa. \\ \hline
+round & Output & 1 & The mantissa was incremented. \\
+\end{sigtable}
+
+\section{pack}
+\label{sec:pack}
+
+\sig{pack} instantiates \sig{round}, assembles the result word and registers it,
+so it adds one clock cycle. If the rounded mantissa has a zero top bit, it writes
+a zero exponent field (a subnormal or zero result). If \sig{special\_i} is high,
+the output is \sig{res\_special\_i} instead. Its parameters are \sig{DATA\_W},
+\sig{EXP\_W} and \sig{MAN\_W} (Table~\ref{tab:common_params}), and
+its signals are listed in Table~\ref{tab:pack}.
+
+\begin{sigtable}{\sig{pack} Signals}{tab:pack}
+clk & Input & 1 & Clock. \\ \hline
+rst & Input & 1 & Asynchronous reset, active high. \\ \hline
+valid\_i & Input & 1 & Input data valid. \\ \hline
+valid\_o & Output & 1 & \sig{valid\_i} delayed by one clock cycle. \\ \hline
+inv & Input & 1 & One's complement mantissa, passed to \sig{round}. \\ \hline
+nsub & Input & 1 & When high, a zero result keeps \sig{sign\_i}. When low, a zero result is positive. \\ \hline
+special\_i & Input & 1 & Output \sig{res\_special\_i} instead of the computed result. \\ \hline
+res\_special\_i & Input & DATA\_W & Special result. \\ \hline
+sign\_i & Input & 1 & Sign. \\ \hline
+exp\_i & Input & EXP\_W+2 & Exponent. \\ \hline
+man\_i & Input & MAN\_W+3 & Mantissa with guard, round and sticky bits. \\ \hline
+data\_o & Output & DATA\_W & Result word. \\
+\end{sigtable}

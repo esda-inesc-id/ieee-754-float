@@ -1,0 +1,115 @@
+\chapter{Floating-Point Unit (fpu)}
+\label{ch:fpu}
+
+\section{Introduction}
+
+\sig{fpu} computes the addition, subtraction, multiplication or division of two
+operands, selected by \sig{funct}. It holds the \sig{add}, \sig{mul} and \sig{div}
+datapaths of Chapters~\ref{ch:fadd}, \ref{ch:fmul} and~\ref{ch:fdiv}, and they
+share the \sig{unpack}, \sig{norm} and \sig{pack} modules, as
+Figure~\ref{fig:fpu} shows. Subtraction uses \sig{add} with the sign of
+\sig{op\_b} inverted.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=5mm and 9mm]
+  \node[ugblock] (u) {\sig{unpack}\\(2)};
+  \node[ugblock,right=of u] (m) {\sig{mul}};
+  \node[ugblock,above=of m] (a) {\sig{add}};
+  \node[ugblock,below=of m] (d) {\sig{div}};
+  \node[ugblock,right=of m] (n) {\sig{norm}};
+  \node[ugblock,right=of n] (p) {\sig{pack}};
+  \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
+  \draw[ugarrow] (u.east) -- (m.west);
+  \draw[ugarrow] (u.east) -- ++(3mm,0) |- (a.west);
+  \draw[ugarrow] (u.east) -- ++(3mm,0) |- (d.west);
+  \draw[ugarrow] (m.east) -- (n.west);
+  \draw[ugarrow] (a.east) -- ++(3mm,0) |- (n.west);
+  \draw[ugarrow] (d.east) -- ++(3mm,0) |- (n.west);
+  \draw[ugarrow] (n) -- (p);
+  \draw[ugarrow] (p) -- ($(p.east)+(9mm,0)$) node[above left,font=\footnotesize\ttfamily,xshift=1mm] {res};
+\end{tikzpicture}
+\caption{\sig{fpu} Block Diagram}
+\label{fig:fpu}
+\end{figure}
+
+\section{Features}
+
+\begin{itemize}
+\item Addition, subtraction, multiplication and division in one unit.
+\item The latencies of Table~\ref{tab:fpu_funct}.
+\item One new operation per clock cycle for any mix of additions, subtractions
+  and multiplications, with results in issue order.
+\item Subnormal operands and results.
+\item Round to nearest, ties to even.
+\item NaN, infinity and zero-divisor handling, selected by \sig{SPECIAL\_CASES}.
+\end{itemize}
+
+\section{Parameters}
+
+\sig{fpu} has the parameters of Table~\ref{tab:common_params}.
+
+\section{Interface Signals}
+
+\sig{fpu} has the signals of Table~\ref{tab:common_sigs} and the signal of
+Table~\ref{tab:fpu_sigs}.
+
+\begin{sigtable}{\sig{fpu} Additional Signal}{tab:fpu_sigs}
+funct & Input & 2 & Operation, encoded as in Table~\ref{tab:fpu_funct}. \\
+\end{sigtable}
+
+\Needspace*{23\baselineskip}
+\section{Instantiation}
+
+The example below instantiates \sig{fpu} for binary32. Compile it with the files
+of Table~\ref{tab:files}.
+
+\begin{vcode}
+fpu #(
+   .DATA_W       (32),
+   .EXP_W        (8),
+   .SPECIAL_CASES(1)
+) fpu0 (
+   .clk    (clk),
+   .rst    (rst),
+   .valid_i(valid_i),
+   .valid_o(valid_o),
+   .funct  (funct),
+   .op_a   (op_a),
+   .op_b   (op_b),
+   .res    (res)
+);
+\end{vcode}
+
+\section{Operation}
+
+\sig{fpu} follows the protocol of Section~\ref{sec:protocol}, with the latencies
+of Table~\ref{tab:fpu_funct}. They were measured for the 16-, 32- and 64-bit
+formats.
+
+\begin{threetable}{\sig{fpu} Operations and Latencies}{tab:fpu_funct}{\sig{funct}}{Operation}{Latency in clock cycles}{1.8cm}{3.4cm}
+\sig{00} & Addition & 5 \\ \hline
+\sig{01} & Subtraction, $\mathtt{op\_a}-\mathtt{op\_b}$ & 5 \\ \hline
+\sig{10} & Multiplication & 5 \\ \hline
+\sig{11} & Division, $\mathtt{op\_a}/\mathtt{op\_b}$ & $2\cdot\mathtt{MAN\_W}+9$ (57 for binary32) \\
+\end{threetable}
+
+\begin{itemize}
+\item \textbf{Function select.} \sig{funct} is used in the cycle with
+  \sig{valid\_i} high and can change after it.
+\item \textbf{Addition, subtraction and multiplication.} These operations have
+  equal latency, because \sig{fpu} sets \sig{OUT\_REG} to 1 in \sig{mul}. They can
+  be mixed in any order on consecutive clock cycles. The unit samples their
+  operands in the \sig{valid\_i} cycle, and the results return in issue order.
+\item \textbf{Division.} A division can start right after any operation, and
+  its result returns after the results of the earlier operations. Hold \sig{op\_a}
+  and \sig{op\_b} stable until \sig{valid\_o} of the division is high, and issue
+  nothing else during the division.
+\item \textbf{After a division.} A new operation, with any \sig{funct}, can start
+  in the cycle in which \sig{valid\_o} of the division is high.
+\end{itemize}
+
+For special operands, each operation gives the results of its unit:
+Table~\ref{tab:fadd_special} for addition and subtraction (with the sign of
+\sig{op\_b} inverted for subtraction), Table~\ref{tab:fmul_special} for
+multiplication and Table~\ref{tab:fdiv_special} for division.

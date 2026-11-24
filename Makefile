@@ -1,35 +1,36 @@
+# make <target> [CORE=fadd|fmul|fdiv|fmac|fpu] [SIMULATOR=icarus|xezim|xsim|xcelium]
+# make run CPROG=<example>|all|ieee754_tests
+# make run PYPROG=<program> [ARGS="<arguments>"]
+
+FPU_DIR := .
+include lib/config.mk
+
+# Tests and clean cover every core unless CORE is on the command line
+CORES = $(if $(filter command line,$(origin CORE)),$(CORE),$(CORE_LIST))
+
+SMOKE_N ?= 1000
+SMOKE_STREAMS ?= 300
+SMOKE_MIX ?= 2000
+
+MAKE_SUB = make --no-print-directory
+
+help:
+	@sed -n '1,3p' Makefile
+	@echo "targets: sim sim-waves test test-smoke test-regular fpga-build syn-build"
+	@echo "         run sw-test sw-check doc clean"
+
 #
-# TOP MAKEFILE
-#
-
-FPU_DIR:=.
-include core.mk
-
-#
-# SOFTWARE
-#
-
-sw-test:
-	make -C $(FPU_SW_DIR) test
-
-sw-bench:
-	make -C $(FPU_SW_DIR) benchmark BENCH=1
-
-sw-clean:
-	make -C $(FPU_SW_DIR) clean-all
-
-#
-# SIMULATE
+# SIMULATION
 #
 
 sim:
-ifeq ($(SIM_SERVER), localhost)
-	make -C $(SIM_DIR) run SIMULATOR=$(SIMULATOR)
+ifeq ($(SIM_SERVER),localhost)
+	$(MAKE_SUB) -C $(SIM_DIR) run
 else
-	ssh $(SIM_USER)@$(SIM_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
-	make -C $(SIM_DIR) clean
-	rsync -avz --delete --exclude .git $(FPU_DIR) $(SIM_USER)@$(SIM_SERVER):$(REMOTE_ROOT_DIR)
-	ssh $(SIM_USER)@$(SIM_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(SIM_DIR) run SIMULATOR=$(SIMULATOR) TOP_MODULE=$(TOP_MODULE) FLOPOCO=$(FLOPOCO) VCD=$(VCD) SIM_SERVER=localhost'
+	ssh $(SIM_USER)@$(SIM_SERVER) 'mkdir -p $(REMOTE_ROOT_DIR)'
+	$(MAKE_SUB) -C $(SIM_DIR) clean
+	rsync -avz --delete --exclude .git $(FPU_DIR)/ $(SIM_USER)@$(SIM_SERVER):$(REMOTE_ROOT_DIR)
+	ssh $(SIM_USER)@$(SIM_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(SIM_DIR) run SIMULATOR=$(SIMULATOR) CORE=$(CORE) VCD=$(VCD) SIM_SERVER=localhost'
 ifeq ($(VCD),1)
 	scp $(SIM_USER)@$(SIM_SERVER):$(REMOTE_ROOT_DIR)/$(SIM_DIR)/*.vcd $(SIM_DIR)
 endif
@@ -38,95 +39,96 @@ endif
 sim-waves:
 	gtkwave $(SIM_DIR)/*.vcd &
 
-sim-clean:
-	make -C $(SIM_DIR) clean
-ifneq ($(SIM_SERVER), localhost)
-	rsync -avz --delete --exclude .git $(FPU_DIR) $(SIM_USER)@$(SIM_SERVER):$(REMOTE_ROOT_DIR)
-	ssh $(SIM_USER)@$(SIM_SERVER) "if [ -d $(REMOTE_ROOT_DIR) ]; then cd $(REMOTE_ROOT_DIR); make -C $(SIM_DIR) clean; fi"
+#
+# TESTS: the regular tests run only if the smoke tests pass
+#
+
+test: test-smoke test-regular
+
+test-smoke:
+	@for c in $(CORES); do \
+	  $(MAKE_SUB) -C $$c/hw/sim testfloat CORE=$$c TF_N=$(SMOKE_N) || { echo "SMOKE FAILED: $$c"; exit 1; }; \
+	done
+ifneq ($(filter fmac,$(CORES)),)
+	@$(MAKE_SUB) -C fmac/hw/sim streams CORE=fmac STREAM_N=$(SMOKE_STREAMS) || { echo "SMOKE FAILED: fmac streams"; exit 1; }
 endif
+ifneq ($(filter fpu,$(CORES)),)
+	@$(MAKE_SUB) -C fpu/hw/sim mix CORE=fpu MIX_N=$(SMOKE_MIX) || { echo "SMOKE FAILED: fpu mix"; exit 1; }
+endif
+	@echo "SMOKE PASSED"
 
-sim-clean-all:
-	$(foreach s, $(SIMULATOR_LIST), make sim-clean SIMULATOR=$s;)
+test-regular:
+	@status=0; \
+	for c in $(CORES); do $(MAKE_SUB) -C $$c/hw/sim testfloat CORE=$$c || status=1; done; \
+	if [ -n "$(filter fmac,$(CORES))" ]; then $(MAKE_SUB) -C fmac/hw/sim streams CORE=fmac || status=1; fi; \
+	if [ -n "$(filter fpu,$(CORES))" ]; then $(MAKE_SUB) -C fpu/hw/sim mix CORE=fpu || status=1; fi; \
+	if [ $$status -eq 0 ]; then echo "REGULAR PASSED"; else echo "REGULAR FAILED"; fi; \
+	exit $$status
 
 #
-# FPGA COMPILE
+# FPGA: out-of-context place and route
 #
 
-fpga:
-ifeq ($(FPGA_SERVER), localhost)
-	make -C $(FPGA_DIR) run DATA_W=$(DATA_W)
+fpga-build:
+ifeq ($(FPGA_SERVER),localhost)
+	$(MAKE_SUB) -C $(FPGA_DIR) run
 else
-	ssh $(FPGA_USER)@$(FPGA_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
-	rsync -avz --delete --exclude .git $(FPU_DIR) $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)
-	ssh $(FPGA_USER)@$(FPGA_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(FPGA_DIR) run FPGA_FAMILY=$(FPGA_FAMILY) TOP_MODULE=$(TOP_MODULE) FPGA_SERVER=localhost'
+	ssh $(FPGA_USER)@$(FPGA_SERVER) 'mkdir -p $(REMOTE_ROOT_DIR)'
+	rsync -avz --delete --exclude .git $(FPU_DIR)/ $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)
+	ssh $(FPGA_USER)@$(FPGA_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(FPGA_DIR) run CORE=$(CORE) FPGA_SERVER=localhost'
 	mkdir -p $(FPGA_DIR)/$(FPGA_FAMILY)
 	scp $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)/$(FPGA_DIR)/$(FPGA_FAMILY)/$(FPGA_LOG) $(FPGA_DIR)/$(FPGA_FAMILY)
 endif
 
-fpga-clean:
-	make -C $(FPGA_DIR) clean
-ifneq ($(FPGA_SERVER), localhost)
-	rsync -avz --delete --exclude .git $(FPU_DIR) $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)
-	ssh $(FPGA_USER)@$(FPGA_SERVER) "if [ -d $(REMOTE_ROOT_DIR) ]; then cd $(REMOTE_ROOT_DIR); make -C $(FPGA_DIR) clean; fi"
-endif
-
-fpga-clean-all:
-	$(foreach f, $(FPGA_FAMILY_LIST), make fpga-clean FPGA_FAMILY=$f;)
-
 #
-# COMPILE ASIC
+# ASIC SYNTHESIS
 #
 
-asic:
-ifeq ($(shell hostname), $(ASIC_SERVER))
-	make -C $(ASIC_DIR) ASIC=1
-else
-	ssh $(ASIC_USER)@$(ASIC_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
-	rsync -avz --delete --exclude .git $(FPU_DIR) $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)
-	ssh -Y -C $(ASIC_USER)@$(ASIC_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(ASIC_DIR) TOP_MODULE=$(TOP_MODULE) ASIC=1'
-	scp $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)/$(ASIC_DIR)/synth/*.log $(ASIC_DIR)/synth
-	scp $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)/$(ASIC_DIR)/synth/*.txt $(ASIC_DIR)/synth
+syn-build:
+	$(MAKE_SUB) -C $(SYN_DIR) build
+
+#
+# SOFTWARE MODEL
+#
+
+run:
+ifeq ($(CPROG)$(PYPROG),)
+	$(error set CPROG=<example>|all|ieee754_tests or PYPROG=<program>)
 endif
+	$(MAKE_SUB) -C $(FPU_SW_DIR) run
 
-asic-synth:
-ifeq ($(shell hostname), $(ASIC_SERVER))
-	make -C $(ASIC_DIR) synth ASIC=1
-else
-	ssh $(ASIC_USER)@$(ASIC_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
-	rsync -avz --delete --exclude .git $(FPU_DIR) $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)
-	ssh -Y -C $(ASIC_USER)@$(ASIC_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(ASIC_DIR) TOP_MODULE=$(TOP_MODULE) synth ASIC=1'
-	scp $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)/$(ASIC_DIR)/synth/*.log $(ASIC_DIR)/synth
-	scp $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)/$(ASIC_DIR)/synth/*.txt $(ASIC_DIR)/synth
+sw-test:
+	$(MAKE_SUB) -C $(FPU_SW_DIR) test
+
+sw-check:
+	$(MAKE_SUB) -C $(FPU_SW_DIR) check
+
+#
+# DOCUMENTATION
+#
+
+doc:
+	$(MAKE_SUB) -C doc
+
+#
+# CLEAN: local files only; keeps the user guide PDF
+#
+
+clean:
+	@for c in $(CORES); do \
+	  for s in $(SIMULATOR_LIST); do $(MAKE_SUB) -C $$c/hw/sim clean SIMULATOR=$$s CORE=$$c; done; \
+	  $(MAKE_SUB) -C $$c/hw/sim testfloat-clean CORE=$$c; \
+	  $(MAKE_SUB) -C $$c/hw/fpga clean CORE=$$c; \
+	  $(MAKE_SUB) -C $$c/hw/syn clean CORE=$$c > /dev/null; \
+	done
+ifneq ($(filter fmac,$(CORES)),)
+	@$(MAKE_SUB) -C fmac/hw/sim streams-clean CORE=fmac
 endif
-
-asic-sim-synth:
-ifeq ($(shell hostname), $(ASIC_SERVER))
-	make -C $(HW_DIR)/simulation/ncsim run TEST_LOG=$(TEST_LOG) SYNTH=1
-else
-	ssh $(ASIC_USER)@$(ASIC_SERVER) "if [ ! -d $(REMOTE_ROOT_DIR) ]; then mkdir -p $(REMOTE_ROOT_DIR); fi"
-	rsync -avz --delete --exclude .git $(FPU_DIR) $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)
-	ssh $(ASIC_USER)@$(ASIC_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(HW_DIR)/simulation/ncsim run TEST_LOG=$(TEST_LOG) SYNTH=1'
-ifeq ($(TEST_LOG),1)
-	scp $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)/$(HW_DIR)/simulation/ncsim/test.log $(HW_DIR)/simulation/ncsim
+ifneq ($(filter fpu,$(CORES)),)
+	@$(MAKE_SUB) -C fpu/hw/sim mix-clean CORE=fpu
 endif
-endif
+	@$(MAKE_SUB) -C $(FPU_SW_DIR) clean > /dev/null
+	@$(MAKE_SUB) -C doc clean > /dev/null
 
-asic-clean:
-	make -C $(ASIC_DIR) clean
-ifneq ($(shell hostname), $(ASIC_SERVER))
-	rsync -avz --delete --exclude .git $(FPU_DIR) $(ASIC_USER)@$(ASIC_SERVER):$(REMOTE_ROOT_DIR)
-	ssh $(ASIC_USER)@$(ASIC_SERVER) "if [ -d $(REMOTE_ROOT_DIR) ]; then cd $(REMOTE_ROOT_DIR); make -C $(ASIC_DIR) clean; fi"
-endif
-
-asic-clean-all:
-	$(foreach n, $(ASIC_NODE_LIST), make asic-clean ASIC_NODE=$n;)
-
-
-# CLEAN ALL
-clean-all: sw-clean sim-clean-all fpga-clean-all asic-clean-all
-
-.PHONY: sw-test sw-bench sw-clean \
-	sim sim-waves sim-clean sim-clean-all \
-	fpga fpga-clean fpga-clean-all \
-	asic asic-synth asic-sim-synth asic-clean asic-clean-all \
-	clean-all
+.PHONY: help sim sim-waves test test-smoke test-regular fpga-build syn-build \
+	run sw-test sw-check doc clean

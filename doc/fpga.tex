@@ -1,0 +1,28 @@
+\chapter{FPGA Compilation}
+\label{ch:fpga}
+
+The FPGA flow compiles one unit out of context with AMD Vivado. It is in
+\file{lib/fpga}, and each unit adds a Makefile and the constraints file
+\file{constrains.xdc} in \file{<unit>/hw/fpga}. The commands and variables are in
+Section~\ref{sec:make_fpga}.
+
+The script \file{lib/fpga/vivado.tcl} runs these steps in batch mode:
+
+\begin{enumerate}
+\item Read the Verilog sources of the unit.
+\item Synthesize out of context for the selected part, keeping the hierarchy.
+\item Read \file{constrains.xdc}, which defines the clock on \sig{clk} and
+  excludes \sig{rst} from timing analysis.
+\item Optimize, place and route.
+\item Report utilization, timing and clocks to the Vivado log.
+\item Write the netlist and a Verilog stub.
+\end{enumerate}
+
+Table~\ref{tab:fpga_out} lists the outputs, in \file{<unit>/hw/fpga/XCKU} with
+the default \sig{FPGA\_FAMILY}.
+
+\begin{twotable}{FPGA Output Files}{tab:fpga_out}{File}{Content}{3.6cm}
+\file{<unit>.edif} & Netlist. \\ \hline
+\file{<unit>\_stub.v} & Verilog stub of the unit. \\ \hline
+\file{vivado.log} & Vivado log, with the reports. \\
+\end{twotable}
