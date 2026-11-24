@@ -14,6 +14,9 @@ sw_model/ieee754_tests
 
 # simulation and FPGA run outputs
 xcelium.d
+obj_dir
+cov
+verilator_build.log
 xsim.dir
 *.log
 *.jou

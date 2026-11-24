@@ -9,7 +9,7 @@ FPU_SW_DIR=$(FPU_DIR)/sw_model
 REMOTE_ROOT_DIR?=sandbox/ieee-754-float
 
 # SIMULATION: Xcelium runs on CADENCE_SERVER when it is set; an empty server runs locally
-SIMULATOR_LIST=icarus xezim xsim xcelium
+SIMULATOR_LIST=icarus xezim xsim xcelium verilator
 SIMULATOR?=icarus
 ifeq ($(SIMULATOR),xcelium)
 SIM_SERVER?=$(CADENCE_SERVER)

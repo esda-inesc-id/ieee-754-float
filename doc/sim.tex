@@ -8,8 +8,8 @@ stream test (Section~\ref{sec:streams}) and \sig{fpu} has a mixed-operation test
 The
 commands are in Sections~\ref{sec:make_sim} and~\ref{sec:make_test}.
 
-The flow files support four simulators: Icarus Verilog (the default), xezim,
-Vivado xsim and Cadence Xcelium. They are in \file{lib/sim}, with one
+The flow files support five simulators: Icarus Verilog (the default), xezim,
+Vivado xsim, Cadence Xcelium and Verilator 5. They are in \file{lib/sim}, with one
 \file{<simulator>.mk} per simulator.
 
 \section{Directed Testbenches}
@@ -133,3 +133,12 @@ formats; the other tests of this chapter cover binary32 only. All use the defaul
 values of the other parameters. The model comparison of
 Section~\ref{sec:sw_check} also simulates \sig{fpu} and \sig{fmac} at 16/5 and
 64/11, and \sig{fmac} with other guard widths.
+
+\sig{make coverage} runs the regular tests in Verilator with line and toggle
+coverage, merges the runs of each unit and writes
+\file{<unit>/hw/sim/cov/coverage.rpt}, with the coverage of each source file, the
+lines never executed and the signals whose bits never toggle both ways, and
+annotated sources in \file{<unit>/hw/sim/cov/annotated}. Every line of every unit
+is executed. The bits that never toggle are constants by design, such as the low
+bits of the special-result encodings, zero extensions and shift limits, and
+\sig{rnd\_mode}, which each TestFloat run holds at one mode.

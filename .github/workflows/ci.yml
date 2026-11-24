@@ -39,6 +39,15 @@ jobs:
       - name: smoke tests
         run: make test-smoke SIMULATOR=xezim
 
+  coverage:
+    runs-on: self-hosted
+    timeout-minutes: 60
+    needs: [ smoke ]
+    steps:
+      - *checkout_step
+      - name: Verilator coverage
+        run: make coverage
+
   # every TestFloat vector of level 1, plus the fmac stream and fpu mix tests
   full:
     runs-on: self-hosted

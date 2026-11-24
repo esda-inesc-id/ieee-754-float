@@ -52,6 +52,8 @@ module fmac_streams_tb;
       repeat (10) @(posedge clk);
       rst = 0;
       repeat (2) @(posedge clk);
+      // drive the inputs away from the clock edge, as after every stream
+      #1;
 
       n_read = $fscanf(vec_fd, "%d\n", n);
       while (n_read == 1) begin

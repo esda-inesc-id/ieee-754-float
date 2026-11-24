@@ -1,4 +1,4 @@
-# make <target> [CORE=fadd|fmul|fdiv|fmac|fpu] [SIMULATOR=icarus|xezim|xsim|xcelium]
+# make <target> [CORE=fadd|fmul|fdiv|fmac|fpu] [SIMULATOR=icarus|xezim|xsim|xcelium|verilator]
 # CADENCE_SERVER (Xcelium, Genus) and VIVADO_SERVER: empty runs locally
 # make run CPROG=<example>|all|ieee754_tests
 # make run PYPROG=<program> [ARGS="<arguments>"]
@@ -30,7 +30,7 @@ endef
 
 help:
 	@sed -n '1,4p' Makefile
-	@echo "targets: sim sim-waves test test-smoke test-regular test-full fpga-build syn-build"
+	@echo "targets: sim sim-waves test test-smoke test-regular test-full coverage fpga-build syn-build"
 	@echo "         run sw-test sw-check doc clean"
 
 #
@@ -77,6 +77,12 @@ test-regular:
 	exit $$status
 
 endif
+
+# Coverage: the regular tests in Verilator, merged and reported per unit
+coverage:
+	@for c in $(CORES); do rm -rf $$c/hw/sim/cov; done
+	-@$(MAKE_SUB) test-regular SIMULATOR=verilator COV=1 CADENCE_SERVER=
+	@for c in $(CORES); do echo; python3 lib/sim/coverage.py $$c $$c/hw/sim/cov || exit 1; done
 
 sim-waves:
 	gtkwave $(SIM_DIR)/*.vcd &
@@ -132,6 +138,7 @@ clean:
 	@for c in $(CORES); do \
 	  for s in $(SIMULATOR_LIST); do $(MAKE_SUB) -C $$c/hw/sim clean SIMULATOR=$$s CORE=$$c; done; \
 	  $(MAKE_SUB) -C $$c/hw/sim testfloat-clean CORE=$$c; \
+	  rm -rf $$c/hw/sim/cov; \
 	  $(MAKE_SUB) -C $$c/hw/fpga clean CORE=$$c; \
 	  $(MAKE_SUB) -C $$c/hw/syn clean CORE=$$c > /dev/null; \
 	done
@@ -144,5 +151,5 @@ endif
 	@$(MAKE_SUB) -C $(FPU_SW_DIR) clean > /dev/null
 	@$(MAKE_SUB) -C doc clean > /dev/null
 
-.PHONY: help sim sim-waves test test-smoke test-regular test-full fpga-build syn-build \
+.PHONY: help sim sim-waves test test-smoke test-regular test-full coverage fpga-build syn-build \
 	run sw-test sw-check doc clean

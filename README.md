@@ -23,6 +23,7 @@ make sim CORE=fmul           # run a unit's directed testbench
 make test-smoke CORE=fdiv    # 1,000 TestFloat vectors per operation
 make test-regular CORE=fdiv  # TestFloat level 1
 make test-full CORE=fmac     # smoke, then regular with all 6.1M mulAdd vectors
+make coverage CORE=fmac      # regular tests in Verilator, with a coverage report
 make test                    # smoke, then regular; all units without CORE
 make fpga-build CORE=fmac    # Vivado out-of-context place and route
 make syn-build CORE=fadd     # Genus ASIC synthesis
@@ -34,6 +35,6 @@ make doc                     # build the user guide
 make clean                   # remove generated files
 ```
 
-`SIMULATOR` selects `icarus` (default), `xezim`, `xsim` or `xcelium`.
+`SIMULATOR` selects `icarus` (default), `xezim`, `xsim`, `xcelium` or `verilator`.
 Xcelium and Genus run on `CADENCE_SERVER` and Vivado on `VIVADO_SERVER`; an
 empty server runs the tool locally.
