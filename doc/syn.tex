@@ -48,11 +48,11 @@ simulation vectors.
 \begin{tabular}{|l|r|r|r|r|r|}
 \hline
 \rowcolor{ug-head}\bfseries Unit & \bfseries Cells & \bfseries Area ($\mu$m$^2$) & \bfseries Slack (ns) & \bfseries Period (ns) & \bfseries Power (mW) \\ \hline\hline
-\sig{fadd} & 1,811 & 20,900 & 0.000 & 5.00 & 1.7 \\ \hline
-\sig{fmul} & 8,130 & 75,936 & $-$2.229 & 7.23 & 10.7 \\ \hline
-\sig{fdiv} & 2,959 & 29,688 & $-$0.039 & 5.04 & 2.8 \\ \hline
+\sig{fadd} & 1,819 & 21,174 & 0.000 & 5.00 & 1.8 \\ \hline
+\sig{fmul} & 6,918 & 66,803 & $-$2.190 & 7.19 & 3.3 \\ \hline
+\sig{fdiv} & 1,622 & 17,300 & 0.000 & 5.00 & 1.3 \\ \hline
 \sig{fmac} & 10,730 & 106,574 & $-$2.711 & 7.71 & 18.7 \\ \hline
-\sig{fpu} & 10,198 & 100,873 & $-$2.254 & 7.25 & 6.4 \\ \hline
+\sig{fpu} & 9,816 & 96,270 & $-$2.285 & 7.29 & 4.9 \\ \hline
 \end{tabular}
 \caption{ASIC Synthesis Results with a 5~ns Clock}
 \label{tab:syn_results}
@@ -60,5 +60,6 @@ simulation vectors.
 
 The critical path of \sig{fmul} and \sig{fpu} is the mantissa multiplication,
 which takes one pipeline stage. In \sig{fmac} it is the accumulator feedback,
-from the accumulator exponent through the alignment shifter. In \sig{fadd} and
-\sig{fdiv} it ends in the exponent register of \sig{norm}.
+from the accumulator exponent through the alignment shifter. In \sig{fadd} it is
+the alignment, from the exponent difference to the shifted mantissa. In \sig{fdiv}
+it is the operand normalization, from the inputs to the divider remainder.

@@ -91,7 +91,7 @@ formats.
 \sig{00} & Addition & 5 \\ \hline
 \sig{01} & Subtraction, $\mathtt{op\_a}-\mathtt{op\_b}$ & 5 \\ \hline
 \sig{10} & Multiplication & 5 \\ \hline
-\sig{11} & Division, $\mathtt{op\_a}/\mathtt{op\_b}$ & $2\cdot\mathtt{MAN\_W}+9$ (57 for binary32) \\
+\sig{11} & Division, $\mathtt{op\_a}/\mathtt{op\_b}$ & $\mathtt{MAN\_W}+6$ (30 for binary32) \\
 \end{threetable}
 
 \begin{itemize}
@@ -102,9 +102,9 @@ formats.
   be mixed in any order on consecutive clock cycles. The unit samples their
   operands in the \sig{valid\_i} cycle, and the results return in issue order.
 \item \textbf{Division.} A division can start right after any operation, and
-  its result returns after the results of the earlier operations. Hold \sig{op\_a}
-  and \sig{op\_b} stable until \sig{valid\_o} of the division is high, and issue
-  nothing else during the division.
+  its result returns after the results of the earlier operations. The unit samples
+  its operands in the \sig{valid\_i} cycle. Issue nothing else during the
+  division.
 \item \textbf{After a division.} A new operation, with any \sig{funct}, can start
   in the cycle in which \sig{valid\_o} of the division is high.
 \end{itemize}

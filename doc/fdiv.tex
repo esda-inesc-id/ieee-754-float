@@ -5,7 +5,8 @@
 
 \sig{fdiv} computes $\mathtt{op\_a}/\mathtt{op\_b}$. Two \sig{unpack} modules
 split the operands. The \sig{div} module normalizes the mantissas and divides them
-with \sig{div\_subshift}, an iterative subtract-and-shift divider. \sig{norm}
+with an iterative restoring divider, which produces $\mathtt{MAN\_W}+3$ quotient
+bits, one per clock cycle, and a sticky bit from the remainder. \sig{norm}
 normalizes the quotient, and \sig{pack} rounds it and forms the result, as
 Figure~\ref{fig:fdiv} shows.
 
@@ -13,7 +14,7 @@ Figure~\ref{fig:fdiv} shows.
 \centering
 \begin{tikzpicture}[node distance=7mm]
   \node[ugblock] (u) {\sig{unpack}\\(2)};
-  \node[ugblock,right=of u,minimum width=30mm] (a) {\sig{div}\\with \sig{div\_subshift}};
+  \node[ugblock,right=of u,minimum width=30mm] (a) {\sig{div}};
   \node[ugblock,right=of a] (n) {\sig{norm}};
   \node[ugblock,right=of n] (p) {\sig{pack}};
   \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
@@ -27,8 +28,8 @@ Figure~\ref{fig:fdiv} shows.
 \section{Features}
 
 \begin{itemize}
-\item Iterative division with a latency of $2\cdot\mathtt{MAN\_W}+9$ clock
-  cycles: 57 for binary32.
+\item Iterative division with a latency of $\mathtt{MAN\_W}+6$ clock
+  cycles: 30 for binary32.
 \item One operation at a time.
 \item Subnormal operands and results.
 \item Round to nearest, ties to even.
@@ -71,13 +72,11 @@ fdiv #(
 differences:
 
 \begin{itemize}
-\item \textbf{Operands.} Hold \sig{op\_a} and \sig{op\_b} stable from the
-  \sig{valid\_i} cycle until \sig{valid\_o} is high. The divider loads the mantissas
-  after \sig{valid\_i} falls, and the sign and exponent paths follow the operands
-  during the division.
-\item \textbf{Latency.} The latency is $2\cdot\mathtt{MAN\_W}+9$ clock cycles,
+\item \textbf{Operands.} The unit samples \sig{op\_a} and \sig{op\_b} in the
+  \sig{valid\_i} cycle, so they can change in the next cycle.
+\item \textbf{Latency.} The latency is $\mathtt{MAN\_W}+6$ clock cycles,
   counted from the last cycle in which \sig{valid\_i} is high. It was measured as
-  31, 57 and 115 cycles for the 16-, 32- and 64-bit formats ($\mathtt{MAN\_W}$ of
+  17, 30 and 59 cycles for the 16-, 32- and 64-bit formats ($\mathtt{MAN\_W}$ of
   11, 24 and 53), for normal, subnormal, zero, infinite and NaN operands.
 \item \textbf{Next operation.} A new division can start in the clock cycle in
   which \sig{valid\_o} is high.
@@ -90,10 +89,10 @@ Figure~\ref{fig:timing_div} shows a binary32 division.
 \begin{figure}[H]
 \centering
 \begin{tikztimingtable}[timing/.style={x=3.2mm,y=3mm},timing/d/text/.style={font=\scriptsize}]
-cycle & 2D{0} 2D{1} 6D{$\cdots$} 2D{56} 2D{57} 2D{58} \\
+cycle & 2D{0} 2D{1} 6D{$\cdots$} 2D{29} 2D{30} 2D{31} \\
 \sig{clk} & 2{HL} 6D{$\cdots$} 3{HL} \\
 \sig{valid\_i} & 2H 14L \\
-\sig{op\_a}, \sig{op\_b} & 14D{stable} 2U \\
+\sig{op\_a}, \sig{op\_b} & 2D{op} 14U \\
 \sig{valid\_o} & 12L 2H 2L \\
 \sig{res} & 12U 2D{res} 2U \\
 \end{tikztimingtable}

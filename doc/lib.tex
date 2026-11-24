@@ -52,7 +52,7 @@ data\_out & Output & $\lceil\log_2(\mathtt{DATA\_W}+1)\rceil$ & Number of leadin
 \section{norm}
 \label{sec:norm}
 
-\sig{norm} normalizes a mantissa of $2\cdot\mathtt{MAN\_W}$ bits, whose top bit
+\sig{norm} normalizes a mantissa of \sig{IN\_W} bits, whose top bit
 has weight 2, and reduces it to $\mathtt{MAN\_W}+3$ bits. Its output
 is registered, so it adds one clock cycle.
 
@@ -67,8 +67,14 @@ is registered, so it adds one clock cycle.
 \end{itemize}
 
 Its parameters are \sig{DATA\_W}, \sig{EXP\_W} and \sig{MAN\_W}
-(Table~\ref{tab:common_params}), and its signals are listed in
-Table~\ref{tab:norm}.
+(Table~\ref{tab:common_params}) and those of Table~\ref{tab:norm_params}. Its
+signals are listed in Table~\ref{tab:norm}.
+
+\begin{threetable}{\sig{norm} Parameters}{tab:norm_params}{Parameter}{Default}{Description}{2.0cm}{2.2cm}
+\sig{IN\_W} & $2\cdot\mathtt{MAN\_W}$ & Mantissa input width. \sig{fadd} uses $\mathtt{MAN\_W}+4$ and \sig{fdiv} $\mathtt{MAN\_W}+5$. \\ \hline
+\sig{RSHIFT} & 1 & 0 removes the right shift, for units whose exponent is never below 1, as \sig{fadd}. \\ \hline
+\sig{LZC\_W} & \sig{IN\_W} & Top bits examined by \sig{cls}, which bounds the left shift: 1 in \sig{fmul}, 2 in \sig{fdiv}. \\
+\end{threetable}
 
 \begin{sigtable}{\sig{norm} Signals}{tab:norm}
 clk & Input & 1 & Clock. \\ \hline
@@ -77,7 +83,7 @@ valid\_i & Input & 1 & Input data valid. \\ \hline
 valid\_o & Output & 1 & \sig{valid\_i} delayed by one clock cycle. \\ \hline
 sign\_i & Input & 1 & Sign. \\ \hline
 exp\_i & Input & EXP\_W+2 & Exponent. \\ \hline
-man\_i & Input & 2*MAN\_W & Mantissa. \\ \hline
+man\_i & Input & IN\_W & Mantissa. \\ \hline
 inv\_i & Input & 1 & The mantissa is in one's complement: \sig{cls} counts leading ones. \\ \hline
 nsub\_i & Input & 1 & Passed to \sig{nsub\_o}; see \sig{nsub} in Table~\ref{tab:pack}. \\ \hline
 special\_i & Input & 1 & Passed to \sig{special\_o}. \\ \hline

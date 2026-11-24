@@ -4,8 +4,9 @@
 \section{Introduction}
 
 \sig{fadd} computes $\mathtt{op\_a}+\mathtt{op\_b}$. Two \sig{unpack} modules
-split the operands. The \sig{add} module aligns the mantissas and adds them in
-three pipeline stages. \sig{norm} normalizes the sum, and \sig{pack} rounds it
+split the operands. The \sig{add} module orders the operands by magnitude, aligns
+the smaller mantissa to the larger one and adds them in three pipeline stages. The
+larger operand gives the sign, so a subtraction never gives a negative mantissa. \sig{norm} normalizes the sum, and \sig{pack} rounds it
 and forms the result, as Figure~\ref{fig:fadd} shows.
 
 \begin{figure}[H]

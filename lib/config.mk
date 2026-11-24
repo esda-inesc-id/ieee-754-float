@@ -46,7 +46,6 @@ FMUL_DIR=$(FPU_DIR)/fmul
 FDIV_DIR=$(FPU_DIR)/fdiv
 FMAC_DIR=$(FPU_DIR)/fmac
 FPU_UNIT_DIR=$(FPU_DIR)/fpu
-DIV_SUBSHIFT=$(FDIV_DIR)/hw/src/div_subshift.v
 
 # INCLUDES AND HEADERS
 INCLUDE+=$(incdir)$(LIB_SRC_DIR)

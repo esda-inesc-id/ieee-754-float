@@ -66,7 +66,7 @@ module fdiv #(
    wire               div_valid_o;
    wire               div_sign;
    wire [  EXP_W+1:0] div_exp;
-   wire [2*MAN_W-1:0] div_man;
+   wire [MAN_W+EXTRA+1:0] div_man;
    wire               div_special;
    wire [ DATA_W-1:0] div_res_special;
    div #(
@@ -116,7 +116,9 @@ module fdiv #(
    wire [MAN_W+EXTRA-1:0] norm_man;
    norm #(
       .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
+      .EXP_W (EXP_W),
+      .IN_W  (MAN_W + EXTRA + 2),
+      .LZC_W (2)
    ) norm0 (
       .clk(clk),
       .rst(rst),

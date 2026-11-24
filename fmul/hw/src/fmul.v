@@ -72,7 +72,8 @@ module fmul #(
    mul #(
       .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
-      .SPECIAL_CASES(SPECIAL_CASES)
+      .SPECIAL_CASES(SPECIAL_CASES),
+      .PRENORM      (1)
    ) mul0 (
       .clk(clk),
       .rst(rst),
@@ -116,7 +117,8 @@ module fmul #(
    wire [MAN_W+EXTRA-1:0] norm_man;
    norm #(
       .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
+      .EXP_W (EXP_W),
+      .LZC_W (1)
    ) norm0 (
       .clk(clk),
       .rst(rst),

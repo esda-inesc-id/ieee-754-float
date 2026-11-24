@@ -28,12 +28,14 @@ module div #(
    input op_b_inf,
    input op_b_zero,
 
-   output reg              special,
-   output reg [DATA_W-1:0] res_special,
+   // The results are valid one cycle before valid_o and stay until the next valid_i
+   output              special,
+   output [DATA_W-1:0] res_special,
 
-   output reg               res_sign,
-   output reg [  EXP_W+1:0] res_exp,
-   output reg [2*MAN_W-1:0] res_man
+   output             res_sign,
+   output [EXP_W+1:0] res_exp,
+   // quotient bits from weight 1 down to 2**-(MAN_W+2), then the sticky bit
+   output [MAN_W+4:0] res_man
 );
 
    localparam EXTRA = 3;
@@ -74,114 +76,78 @@ module div #(
    wire [ MAN_W-1:0] A_Mantissa_norm = op_a_man << A_lz;
    wire [ MAN_W-1:0] B_Mantissa_norm = op_b_man << B_lz;
 
-   // pipeline stage 1
-   reg  [  LZ_W-1:0] A_lz_reg;
-   reg  [  LZ_W-1:0] B_lz_reg;
+   // Exponent of the quotient
+   wire [EXP_W+1:0] A_lz_ext = {{(EXP_W + 2 - LZ_W) {1'b0}}, A_lz};
+   wire [EXP_W+1:0] B_lz_ext = {{(EXP_W + 2 - LZ_W) {1'b0}}, B_lz};
+   wire [EXP_W+1:0] exponent = {2'd0, op_a_exp} - {2'd0, op_b_exp} + BIAS - A_lz_ext + B_lz_ext;
 
-   reg               A_sign_reg;
-   reg  [ EXP_W-1:0] A_Exponent_reg;
-
-   reg               B_sign_reg;
-   reg  [ EXP_W-1:0] B_Exponent_reg;
-
+   // Sign, exponent and special cases, captured with valid_i
+   reg  [ EXP_W+1:0] exp_reg;
+   reg               sign_reg;
    reg               special_reg;
    reg  [DATA_W-1:0] res_special_reg;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
-         A_lz_reg        <= {LZ_W{1'b0}};
-         B_lz_reg        <= {LZ_W{1'b0}};
-
-         A_sign_reg      <= 1'b0;
-         A_Exponent_reg  <= {EXP_W{1'b0}};
-
-         B_sign_reg      <= 1'b0;
-         B_Exponent_reg  <= {EXP_W{1'b0}};
-
+         exp_reg         <= {(EXP_W + 2) {1'b0}};
+         sign_reg        <= 1'b0;
          special_reg     <= 1'b0;
          res_special_reg <= {DATA_W{1'b0}};
-      end else begin
-         A_lz_reg        <= A_lz;
-         B_lz_reg        <= B_lz;
-
-         A_sign_reg      <= op_a_sign;
-         A_Exponent_reg  <= op_a_exp;
-
-         B_sign_reg      <= op_b_sign;
-         B_Exponent_reg  <= op_b_exp;
-
+      end else if (valid_i) begin
+         exp_reg         <= exponent;
+         sign_reg        <= op_a_sign ^ op_b_sign;
          special_reg     <= special_int;
          res_special_reg <= res_special_int;
       end
    end
 
-   // Division
-   wire Temp_sign = A_sign_reg ^ B_sign_reg;
-   wire [EXP_W+1:0] A_lz_ext = {{(EXP_W + 2 - LZ_W) {1'b0}}, A_lz_reg};
-   wire [EXP_W+1:0] B_lz_ext = {{(EXP_W + 2 - LZ_W) {1'b0}}, B_lz_reg};
-   wire [EXP_W+1:0] Temp_Exponent = {2'd0, A_Exponent_reg} - {2'd0, B_Exponent_reg} + BIAS -
-      A_lz_ext + B_lz_ext;
-   wire [2*MAN_W+EXTRA-1:0] Temp_Mantissa;  // = (A << (MAN_W+EXTRA)) / B
-   wire [2*MAN_W+EXTRA-1:0] remainder;
-   wire div_en = ~valid_i & ~rst;
-   wire div_done_;
-   div_subshift #(
-      .DATA_W(2 * MAN_W + EXTRA)
-   ) div_subshift (
-      .clk(clk),
+   // Restoring division of the normalized significands, one quotient bit per cycle.
+   // The partial remainder stays below twice the divisor. A marker bit, loaded below the
+   // quotient, reaches the top of quo after Q_W steps and ends the division.
+   localparam Q_W = MAN_W + EXTRA;
 
-      .en  (div_en),
-      .sign(1'b0),
-      .done(div_done_),
+   reg  [  MAN_W:0] rem;
+   reg  [MAN_W-1:0] dvs;
+   reg  [    Q_W:0] quo;
+   reg              last;
 
-      .dividend ({A_Mantissa_norm, {(MAN_W + EXTRA) {1'b0}}}),
-      .divisor  ({{(MAN_W + EXTRA) {1'b0}}, B_Mantissa_norm}),
-      .quotient (Temp_Mantissa),
-      .remainder(remainder)
-   );
+   wire             busy = ~quo[Q_W];
+   wire [MAN_W+1:0] diff = {1'b0, rem} - {2'd0, dvs};
+   wire             ge = ~diff[MAN_W+1];
 
-   reg  div_start;
-   wire div_done = div_done_ & div_start;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
-         div_start <= 1'b0;
+         rem  <= {(MAN_W + 1) {1'b0}};
+         dvs  <= {MAN_W{1'b0}};
+         quo  <= {1'b1, {Q_W{1'b0}}};
+         last <= 1'b0;
       end else if (valid_i) begin
-         div_start <= 1'b1;
+         rem  <= {1'b0, A_Mantissa_norm};
+         dvs  <= B_Mantissa_norm;
+         quo  <= {{Q_W{1'b0}}, 1'b1};
+         last <= 1'b0;
+      end else begin
+         if (busy) begin
+            rem <= {ge ? diff[MAN_W-1:0] : rem[MAN_W-1:0], 1'b0};
+            quo <= {quo[Q_W-1:0], ge};
+         end
+         last <= busy & quo[Q_W-1];
       end
    end
 
-   reg div_done_reg;
+   reg valid_o_reg;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
-         div_done_reg <= 1'b1;
+         valid_o_reg <= 1'b0;
       end else begin
-         div_done_reg <= div_done;
+         valid_o_reg <= last & ~valid_i;
       end
    end
 
-   assign valid_o = div_done & ~div_done_reg;
-
-   // pipeline stage 2
-   always @(posedge clk, posedge rst) begin
-      if (rst) begin
-         res_sign    <= 1'b0;
-         res_exp     <= {(EXP_W + 2) {1'b0}};
-         res_man     <= {(2 * MAN_W) {1'b0}};
-
-         special     <= 1'b0;
-         res_special <= {DATA_W{1'b0}};
-      end else begin
-         res_sign <= Temp_sign;
-         res_exp <= Temp_Exponent;
-         res_man <= {
-            1'b0,
-            Temp_Mantissa[MAN_W+EXTRA:1],
-            Temp_Mantissa[0] | |remainder,
-            {(MAN_W - EXTRA - 2) {1'b0}}
-         };
-
-         special <= special_reg;
-         res_special <= res_special_reg;
-      end
-   end
+   assign valid_o     = valid_o_reg;
+   assign res_sign    = sign_reg;
+   assign res_exp     = exp_reg;
+   assign res_man     = {1'b0, quo[Q_W-1:0], |rem};
+   assign special     = special_reg;
+   assign res_special = res_special_reg;
 
 endmodule

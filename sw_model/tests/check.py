@@ -35,7 +35,7 @@ def rtl_sources(root, unit):
     if unit == "fmac":
         return [os.path.join(root, "fmac/hw/src", name) for name in ("fmac.v", "mac.v")] + lib
     files = ["fpu/hw/src/fpu.v", "fadd/hw/src/add.v", "fmul/hw/src/mul.v", "fdiv/hw/src/div.v",
-             "fdiv/hw/src/div_subshift.v", "lib/src/norm.v"]
+             "lib/src/norm.v"]
     return [os.path.join(root, name) for name in files] + lib
 
 

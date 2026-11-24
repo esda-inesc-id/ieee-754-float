@@ -120,7 +120,9 @@ module fadd #(
    wire                   norm_nsub;
    norm #(
       .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
+      .EXP_W (EXP_W),
+      .IN_W  (MAN_W + EXTRA + 1),
+      .RSHIFT(0)
    ) norm0 (
       .clk(clk),
       .rst(rst),
@@ -130,7 +132,7 @@ module fadd #(
 
       .sign_i(add_sign),
       .exp_i ({2'd0, add_exp}),
-      .man_i ({add_man, {(MAN_W - EXTRA - 1) {1'b0}}}),
+      .man_i (add_man),
       .inv_i (add_inv),
       .nsub_i(add_nsub),
 

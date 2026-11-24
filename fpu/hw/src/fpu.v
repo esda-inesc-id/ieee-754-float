@@ -160,7 +160,7 @@ module fpu #(
    wire               div_valid_o;
    wire               div_sign;
    wire [  EXP_W+1:0] div_exp;
-   wire [2*MAN_W-1:0] div_man;
+   wire [MAN_W+EXTRA+1:0] div_man;
    wire               div_special;
    wire [ DATA_W-1:0] div_res_special;
    div #(
@@ -216,7 +216,7 @@ module fpu #(
 
    wire [2*MAN_W-1:0] op_man = add_sel ? {add_man, {(MAN_W-EXTRA-1){1'b0}}} :
       mul_sel ? mul_man :
-      div_man;
+      {div_man, {(MAN_W-EXTRA-2){1'b0}}};
 
    wire op_inv = add_sel ? add_inv : 1'b0;
 

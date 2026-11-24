@@ -54,7 +54,8 @@ the expected result is $a \cdot b + c$.
 
 \begin{twotable}{TestFloat Runs}{tab:tf_runs}{Run}{Vectors}{2.6cm}
 Smoke & The first 1,000 vectors of each operation. \\ \hline
-Regular & TestFloat level 1: 46,464 vectors per two-operand operation. For \sig{fmac}, \sig{f32\_mul} and the first 200,000 of the 6,133,248 level 1 \sig{f32\_mulAdd} vectors. \\
+Regular & TestFloat level 1: 46,464 vectors per two-operand operation. For \sig{fmac}, \sig{f32\_mul} and the first 200,000 of the 6,133,248 level 1 \sig{f32\_mulAdd} vectors. \\ \hline
+Full & The smoke run, then the regular run with all 6,133,248 \sig{f32\_mulAdd} vectors for \sig{fmac}. \\
 \end{twotable}
 
 The test writes these files to \file{<unit>/hw/sim}:

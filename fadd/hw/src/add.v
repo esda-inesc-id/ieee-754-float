@@ -49,7 +49,8 @@ module add #(
    wire [DATA_W-1:0] res_special_int = (op_a_nan | op_b_nan | inf_diff) ? NAN :
       op_b_inf ? inf_b : inf_a;
 
-   wire comp = (op_a_exp >= op_b_exp) ? 1'b1 : 1'b0;
+   // A is the operand with the larger magnitude, so A - B is never negative
+   wire comp = ({op_a_exp, op_a_man} >= {op_b_exp, op_b_man});
 
    wire A_sign = comp ? op_a_sign : op_b_sign;
    wire [EXP_W-1:0] A_Exponent = comp ? op_a_exp : op_b_exp;
@@ -102,21 +103,38 @@ module add #(
       end
    end
 
-   localparam STICKY_BITS = MAN_W + 2;
+   // Align significands: B keeps MAN_W+2 bits, the bits shifted out make the sticky bit
+   localparam RSHIFT_LIM = MAN_W + 2;
+   localparam TZ_W = $clog2(MAN_W + 1);
 
-   // Align significants
-   wire [            EXP_W-1:0] diff_Exponent = A_Exponent_reg - B_Exponent_reg;
-   wire [            EXP_W-1:0] rshift_lim = STICKY_BITS[EXP_W-1:0];
-   wire [            EXP_W-1:0] rshift = (diff_Exponent > rshift_lim) ? rshift_lim : diff_Exponent;
-   wire [MAN_W+STICKY_BITS-1:0] B_Mantissa_in = {B_Mantissa_reg, {STICKY_BITS{1'b0}}} >> rshift;
+   wire [EXP_W-1:0] diff_Exponent = A_Exponent_reg - B_Exponent_reg;
+   wire [EXP_W-1:0] rshift_lim = RSHIFT_LIM[EXP_W-1:0];
+   wire [EXP_W-1:0] rshift = (diff_Exponent > rshift_lim) ? rshift_lim : diff_Exponent;
+   wire [MAN_W+1:0] B_Mantissa_in = {B_Mantissa_reg, 2'b00} >> rshift;
 
-   // Sticky
-   wire                         sticky_bit = |B_Mantissa_in[STICKY_BITS-3:0];
+   // Sticky: some bit is shifted out when the shift exceeds the trailing zeros of {B, 2'b00}
+   wire [MAN_W-1:0] B_Mantissa_rev;
+   genvar i;
+   generate
+      for (i = 0; i < MAN_W; i = i + 1) begin : gen_rev
+         assign B_Mantissa_rev[i] = B_Mantissa_reg[MAN_W-1-i];
+      end
+   endgenerate
 
-   // Invert OpA if subtraction
+   wire [TZ_W-1:0] B_tz;
+   cls #(
+      .DATA_W(MAN_W)
+   ) cls_b (
+      .data_in (B_Mantissa_rev),
+      .symbol  (1'b0),
+      .data_out(B_tz)
+   );
+
+   wire sticky_bit = ({1'b0, rshift} > ({1'b0, B_tz} + 2'd2));
+
+   // Invert B if subtraction
    wire                         subtract = A_sign_reg ^ B_sign_reg;
-   wire [            MAN_W-1:0] A_Mantissa_inv_ = {(MAN_W) {subtract}} ^ A_Mantissa_reg;
-   wire [      MAN_W+EXTRA-1:0] A_Mantissa_inv = {A_Mantissa_inv_, {EXTRA{subtract}}};
+   wire [      MAN_W+EXTRA-1:0] B_Mantissa_al = {B_Mantissa_in, sticky_bit};
 
    // pipeline stage 2
    reg                          A_sign_reg2;
@@ -148,9 +166,9 @@ module add #(
       end else begin
          A_sign_reg2      <= A_sign_reg;
          A_Exponent_reg2  <= A_Exponent_reg;
-         A_Mantissa_reg2  <= A_Mantissa_inv;
+         A_Mantissa_reg2  <= {A_Mantissa_reg, {EXTRA{1'b0}}};
 
-         B_Mantissa_reg2  <= {B_Mantissa_in[STICKY_BITS-2+:MAN_W+EXTRA-1], sticky_bit};
+         B_Mantissa_reg2  <= {(MAN_W + EXTRA) {subtract}} ^ B_Mantissa_al;
 
          subtract_reg     <= subtract;
 
@@ -162,7 +180,7 @@ module add #(
    end
 
    // Addition
-   wire [MAN_W+EXTRA:0] Temp = {subtract_reg, A_Mantissa_reg2} + {1'b0, B_Mantissa_reg2} +
+   wire [MAN_W+EXTRA:0] Temp = {1'b0, A_Mantissa_reg2} + {subtract_reg, B_Mantissa_reg2} +
       subtract_reg;
 
    // pipeline stage 3
@@ -194,9 +212,9 @@ module add #(
       end
    end
 
-   // Compute result sign
-   assign res_sign = subtract_reg2 ? ~A_sign_reg3 ^ res_man[MAN_W+EXTRA] : A_sign_reg3;
-   assign res_inv  = subtract_reg2 & res_man[MAN_W+EXTRA];
+   // The result has the sign of A and is never negative
+   assign res_sign = A_sign_reg3;
+   assign res_inv  = 1'b0;
    assign res_nsub = ~subtract_reg2;
 
 endmodule

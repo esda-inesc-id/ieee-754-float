@@ -4,8 +4,10 @@
 \section{Introduction}
 
 \sig{fmul} computes $\mathtt{op\_a}\times\mathtt{op\_b}$. Two \sig{unpack}
-modules split the operands. The \sig{mul} module multiplies the mantissas and adds
-the exponents in two pipeline stages. \sig{norm} normalizes the product, and
+modules split the operands. The \sig{mul} module works in two pipeline stages. The
+first normalizes a subnormal operand and computes the sign and exponent of the
+product; the second multiplies the mantissas. When both operands are subnormal the
+product underflows to zero, so normalizing one is enough. \sig{norm} normalizes the product, and
 \sig{pack} rounds it and forms the result, as Figure~\ref{fig:fmul} shows.
 
 \begin{figure}[H]
@@ -37,8 +39,11 @@ the exponents in two pipeline stages. \sig{norm} normalizes the product, and
 
 \sig{fmul} has the parameters of Table~\ref{tab:common_params}. Its \sig{mul}
 datapath also has the parameter \sig{OUT\_REG} (default 0), which adds an output
-register stage when it is not 0. \sig{fmul} keeps the default, and \sig{fpu} sets
-it to 1 (Chapter~\ref{ch:fpu}).
+register stage when it is not 0, and \sig{PRENORM} (default 0), which enables the
+operand normalization. \sig{fmul} sets \sig{PRENORM} to 1, so \sig{norm} shifts the
+product left by at most one position. \sig{fpu} sets \sig{OUT\_REG} to 1 and keeps
+\sig{PRENORM} at 0, because its \sig{norm} also serves the adder
+(Chapter~\ref{ch:fpu}).
 
 \section{Interface Signals}
 
