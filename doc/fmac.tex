@@ -127,10 +127,12 @@ Every product has a zero operand and a negative sign & $-0$ \\
 
 \sig{fmac} passes all 6,133,248 TestFloat level 1 \sig{f32\_mulAdd} vectors,
 applied as a stream of two products, $a \cdot b + c \cdot 1.0$. The regular test
-run applies the first 200,000 of them (Section~\ref{sec:testfloat}).
+run applies the first 200,000 of them, and \sig{make test-full} all of them
+(Section~\ref{sec:testfloat}).
 
-A longer stream is not always correctly rounded, because the value fed back to the
-accumulator is rounded to odd. The stream test (Section~\ref{sec:streams}) checks
+A longer stream is not always correctly rounded: the accumulator has a fixed
+width, and the value fed back to it is rounded to odd. This keeps the hardware
+small; an accumulator exact for any stream would need about 600 bits. The stream test (Section~\ref{sec:streams}) checks
 each result against the exact sum, with the error bound given there. In its regular
 run of 6,000 streams, with the default \sig{LGUARD\_W} and \sig{RGUARD\_W}, 4,448
 results are correctly rounded and the others are within the bound.

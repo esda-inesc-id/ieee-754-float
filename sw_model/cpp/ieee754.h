@@ -1,13 +1,13 @@
 // C++ floating-point type on top of the C model.
 //
 // Ieee754 holds one encoding of the format IEEE754_DATA_W / IEEE754_EXP_W. Add, subtract,
-// multiply and divide run on the model; math functions go through binary64.
+// multiply and divide run on the model, and fabs, sqrt, exp and log on the model math
+// library, which namespace ieee754 also provides for float and double.
 // Ieee754Mac is the streaming fmac.
 
 #ifndef IEEE754_H
 #define IEEE754_H
 
-#include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +15,7 @@
 #include <iostream>
 #include <type_traits>
 
+#include "ieee754_math.h"
 #include "ieee754_model.h"
 
 #ifndef IEEE754_DATA_W
@@ -154,24 +155,63 @@ IEEE754_MIXED_OP(bool, !=)
 
 #undef IEEE754_MIXED_OP
 
-// Math functions, evaluated in binary64.
-inline Ieee754 cos(const Ieee754 &x) { return cos(x.to_double()); }
-inline Ieee754 sin(const Ieee754 &x) { return sin(x.to_double()); }
-inline Ieee754 acos(const Ieee754 &x) { return acos(x.to_double()); }
-inline Ieee754 exp(const Ieee754 &x) { return exp(x.to_double()); }
-inline Ieee754 log(const Ieee754 &x) { return log(x.to_double()); }
-inline Ieee754 log2(const Ieee754 &x) { return log2(x.to_double()); }
-inline Ieee754 sqrt(const Ieee754 &x) { return sqrt(x.to_double()); }
-inline Ieee754 ceil(const Ieee754 &x) { return ceil(x.to_double()); }
-inline Ieee754 floor(const Ieee754 &x) { return floor(x.to_double()); }
-inline Ieee754 frexp(const Ieee754 &x, int *e) { return frexp(x.to_double(), e); }
-inline Ieee754 pow(const Ieee754 &x, const Ieee754 &y) { return pow(x.to_double(), y.to_double()); }
-inline Ieee754 pow(const Ieee754 &x, double y) { return pow(x.to_double(), y); }
-inline Ieee754 pow(double x, const Ieee754 &y) { return pow(x, y.to_double()); }
-
+// Math functions of the model math library on Ieee754.
 inline Ieee754 fabs(const Ieee754 &x) {
-  return Ieee754::from_bits(x.bits() & ~((uint64_t)1 << (IEEE754_DATA_W - 1)));
+  return Ieee754::from_bits(ieee754_fabs(x.bits(), IEEE754_DATA_W, IEEE754_EXP_W));
 }
+inline Ieee754 sqrt(const Ieee754 &x) {
+  return Ieee754::from_bits(ieee754_sqrt(x.bits(), IEEE754_DATA_W, IEEE754_EXP_W));
+}
+inline Ieee754 exp(const Ieee754 &x) {
+  return Ieee754::from_bits(ieee754_exp(x.bits(), IEEE754_DATA_W, IEEE754_EXP_W));
+}
+inline Ieee754 log(const Ieee754 &x) {
+  return Ieee754::from_bits(ieee754_log(x.bits(), IEEE754_DATA_W, IEEE754_EXP_W));
+}
+
+// The model math library on Ieee754, float (binary32) and double (binary64).
+namespace ieee754 {
+
+typedef uint64_t (*MathFn)(uint64_t, int, int);
+
+inline float apply(MathFn fn, float x) {
+  uint32_t bits;
+  memcpy(&bits, &x, sizeof bits);
+  bits = (uint32_t)fn(bits, IEEE754_SP_DATA_W, IEEE754_SP_EXP_W);
+  memcpy(&x, &bits, sizeof bits);
+  return x;
+}
+
+inline double apply(MathFn fn, double x) {
+  uint64_t bits;
+  memcpy(&bits, &x, sizeof bits);
+  bits = fn(bits, IEEE754_DP_DATA_W, IEEE754_DP_EXP_W);
+  memcpy(&x, &bits, sizeof bits);
+  return x;
+}
+
+inline Ieee754 apply(MathFn fn, const Ieee754 &x) {
+  return Ieee754::from_bits(fn(x.bits(), IEEE754_DATA_W, IEEE754_EXP_W));
+}
+
+template <class T>
+inline T fabs(const T &x) {
+  return apply(ieee754_fabs, x);
+}
+template <class T>
+inline T sqrt(const T &x) {
+  return apply(ieee754_sqrt, x);
+}
+template <class T>
+inline T exp(const T &x) {
+  return apply(ieee754_exp, x);
+}
+template <class T>
+inline T log(const T &x) {
+  return apply(ieee754_log, x);
+}
+
+}  // namespace ieee754
 
 // Element-wise conversion into an Ieee754 array; n is the source size in bytes.
 template <class T, EnableIfArithmetic<T> = 0>

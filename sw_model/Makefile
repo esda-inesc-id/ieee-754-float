@@ -2,7 +2,8 @@
 #
 # make run CPROG=<example>|all|ieee754_tests   build and run a C++ program
 # make run PYPROG=<program> ARGS="..."         run a program in python/
-# make test                                    self-checks, needs no RTL tools
+# make test                                    self-checks and math library accuracy,
+#                                              needs no RTL tools
 # make check                                   bit-accuracy against TestFloat and the RTL
 # make clean
 
@@ -20,12 +21,12 @@ CPROG?=all
 CFLAGS=-std=c11 -D_GNU_SOURCE -Wall -Wextra -O2 -fPIC -Ic
 CXXFLAGS=-std=c++11 -Wall -O2 -Ic -Icpp -Iexamples -Iexamples/common $(addprefix -Iexamples/,$(EXAMPLES))
 
-MODEL_SRC:=c/ieee754_model.c
-MODEL_HDR:=c/ieee754_model.h
-MODEL_OBJ:=$(BUILD_DIR)/ieee754_model.o
+MODEL_HDR:=c/ieee754_model.h c/ieee754_math.h
+MODEL_OBJ:=$(BUILD_DIR)/ieee754_model.o $(BUILD_DIR)/ieee754_math.o
 LIB:=$(BUILD_DIR)/libieee754.so
 MODEL_RUN:=$(BUILD_DIR)/model_run
 TESTS:=$(BUILD_DIR)/ieee754_tests
+MATH_ACCURACY:=$(BUILD_DIR)/math_accuracy
 BENCH:=$(BUILD_DIR)/bench
 CXX_HDR:=cpp/ieee754.h $(MODEL_HDR) examples/common/common.h
 
@@ -64,18 +65,24 @@ run-tests: $(TESTS) $(LIB)
 	  -o $(BUILD_DIR)/out/test-ieee754.cmp
 	@tail -n 2 $(BUILD_DIR)/out/test-ieee754.cmp
 
-test: run-tests
+run-math-accuracy: $(MATH_ACCURACY)
+	$(MATH_ACCURACY)
+
+test: run-tests run-math-accuracy
 
 check: $(MODEL_RUN) $(LIB)
 	IEEE754_LIB=$(abspath $(LIB)) $(PYTHON) tests/check.py --rtl $(RTL_DIR) \
 	  --work $(ABS_BUILD_DIR)/check --model-run $(MODEL_RUN)
 
-$(MODEL_OBJ): $(MODEL_SRC) $(MODEL_HDR)
+$(BUILD_DIR)/%.o: c/%.c $(MODEL_HDR)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(LIB): $(MODEL_OBJ)
 	$(CC) -shared $^ -lm -o $@
+
+$(MATH_ACCURACY): tests/math_accuracy.c $(MODEL_OBJ) $(MODEL_HDR)
+	$(CC) $(CFLAGS) tests/math_accuracy.c $(MODEL_OBJ) -lm -o $@
 
 $(MODEL_RUN): tests/model_run.c $(MODEL_OBJ) $(MODEL_HDR)
 	$(CC) $(CFLAGS) tests/model_run.c $(MODEL_OBJ) -lm -o $@
@@ -93,4 +100,4 @@ $(BUILD_DIR)/%.o: %.cpp $(CXX_HDR)
 clean:
 	rm -rf $(BUILD_DIR) python/__pycache__ tests/__pycache__
 
-.PHONY: run run-tests test check clean
+.PHONY: run run-tests run-math-accuracy test check clean

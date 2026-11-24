@@ -20,7 +20,7 @@ ifeq ($(SYN_SERVER),)
 	$(MAKE) synth
 else
 	ssh $(SYN_SSH_FLAGS) $(SYN_USER)@$(SYN_SERVER) 'mkdir -p $(REMOTE_ROOT_DIR)'
-	rsync $(SYN_SYNC_FLAGS) -avz --force --delete --exclude .git $(FPU_DIR)/ $(SYN_USER)@$(SYN_SERVER):$(REMOTE_ROOT_DIR)
+	rsync $(SYN_SYNC_FLAGS) -avz --force --delete --exclude .git --exclude lib/sim/testfloat-build $(FPU_DIR)/ $(SYN_USER)@$(SYN_SERVER):$(REMOTE_ROOT_DIR)
 	ssh -t $(SYN_SSH_FLAGS) -Y -C $(SYN_USER)@$(SYN_SERVER) '$(if $($(NODE_DIR_VAR)),export $(NODE_DIR_VAR)=$($(NODE_DIR_VAR)); )make -C $(REMOTE_SYN_DIR) synth CORE=$(CORE) NODE=$(NODE) SYNTHESIZER=$(SYNTHESIZER)'
 	scp $(SYN_SCP_FLAGS) $(SYN_USER)@$(SYN_SERVER):$(REMOTE_SYN_DIR)/*.log .
 	scp $(SYN_SCP_FLAGS) $(SYN_USER)@$(SYN_SERVER):$(REMOTE_SYN_DIR)/$(OUTPUT_DIR)/*.rpt .

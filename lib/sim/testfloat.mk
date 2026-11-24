@@ -13,8 +13,8 @@ $(TF_GEN):
 	mkdir -p $(TF_BUILD)
 	[ -d $(TF_BUILD)/berkeley-softfloat-3 ] || git clone -q https://github.com/ucb-bar/berkeley-softfloat-3.git $(TF_BUILD)/berkeley-softfloat-3
 	[ -d $(TF_BUILD)/berkeley-testfloat-3 ] || git clone -q https://github.com/ucb-bar/berkeley-testfloat-3.git $(TF_BUILD)/berkeley-testfloat-3
-	git -C $(TF_BUILD)/berkeley-softfloat-3 checkout -q $(SOFTFLOAT_SHA)
-	git -C $(TF_BUILD)/berkeley-testfloat-3 checkout -q $(TESTFLOAT_SHA)
+	cd $(TF_BUILD)/berkeley-softfloat-3 && git checkout -q $(SOFTFLOAT_SHA)
+	cd $(TF_BUILD)/berkeley-testfloat-3 && git checkout -q $(TESTFLOAT_SHA)
 	$(MAKE) -C $(TF_BUILD)/berkeley-softfloat-3/build/Linux-x86_64-GCC
 	$(MAKE) -C $(TF_BUILD)/berkeley-testfloat-3/build/Linux-x86_64-GCC testfloat_gen
 

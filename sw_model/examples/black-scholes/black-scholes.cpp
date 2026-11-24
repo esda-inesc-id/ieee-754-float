@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
 #include <fstream>
 #include <iostream>
@@ -95,7 +94,7 @@ double CNDF_D ( double InputX ) {
     xInput = InputX;
 
     // Compute NPrimeX term common to both four & six decimal accuracy calcs
-    expValues = exp(-0.5f * InputX * InputX);
+    expValues = ieee754::exp(-0.5f * InputX * InputX);
     xNPrimeofX = expValues;
     xNPrimeofX = xNPrimeofX * inv_sqrt_2xPI;
 
@@ -150,7 +149,7 @@ float CNDF_F ( float InputX ) {
     float xLocal_2, xLocal_3;
 
     // Check for negative value of InputX
-    if (InputX < 0.0) {
+    if (InputX < 0.0f) {
         InputX = -InputX;
         sign = 1;
     } else
@@ -159,25 +158,25 @@ float CNDF_F ( float InputX ) {
     xInput = InputX;
 
     // Compute NPrimeX term common to both four & six decimal accuracy calcs
-    expValues = exp(-0.5f * InputX * InputX);
+    expValues = ieee754::exp(-0.5f * InputX * InputX);
     xNPrimeofX = expValues;
-    xNPrimeofX = xNPrimeofX * inv_sqrt_2xPI;
+    xNPrimeofX = xNPrimeofX * (float)inv_sqrt_2xPI;
 
-    xK2 = 0.2316419 * xInput;
-    xK2 = 1.0 + xK2;
-    xK2 = 1.0 / xK2;
+    xK2 = 0.2316419f * xInput;
+    xK2 = 1.0f + xK2;
+    xK2 = 1.0f / xK2;
     xK2_2 = xK2 * xK2;
     xK2_3 = xK2_2 * xK2;
     xK2_4 = xK2_3 * xK2;
     xK2_5 = xK2_4 * xK2;
 
-    xLocal_1 = xK2 * 0.319381530;
-    xLocal_2 = xK2_2 * (-0.356563782);
-    xLocal_3 = xK2_3 * 1.781477937;
+    xLocal_1 = xK2 * 0.319381530f;
+    xLocal_2 = xK2_2 * (-0.356563782f);
+    xLocal_3 = xK2_3 * 1.781477937f;
     xLocal_2 = xLocal_2 + xLocal_3;
-    xLocal_3 = xK2_4 * (-1.821255978);
+    xLocal_3 = xK2_4 * (-1.821255978f);
     xLocal_2 = xLocal_2 + xLocal_3;
-    xLocal_3 = xK2_5 * 1.330274429;
+    xLocal_3 = xK2_5 * 1.330274429f;
     xLocal_2 = xLocal_2 + xLocal_3;
 
     xLocal_1 = xLocal_2 + xLocal_1;
@@ -187,14 +186,14 @@ float CNDF_F ( float InputX ) {
 
 
 
-    xLocal   = 1.0 - xLocal;
+    xLocal   = 1.0f - xLocal;
 
     OutputX  = xLocal;
 
     //printf("# Output: %10.10f\n", OutputX);
 
     if (sign) {
-        OutputX = 1.0 - OutputX;
+        OutputX = 1.0f - OutputX;
     }
 
     return OutputX;
@@ -223,7 +222,7 @@ Ieee754 CNDF_IEEE754 ( Ieee754 InputX ) {
     xInput = InputX;
 
     // Compute NPrimeX term common to both four & six decimal accuracy calcs
-    expValues = exp(-0.5f * InputX * InputX);
+    expValues = ieee754::exp(-0.5f * InputX * InputX);
     xNPrimeofX = expValues;
     xNPrimeofX = xNPrimeofX * inv_sqrt_2xPI;
 
@@ -302,9 +301,9 @@ double BlkSchlsEqEuroNoDiv_d( double sptprice,
     xTime = time;
 
 
-    xSqrtTime = sqrt(xTime);
+    xSqrtTime = ieee754::sqrt(xTime);
 
-    logValues = log( sptprice / strike );
+    logValues = ieee754::log( sptprice / strike );
 
     xLogTerm = logValues;
 
@@ -336,7 +335,7 @@ double BlkSchlsEqEuroNoDiv_d( double sptprice,
     *N1 = NofXd1 ;
     *N2 = NofXd2 ;
 
-    FutureValueX = strike * ( exp( -(rate)*(time) ) );
+    FutureValueX = strike * ( ieee754::exp( -(rate)*(time) ) );
     if (otype == 0) {
         OptionPrice = (sptprice * NofXd1) - (FutureValueX * NofXd2);
     } else {
@@ -382,14 +381,14 @@ float BlkSchlsEqEuroNoDiv_f( float sptprice,
     xTime = time;
 
 
-    xSqrtTime = sqrt(xTime);
+    xSqrtTime = ieee754::sqrt(xTime);
 
-    logValues = log( sptprice / strike );
+    logValues = ieee754::log( sptprice / strike );
         
     xLogTerm = logValues;
 
     xPowerTerm = xVolatility * xVolatility;
-    xPowerTerm = xPowerTerm * 0.5;
+    xPowerTerm = xPowerTerm * 0.5f;
 
     xD1 = xRiskFreeRate + xPowerTerm;
     xD1 = xD1 * xTime;
@@ -404,24 +403,24 @@ float BlkSchlsEqEuroNoDiv_f( float sptprice,
 
     NofXd1 = CNDF_F( d1 );
 
-    if(NofXd1 > 1.0)
+    if(NofXd1 > 1.0f)
         std::cerr << "Greater than one!" << std::endl ;
     //printf("# d1: %10.10f\n", NofXd1);
 
     NofXd2 = CNDF_F( d2 );
-    if(NofXd2 > 1.0)
+    if(NofXd2 > 1.0f)
          std::cerr << "Greater than one!" << std::endl ;
     //printf("# d2: %10.10f\n", NofXd2);
 
     *N1 = NofXd1 ;
     *N2 = NofXd2 ;
 
-    FutureValueX = strike * ( exp( -(rate)*(time) ) );
+    FutureValueX = strike * ( ieee754::exp( -(rate)*(time) ) );
     if (otype == 0) {
         OptionPrice = (sptprice * NofXd1) - (FutureValueX * NofXd2);
     } else {
-        NegNofXd1 = (1.0 - NofXd1);
-        NegNofXd2 = (1.0 - NofXd2);
+        NegNofXd1 = (1.0f - NofXd1);
+        NegNofXd2 = (1.0f - NofXd2);
         OptionPrice = (FutureValueX * NegNofXd2) - (sptprice * NegNofXd1);
     }
 
@@ -461,9 +460,9 @@ Ieee754 BlkSchlsEqEuroNoDiv_ieee754( Ieee754 sptprice,
     xVolatility = volatility;
     xTime = time;
 
-    xSqrtTime = sqrt(xTime);
+    xSqrtTime = ieee754::sqrt(xTime);
 
-    logValues = log( sptprice / strike );
+    logValues = ieee754::log( sptprice / strike );
 
     xLogTerm = logValues;
 
@@ -495,7 +494,7 @@ Ieee754 BlkSchlsEqEuroNoDiv_ieee754( Ieee754 sptprice,
     *N1 = NofXd1 ;
     *N2 = NofXd2 ;
 
-    FutureValueX = strike * ( exp( -(rate)*(time) ) );
+    FutureValueX = strike * ( ieee754::exp( -(rate)*(time) ) );
     if (otype == 0) {
         OptionPrice = (sptprice * NofXd1) - (FutureValueX * NofXd2);
     } else {

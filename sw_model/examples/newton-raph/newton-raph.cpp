@@ -25,8 +25,8 @@ void nr_kernel_d(double *A_coeff, double *B_coeff, double *C_coeff, double *D_co
       fdx = FD(x0);
       if (!fdx) continue;
       x1  = x0 - (fx/fdx);
-      if (fabs((x1-x0) / x1) < curr_err) {
-        curr_err = fabs((x1-x0) / x1);
+      if (ieee754::fabs((x1-x0) / x1) < curr_err) {
+        curr_err = ieee754::fabs((x1-x0) / x1);
         root[k]= x1;
       }
       x0 = x1;
@@ -46,8 +46,8 @@ void nr_kernel_f(float *A_coeff, float *B_coeff, float *C_coeff, float *D_coeff,
       fdx = FD(x0);
       if (!fdx) continue;
       x1  = x0 - (fx/fdx);
-      if (fabs((x1-x0) / x1) < curr_err) {
-        curr_err = fabs((x1-x0) / x1);
+      if (ieee754::fabs((x1-x0) / x1) < curr_err) {
+        curr_err = ieee754::fabs((x1-x0) / x1);
         root[k]= x1;
       }
       x0 = x1;
@@ -67,8 +67,8 @@ void nr_kernel_ieee754(Ieee754 *A_coeff, Ieee754 *B_coeff, Ieee754 *C_coeff, Iee
       fdx = FD(x0);
       if (!fdx) continue;
       x1  = x0 - (fx/fdx);
-      if (fabs((x1-x0) / x1) < curr_err) {
-        curr_err = fabs((x1-x0) / x1);
+      if (ieee754::fabs((x1-x0) / x1) < curr_err) {
+        curr_err = ieee754::fabs((x1-x0) / x1);
         root[k]= x1;
       }
       x0 = x1;

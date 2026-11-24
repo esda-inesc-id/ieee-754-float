@@ -1,4 +1,5 @@
 # make <target> [CORE=fadd|fmul|fdiv|fmac|fpu] [SIMULATOR=icarus|xezim|xsim|xcelium]
+# CADENCE_SERVER (Xcelium, Genus) and VIVADO_SERVER: empty runs locally
 # make run CPROG=<example>|all|ieee754_tests
 # make run PYPROG=<program> [ARGS="<arguments>"]
 
@@ -14,36 +15,44 @@ SMOKE_MIX ?= 2000
 
 MAKE_SUB = make --no-print-directory
 
+# Variables passed on to a remote run
+FWD_VARS = CORE VCD TF_N TF_LEVEL STREAM_N MIX_N SMOKE_N SMOKE_STREAMS SMOKE_MIX
+FWD = SIMULATOR=$(SIMULATOR) $(foreach v,$(FWD_VARS),$(if $(filter command line,$(origin $(v))),$(v)=$($(v))))
+
+# $(1): SIM or FPGA; $(2): command run in the copy of this directory on $(1)_SERVER
+define remote
+ssh $($(1)_SSH_FLAGS) $($(1)_USER)@$($(1)_SERVER) 'mkdir -p $(REMOTE_ROOT_DIR)'
+rsync $($(1)_SYNC_FLAGS) -az --delete --exclude .git --exclude lib/sim/testfloat-build $(FPU_DIR)/ $($(1)_USER)@$($(1)_SERVER):$(REMOTE_ROOT_DIR)
+ssh $($(1)_SSH_FLAGS) $($(1)_USER)@$($(1)_SERVER) 'cd $(REMOTE_ROOT_DIR) && $(if $($(1)_ENV),source $($(1)_ENV) > /dev/null && )$(2)'
+endef
+
 help:
-	@sed -n '1,3p' Makefile
-	@echo "targets: sim sim-waves test test-smoke test-regular fpga-build syn-build"
+	@sed -n '1,4p' Makefile
+	@echo "targets: sim sim-waves test test-smoke test-regular test-full fpga-build syn-build"
 	@echo "         run sw-test sw-check doc clean"
 
 #
-# SIMULATION
+# SIMULATION AND TESTS: the regular tests run only if the smoke tests pass;
+# test-full runs every TestFloat vector of the level
 #
+
+ifneq ($(SIM_SERVER),)
+
+sim test test-smoke test-regular test-full:
+	$(call remote,SIM,make $@ $(FWD) CADENCE_SERVER=)
+ifeq ($(VCD),1)
+	scp $(SIM_SCP_FLAGS) $(SIM_USER)@$(SIM_SERVER):$(REMOTE_ROOT_DIR)/$(SIM_DIR)/*.vcd $(SIM_DIR)
+endif
+
+else
 
 sim:
-ifeq ($(SIM_SERVER),localhost)
 	$(MAKE_SUB) -C $(SIM_DIR) run
-else
-	ssh $(SIM_USER)@$(SIM_SERVER) 'mkdir -p $(REMOTE_ROOT_DIR)'
-	$(MAKE_SUB) -C $(SIM_DIR) clean
-	rsync -avz --delete --exclude .git $(FPU_DIR)/ $(SIM_USER)@$(SIM_SERVER):$(REMOTE_ROOT_DIR)
-	ssh $(SIM_USER)@$(SIM_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(SIM_DIR) run SIMULATOR=$(SIMULATOR) CORE=$(CORE) VCD=$(VCD) SIM_SERVER=localhost'
-ifeq ($(VCD),1)
-	scp $(SIM_USER)@$(SIM_SERVER):$(REMOTE_ROOT_DIR)/$(SIM_DIR)/*.vcd $(SIM_DIR)
-endif
-endif
-
-sim-waves:
-	gtkwave $(SIM_DIR)/*.vcd &
-
-#
-# TESTS: the regular tests run only if the smoke tests pass
-#
 
 test: test-smoke test-regular
+
+test-full: test-smoke
+	@$(MAKE_SUB) test-regular TF_N=
 
 test-smoke:
 	@for c in $(CORES); do \
@@ -65,19 +74,22 @@ test-regular:
 	if [ $$status -eq 0 ]; then echo "REGULAR PASSED"; else echo "REGULAR FAILED"; fi; \
 	exit $$status
 
+endif
+
+sim-waves:
+	gtkwave $(SIM_DIR)/*.vcd &
+
 #
 # FPGA: out-of-context place and route
 #
 
 fpga-build:
-ifeq ($(FPGA_SERVER),localhost)
+ifeq ($(FPGA_SERVER),)
 	$(MAKE_SUB) -C $(FPGA_DIR) run
 else
-	ssh $(FPGA_USER)@$(FPGA_SERVER) 'mkdir -p $(REMOTE_ROOT_DIR)'
-	rsync -avz --delete --exclude .git $(FPU_DIR)/ $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)
-	ssh $(FPGA_USER)@$(FPGA_SERVER) 'cd $(REMOTE_ROOT_DIR); make -C $(FPGA_DIR) run CORE=$(CORE) FPGA_SERVER=localhost'
+	$(call remote,FPGA,make -C $(FPGA_DIR) run CORE=$(CORE) VIVADO_SERVER=)
 	mkdir -p $(FPGA_DIR)/$(FPGA_FAMILY)
-	scp $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)/$(FPGA_DIR)/$(FPGA_FAMILY)/$(FPGA_LOG) $(FPGA_DIR)/$(FPGA_FAMILY)
+	scp $(FPGA_SCP_FLAGS) $(FPGA_USER)@$(FPGA_SERVER):$(REMOTE_ROOT_DIR)/$(FPGA_DIR)/$(FPGA_FAMILY)/$(FPGA_LOG) $(FPGA_DIR)/$(FPGA_FAMILY)
 endif
 
 #
@@ -130,5 +142,5 @@ endif
 	@$(MAKE_SUB) -C $(FPU_SW_DIR) clean > /dev/null
 	@$(MAKE_SUB) -C doc clean > /dev/null
 
-.PHONY: help sim sim-waves test test-smoke test-regular fpga-build syn-build \
+.PHONY: help sim sim-waves test test-smoke test-regular test-full fpga-build syn-build \
 	run sw-test sw-check doc clean

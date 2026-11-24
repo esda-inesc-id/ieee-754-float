@@ -31,3 +31,34 @@ remote run copies the logs, the reports and the netlist back to
 \file{<unit>\_clk.rpt}, \file{<unit>\_timing.rpt} & Clock and timing reports. \\ \hline
 \file{<unit>\_power.rpt}, \file{<unit>\_qor.rpt} & Power and quality-of-results reports. \\
 \end{twotable}
+
+\section{Results}
+\label{sec:syn_results}
+
+Table~\ref{tab:syn_results} gives the Genus 19.1 synthesis results in UMC
+130~nm, with the Faraday \sig{fsc0l\_d} 2009Q2v3.0 low-leakage library at the
+slow corner (1.08~V, 125~\textdegree C), a 5~ns clock and the default
+parameters (binary32). The critical period is the clock period minus the worst
+slack. The power is estimated with the default switching activity, without
+simulation vectors.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{|l|r|r|r|r|r|}
+\hline
+\rowcolor{ug-head}\bfseries Unit & \bfseries Cells & \bfseries Area ($\mu$m$^2$) & \bfseries Slack (ns) & \bfseries Period (ns) & \bfseries Power (mW) \\ \hline\hline
+\sig{fadd} & 1,811 & 20,900 & 0.000 & 5.00 & 1.7 \\ \hline
+\sig{fmul} & 8,130 & 75,936 & $-$2.229 & 7.23 & 10.7 \\ \hline
+\sig{fdiv} & 2,959 & 29,688 & $-$0.039 & 5.04 & 2.8 \\ \hline
+\sig{fmac} & 10,730 & 106,574 & $-$2.711 & 7.71 & 18.7 \\ \hline
+\sig{fpu} & 10,198 & 100,873 & $-$2.254 & 7.25 & 6.4 \\ \hline
+\end{tabular}
+\caption{ASIC Synthesis Results with a 5~ns Clock}
+\label{tab:syn_results}
+\end{table}
+
+The critical path of \sig{fmul} and \sig{fpu} is the mantissa multiplication,
+which takes one pipeline stage. In \sig{fmac} it is the accumulator feedback,
+from the accumulator exponent through the alignment shifter. In \sig{fadd} and
+\sig{fdiv} it ends in the exponent register of \sig{norm}.

@@ -1,0 +1,79 @@
+name: CI
+
+# Interactive shell: the runner's ~/.bashrc sets the tool paths and servers
+defaults:
+  run:
+    shell: bash -ieo pipefail {0}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: '*'
+  pull_request:
+    branches: '*'
+  workflow_dispatch:
+
+jobs:
+
+  sw-model:
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
+      - &checkout_step
+        uses: actions/checkout@v6
+      - name: model tests
+        run: make sw-test
+      - name: model against TestFloat and RTL
+        run: make sw-check
+      - name: examples
+        run: make run CPROG=all
+
+  smoke:
+    runs-on: self-hosted
+    timeout-minutes: 30
+    steps:
+      - *checkout_step
+      - name: smoke tests
+        run: make test-smoke SIMULATOR=xezim
+
+  # every TestFloat vector of level 1, plus the fmac stream and fpu mix tests
+  full:
+    runs-on: self-hosted
+    timeout-minutes: 240
+    needs: [ smoke ]
+    env:
+      CADENCE_SERVER: micro7.lx.it.pt
+      SIMULATOR: xcelium
+    strategy:
+      fail-fast: false
+      matrix:
+        core: [ fadd, fmul, fdiv, fmac, fpu ]
+    steps:
+      - *checkout_step
+      - name: full tests
+        run: make test-full CORE=${{ matrix.core }} REMOTE_ROOT_DIR=ci/ieee-754-float-${{ matrix.core }}
+
+  fpga:
+    runs-on: pudim-flan
+    timeout-minutes: 60
+    if: ${{ !cancelled() }}
+    needs: [ smoke ]
+    strategy:
+      max-parallel: 1
+      matrix:
+        core: [ fadd, fmul, fdiv, fmac, fpu ]
+    steps:
+      - *checkout_step
+      - name: out-of-context place and route
+        run: make fpga-build CORE=${{ matrix.core }}
+
+  doc:
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
+      - *checkout_step
+      - name: user guide
+        run: make doc

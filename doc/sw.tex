@@ -47,7 +47,9 @@ $\mathtt{data\_w} \le 64$.
 \sig{IEEE754\_DATA\_W} (default 32) and \sig{IEEE754\_EXP\_W} (default 8).
 \sig{Ieee754} holds one encoding, converts from and to the arithmetic types, and
 has arithmetic and comparison operators. Addition, subtraction, multiplication and
-division run on the model, and math functions go through binary64.
+division run on the model. The math functions \sig{sqrt}, \sig{exp}, \sig{log} and
+\sig{fabs} come from the bit-accurate library \file{c/ieee754\_math}, built only on the
+model operations, with errors under 1 ulp.
 \sig{Ieee754Mac} is the streaming \sig{fmac}, with the methods \sig{push} and
 \sig{result}.
 

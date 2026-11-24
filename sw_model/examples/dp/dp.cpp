@@ -45,8 +45,8 @@ void dp_kernel(double *data, unsigned int n, double *weights, unsigned int m, FI
         a_ieee754, b_ieee754, &c_ieee754,
         m);
 
-    if (abs(c_d) > max_acc) max_acc = abs(c_d);
-    if (abs(c_d) < min_acc) min_acc = abs(c_d);
+    if (ieee754::fabs(c_d) > max_acc) max_acc = ieee754::fabs(c_d);
+    if (ieee754::fabs(c_d) < min_acc) min_acc = ieee754::fabs(c_d);
 
     fprintf(fp_d, "%.16E\n", c_d);
     fprintf(fp_f, "%.16E\n", c_f);
@@ -82,13 +82,13 @@ void dp(char *inputDir, char *outputDir, FILE *fp_d, FILE *fp_f, FILE *fp_ieee75
   double max = 0.0;
   double min = DBL_MAX;
   for (unsigned int j = 0; j < n; j++) {
-    if (abs(data[j]) > max) max = abs(data[j]);
-    if (abs(data[j]) < min) min = abs(data[j]);
+    if (ieee754::fabs(data[j]) > max) max = ieee754::fabs(data[j]);
+    if (ieee754::fabs(data[j]) < min) min = ieee754::fabs(data[j]);
   }
 
   for (unsigned int j = 0; j < m; j++) {
-    if (abs(weights[j]) > max) max = abs(weights[j]);
-    if (abs(weights[j]) < min) min = abs(weights[j]);
+    if (ieee754::fabs(weights[j]) > max) max = ieee754::fabs(weights[j]);
+    if (ieee754::fabs(weights[j]) < min) min = ieee754::fabs(weights[j]);
   }
   printf("max = %.16E\n", max);
   printf("min = %.16E\n", min);

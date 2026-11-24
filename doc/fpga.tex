@@ -26,3 +26,27 @@ the default \sig{FPGA\_FAMILY}.
 \file{<unit>\_stub.v} & Verilog stub of the unit. \\ \hline
 \file{vivado.log} & Vivado log, with the reports. \\
 \end{twotable}
+
+\section{Results}
+\label{sec:fpga_results}
+
+Table~\ref{tab:fpga_results} gives the results after place and route, out of
+context, on the Kintex UltraScale \sig{xcku040-fbva676-1-c} with a 100~MHz clock
+and the default parameters (binary32). \sig{fpu} instantiates \sig{fmul} with
+\sig{OUT\_REG} set to 1. No unit uses block RAM.
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{|l|r|r|r|r|}
+\hline
+\rowcolor{ug-head}\bfseries Unit & \bfseries LUTs & \bfseries Registers & \bfseries DSPs & \bfseries Slack (ns) \\ \hline\hline
+\sig{fadd} & 432 & 258 & 0 & 4.384 \\ \hline
+\sig{fmul} & 425 & 176 & 2 & 2.862 \\ \hline
+\sig{fdiv} & 872 & 313 & 0 & 4.036 \\ \hline
+\sig{fmac} & 1,253 & 437 & 2 & 1.299 \\ \hline
+\sig{fpu} & 1,268 & 610 & 2 & 2.482 \\ \hline
+\end{tabular}
+\caption{FPGA Results at 100~MHz}
+\label{tab:fpga_results}
+\end{table}

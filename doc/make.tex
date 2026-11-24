@@ -24,6 +24,7 @@ command line. Table~\ref{tab:make_targets} lists the targets.
 \sig{make test} & Run \sig{test-smoke} and, if it passes, \sig{test-regular}. \\ \hline
 \sig{make test-smoke} & Run the smoke tests. Stops at the first failure. \\ \hline
 \sig{make test-regular} & Run the regular tests. It runs them all even if one fails, and then reports the failure. \\ \hline
+\sig{make test-full} & Run \sig{test-smoke} and, if it passes, \sig{test-regular} with every TestFloat vector of the level. \\ \hline
 \sig{make fpga-build} & Compile the unit out of context with Vivado. \\ \hline
 \sig{make syn-build} & Synthesize the unit with Genus. \\ \hline
 \sig{make run} & Run a program of the software model, selected by \sig{CPROG} or \sig{PYPROG}. \\ \hline
@@ -46,12 +47,14 @@ make sim CORE=fadd VCD=1
 make sim-waves CORE=fadd
 \end{shcode}
 
-\begin{threetable}{Simulation Variables}{tab:make_sim_vars}{Variable}{Default}{Description}{3.3cm}{2.5cm}
+\begin{threetable}{Simulation Variables}{tab:make_sim_vars}{Variable}{Default}{Description}{3.6cm}{2.5cm}
 \sig{SIMULATOR} & \sig{icarus} & One of \sig{icarus}, \sig{xezim}, \sig{xsim}, \sig{xcelium}. \\ \hline
 \sig{VCD} & not set & \sig{1} dumps the waveforms to \file{<unit>.vcd} in \file{<unit>/hw/sim}. \\ \hline
-\sig{SIM\_SERVER} & \sig{localhost} & Server that runs \sig{make sim} through \sig{ssh}. With \sig{SIMULATOR=xcelium} the default is \sig{CADENCE\_SERVER} if that variable is set; otherwise the simulation runs locally. \\ \hline
-\sig{SIM\_USER} & \sig{\$USER} & User on the server. With \sig{SIMULATOR=xcelium} and \sig{CADENCE\_SERVER} set, the default is \sig{CADENCE\_USER}. \\ \hline
-\sig{REMOTE\_ROOT\_DIR} & \sig{sandbox/float} & Directory on the server that receives a copy of the repository through \sig{rsync -{}-delete}. \\ \hline
+\sig{CADENCE\_SERVER} & not set & With \sig{SIMULATOR=xcelium}, the server that runs \sig{sim} and the test targets through \sig{ssh}. Empty runs them locally. \\ \hline
+\sig{CADENCE\_USER} & not set & User on the server. \\ \hline
+\sig{CADENCE\_SSH\_FLAGS}, \sig{CADENCE\_SCP\_FLAGS}, \sig{CADENCE\_SYNC\_FLAGS} & not set & Extra flags for \sig{ssh}, \sig{scp} and \sig{rsync}. \\ \hline
+\sig{CADENCE\_ENV} & not set & Script sourced on the server before the run. \\ \hline
+\sig{REMOTE\_ROOT\_DIR} & \sig{sandbox/\allowbreak ieee-\allowbreak 754-\allowbreak float} & Directory on the server that receives a copy of the repository through \sig{rsync -{}-delete}. Give each concurrent run its own directory. \\ \hline
 \sig{XEZIM\_MAX\_TIME} & \sig{1000s} & Limit of simulated time with \sig{xezim}. \\
 \end{threetable}
 
@@ -60,13 +63,14 @@ make sim-waves CORE=fadd
 
 Table~\ref{tab:make_test} lists the tests that \sig{test-smoke} and
 \sig{test-regular} run, and Table~\ref{tab:make_test_vars} their variables.
-Chapter~\ref{ch:sim} describes them. The first run clones Berkeley SoftFloat and
+Chapter~\ref{ch:sim} describes them. A remote run forwards the test variables
+given on the command line. The first run clones Berkeley SoftFloat and
 TestFloat at fixed commits and builds them in
 \file{lib/\allowbreak sim/\allowbreak testfloat-build}, so it needs \sig{git},
 network access and \sig{gcc}.
 
 \begin{threetable}{Tests of Each Run}{tab:make_test}{Test}{Smoke}{Regular}{4.2cm}{4.6cm}
-TestFloat, every unit & First \sig{SMOKE\_N} vectors per operation & Level 1; first 200,000 vectors per operation for \sig{fmac} \\ \hline
+TestFloat, every unit & First \sig{SMOKE\_N} vectors per operation & Level 1; first 200,000 vectors per operation for \sig{fmac}, all of them with \sig{test-full} \\ \hline
 \sig{fmac} streams & \sig{SMOKE\_STREAMS} streams & \sig{STREAM\_N} streams \\ \hline
 \sig{fpu} mix & \sig{SMOKE\_MIX} operations & \sig{MIX\_N} operations \\
 \end{threetable}
@@ -94,20 +98,23 @@ make -C fpu/hw/sim mix
 \label{sec:make_fpga}
 
 Table~\ref{tab:make_fpga} lists the FPGA variables, and Chapter~\ref{ch:fpga}
-describes the flow. If \sig{vivado} is on the \sig{PATH}, the compilation runs
-locally. Otherwise it runs on the server named in \file{lib/config.mk}, and only
-the Vivado log is copied back. For example:
+describes the flow. The compilation runs locally unless \sig{VIVADO\_SERVER} is
+set; then it runs on that server, and only the Vivado log is copied back. Only
+one Vivado runs at a time on each machine. For example:
 
 \begin{shcode}
 make fpga-build CORE=fadd
 \end{shcode}
 
 \begin{threetable}{FPGA Variables}{tab:make_fpga}{Variable}{Default}{Description}{3.3cm}{3.9cm}
-\sig{FPGA\_SERVER} & \sig{localhost} if \sig{vivado} is on the \sig{PATH}; otherwise set in \file{lib/config.mk} & Server that runs Vivado through \sig{ssh}; \sig{localhost} runs it locally. \\ \hline
-\sig{FPGA\_USER} & \sig{\$USER} & User on the server. \\ \hline
+\sig{VIVADO\_SERVER} & not set & Server that runs Vivado through \sig{ssh}. Empty runs it locally. \\ \hline
+\sig{VIVADO\_USER} & not set & User on the server. \\ \hline
+\sig{VIVADO\_SSH\_FLAGS}, \sig{VIVADO\_SCP\_FLAGS}, \sig{VIVADO\_SYNC\_FLAGS} & not set & Extra flags for \sig{ssh}, \sig{scp} and \sig{rsync}. \\ \hline
+\sig{VIVADO\_ENV} & not set & Script sourced before \sig{vivado} on the machine that runs it. \\ \hline
+\sig{VIVADO\_LOCK} & \sig{/tmp/\allowbreak iob\_vivado.lock} & Lock file that allows one Vivado at a time on that machine. \\ \hline
 \sig{FPGA\_FAMILY} & \sig{XCKU} & Name of the output directory in \file{<unit>/hw/fpga}. \\ \hline
 \sig{FPGA\_PART} & \sig{xcku040-fbva676-1-c} & FPGA part. A remote run does not forward this variable, so it uses the default. \\ \hline
-\sig{REMOTE\_ROOT\_DIR} & \sig{sandbox/float} & As in Table~\ref{tab:make_sim_vars}. \\
+\sig{REMOTE\_ROOT\_DIR} & \sig{sandbox/\allowbreak ieee-754-float} & As in Table~\ref{tab:make_sim_vars}. \\
 \end{threetable}
 
 \section{ASIC Synthesis}

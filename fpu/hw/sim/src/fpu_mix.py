@@ -15,7 +15,7 @@ SEED = 754
 
 
 def vectors(tool, op):
-    text = subprocess.check_output([tool, "-level", "1", "-rnear_even", f"f32_{op}"], text=True)
+    text = subprocess.check_output([tool, "-level", "1", "-rnear_even", f"f32_{op}"], universal_newlines=True)
     return [line.split()[:3] for line in text.splitlines()]
 
 

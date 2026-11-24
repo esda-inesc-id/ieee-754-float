@@ -6,23 +6,32 @@ endif
 
 # PATHS
 FPU_SW_DIR=$(FPU_DIR)/sw_model
-REMOTE_ROOT_DIR?=sandbox/float
+REMOTE_ROOT_DIR?=sandbox/ieee-754-float
 
-# SIMULATION
+# SIMULATION: Xcelium runs on CADENCE_SERVER when it is set; an empty server runs locally
 SIMULATOR_LIST=icarus xezim xsim xcelium
 SIMULATOR?=icarus
-ifneq ($(and $(filter xcelium,$(SIMULATOR)),$(CADENCE_SERVER)),)
+ifeq ($(SIMULATOR),xcelium)
 SIM_SERVER?=$(CADENCE_SERVER)
 SIM_USER?=$(CADENCE_USER)
+SIM_SSH_FLAGS?=$(CADENCE_SSH_FLAGS)
+SIM_SCP_FLAGS?=$(CADENCE_SCP_FLAGS)
+SIM_SYNC_FLAGS?=$(CADENCE_SYNC_FLAGS)
+SIM_ENV?=$(CADENCE_ENV)
 endif
-SIM_SERVER?=localhost
-SIM_USER?=$(USER)
 SIM_DIR?=$(CORE)/hw/sim
 
-# FPGA
+# FPGA: Vivado runs on VIVADO_SERVER when it is set; an empty server runs locally
+FPGA_SERVER=$(VIVADO_SERVER)
+FPGA_USER=$(VIVADO_USER)
+FPGA_SSH_FLAGS=$(VIVADO_SSH_FLAGS)
+FPGA_SCP_FLAGS=$(VIVADO_SCP_FLAGS)
+FPGA_SYNC_FLAGS=$(VIVADO_SYNC_FLAGS)
+# VIVADO_ENV: script sourced before vivado; VIVADO_LOCK: one vivado per machine
+VIVADO_ENV?=
+VIVADO_LOCK?=/tmp/iob_vivado.lock
+export VIVADO_ENV VIVADO_LOCK
 FPGA_FAMILY?=XCKU
-FPGA_USER?=$(USER)
-FPGA_SERVER?=$(if $(shell which vivado 2>/dev/null),localhost,pudim-flan.iobundle.com)
 FPGA_PART?=xcku040-fbva676-1-c
 FPGA_DIR?=$(FPU_DIR)/$(CORE)/hw/fpga
 FPGA_LOG?=vivado.log

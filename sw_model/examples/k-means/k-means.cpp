@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <float.h>
-#include <math.h>
 
 #include "ieee754.h"
 #include "common.h"
@@ -35,7 +34,7 @@ int kmeans_kernel_d(int NDATAPTS, int NCENTRS, int DIM, double * data, unsigned 
       // compute the distance between the point and each centroid
       for(j = 0; j < NCENTRS; j++){
         for(tempDist=0, k=0; k < DIM; k++)
-          tempDist += fabs(data[i*DIM+k] - center[j*DIM+k]);
+          tempDist += ieee754::fabs(data[i*DIM+k] - center[j*DIM+k]);
         if(tempDist < minDist){
           minDist = tempDist;
           label[i] = j;
@@ -95,7 +94,7 @@ int kmeans_kernel_f(int NDATAPTS, int NCENTRS, int DIM, float * data, unsigned i
       // compute the distance between the point and each centroid
       for(j = 0; j < NCENTRS; j++){
         for(tempDist=0, k=0; k < DIM; k++)
-          tempDist += (float)fabs((double)(data[i*DIM+k] - center[j*DIM+k]));
+          tempDist += ieee754::fabs(data[i*DIM+k] - center[j*DIM+k]);
         if(tempDist < minDist){
           minDist = tempDist;
           label[i] = j;
@@ -155,7 +154,7 @@ int kmeans_kernel_ieee754(int NDATAPTS, int NCENTRS, int DIM, Ieee754 * data, un
       // compute the distance between the point and each centroid
       for(j = 0; j < NCENTRS; j++){
         for(tempDist=0, k=0; k < DIM; k++)
-          tempDist += (Ieee754)fabs((double)(data[i*DIM+k] - center[j*DIM+k]));
+          tempDist += ieee754::fabs(data[i*DIM+k] - center[j*DIM+k]);
         if(tempDist < minDist){
           minDist = tempDist;
           label[i] = j;

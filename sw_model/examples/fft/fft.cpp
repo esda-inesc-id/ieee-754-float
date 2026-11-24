@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fstream>
-#include <math.h>
 
 #include "ieee754.h"
 #include "common.h"
@@ -21,7 +20,8 @@ int reversed(int ind) {
 }
 
 void fft_kernel(double *x_d, double *w_d, double *X_d, float *w_f, float *X_f, Ieee754 *w_ieee754, Ieee754 *X_ieee754, int n) {
-  int i_max = (int)log2(n);
+  int i_max = 0;
+  while ((1 << i_max) < n) i_max++;
   int iter, blocks, butterflys;
   int b_max, bf_max;
   int index, index_2, index_ROM;
