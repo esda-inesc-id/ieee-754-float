@@ -5,6 +5,7 @@
 # make test                                    self-checks and math library accuracy,
 #                                              needs no RTL tools
 # make check                                   bit-accuracy against TestFloat and the RTL
+# make fmac-accuracy                            fmac accuracy study (needs MPFR)
 # make clean
 
 CC=gcc
@@ -58,6 +59,14 @@ run-math-accuracy: $(MATH_ACCURACY)
 
 test: run-tests run-math-accuracy
 
+FMAC_ACCURACY:=$(BUILD_DIR)/fmac_accuracy
+
+fmac-accuracy: $(FMAC_ACCURACY)
+	$(FMAC_ACCURACY) | tee $(BUILD_DIR)/fmac_accuracy.txt
+
+$(FMAC_ACCURACY): study/fmac_accuracy.c $(MODEL_OBJ) $(MODEL_HDR)
+	$(CC) $(CFLAGS) -ffp-contract=off study/fmac_accuracy.c $(MODEL_OBJ) -lmpfr -lgmp -lm -o $@
+
 check: $(MODEL_RUN) $(LIB)
 	IEEE754_LIB=$(abspath $(LIB)) $(PYTHON) tests/check.py --rtl $(RTL_DIR) \
 	  --work $(ABS_BUILD_DIR)/check --model-run $(MODEL_RUN)
@@ -96,4 +105,4 @@ $(BUILD_DIR)/%.o: %.cpp $(CXX_HDR)
 clean:
 	rm -rf $(BUILD_DIR) python/__pycache__ tests/__pycache__
 
-.PHONY: run run-tests run-math-accuracy test check clean
+.PHONY: run run-tests run-math-accuracy test check fmac-accuracy clean

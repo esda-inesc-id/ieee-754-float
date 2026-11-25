@@ -51,6 +51,11 @@ typedef struct ieee754_mac ieee754_mac;
 ieee754_mac *ieee754_mac_new(int data_w, int exp_w, int lguard_w, int rguard_w);
 void ieee754_mac_free(ieee754_mac *mac);
 
+// Architecture studies only: the largest left shift of the accumulator normalization per
+// accumulation. The RTL shifts by 1 (the default); a step of at least the accumulator width
+// normalizes fully every cycle.
+void ieee754_mac_set_step(ieee754_mac *mac, int step);
+
 // Applies one product of the current stream. The stream rounds in the mode current at
 // its last product, as fmac samples rnd_mode with it.
 void ieee754_mac_push(ieee754_mac *mac, uint64_t a, uint64_t b);

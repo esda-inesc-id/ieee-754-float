@@ -377,6 +377,7 @@ struct ieee754_mac {
   uint32_t exp_zero;
   int pushed;
   int rnd;  // rounding mode at the last product
+  int step;  // largest left normalization shift per accumulation (1 in the RTL)
   mac_regs r;
 };
 
@@ -392,11 +393,14 @@ ieee754_mac *ieee754_mac_new(int data_w, int exp_w, int lguard_w, int rguard_w) 
   m->rguard_w = rguard_w;
   m->acc_w = acc_w;
   m->word_w = acc_w + EXTRA + 1;
+  m->step = 1;
   m->exp_zero = (0u - ((1u << exp_w) + 2u * (uint32_t)m->f.man_w)) & m->f.exp_mask;
   return m;
 }
 
 void ieee754_mac_free(ieee754_mac *mac) { free(mac); }
+
+void ieee754_mac_set_step(ieee754_mac *mac, int step) { mac->step = step < 1 ? 1 : step; }
 
 // acc_odd: the accumulator rounded to odd at acc_w + 1 bits.
 static u128 mac_acc_odd(const ieee754_mac *m) {
@@ -497,8 +501,11 @@ static void mac_clock(ieee754_mac *m, int valid_i, uint64_t op_a, uint64_t op_b)
     b_exp_int = (r->acc_exp + 1) & f->exp_mask;
     b_man_int = ((u128)acc_top << (word_w - 1)) | (acc_odd << (EXTRA - 1));
   } else if (undf) {
-    b_exp_int = (r->acc_exp - 1) & f->exp_mask;
-    b_man_int = (acc_odd & mask(m->acc_w)) << (EXTRA + 1);
+    // shift left by up to step positions, keeping two sign bits
+    uint32_t lsc = count_leading(r->acc_man, word_w, acc_top);
+    uint32_t sh = lsc - 2 < (uint32_t)m->step ? lsc - 2 : (uint32_t)m->step;
+    b_exp_int = (r->acc_exp - sh) & f->exp_mask;
+    b_man_int = shift_left(acc_odd, EXTRA + sh) & mask(word_w);
   } else {
     b_exp_int = r->acc_exp;
     b_man_int = acc_odd << EXTRA;
