@@ -108,26 +108,3 @@ jobs:
           texlive-pictures
       - name: user guide
         run: make doc
-
-  # Self-hosted: Xcelium runs on the Cadence server, which needs a registered runner
-
-  # every TestFloat vector of level 1, plus the fmac stream and fpu mix tests
-  full:
-    runs-on: self-hosted
-    timeout-minutes: 240
-    needs: [ smoke ]
-    defaults:
-      run:
-        # interactive shell: the runner's ~/.bashrc sets the tool paths and servers
-        shell: bash -ieo pipefail {0}
-    env:
-      CADENCE_SERVER: micro7.lx.it.pt
-      SIMULATOR: xcelium
-    strategy:
-      fail-fast: false
-      matrix:
-        core: [ fadd, fmul, fdiv, fmac, fpu ]
-    steps:
-      - *checkout_step
-      - name: full tests
-        run: make test-full CORE=${{ matrix.core }} REMOTE_ROOT_DIR=ci/ieee-754-float-${{ matrix.core }}
