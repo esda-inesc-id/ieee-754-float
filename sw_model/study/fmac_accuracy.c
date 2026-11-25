@@ -229,7 +229,7 @@ int main(void) {
   for (int k = 0; k < 4; k++) {
     int n = 100;
     stat st[NV] = {0};
-    for (int t = 0; t < 500; t++) {
+    for (int t = 0; t < 2000; t++) {
       gendot(a, b, n, conds[k]);
       run(a, b, n, st);
     }
@@ -240,7 +240,7 @@ int main(void) {
 
   static const int cancel_n[] = {16, 256, 4096};
   for (int k = 0; k < 3; k++) {
-    int n = cancel_n[k], trials = 200000 / n;
+    int n = cancel_n[k], trials = 2000000 / n;
     stat st[NV] = {0};
     for (int t = 0; t < trials; t++) {
       cancel(a, b, n);
