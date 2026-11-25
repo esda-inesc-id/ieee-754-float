@@ -19,7 +19,7 @@
 // All roundings to the format (fma, mul+add, exact) use MPFR, to nearest even.
 // Errors are |result - exact| in ulps of the exact result rounded to the format.
 // "bound" is the largest (|err| - ulp/2) / ((n+1) sum|ab|) of fmac-1, as a power of 2,
-// against the proven 2^-(2p-3) (Section "Error Bound" of the paper).
+// against the bound 2^-(2p+rguard-3), half an ulp aside.
 
 #include <math.h>
 #include <mpfr.h>
