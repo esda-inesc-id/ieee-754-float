@@ -1,8 +1,8 @@
 \chapter{Overview}
 \label{ch:overview}
 
-This library holds five synthesizable Verilog floating-point units in the
-IEEE-754 binary format. Each \emph{unit} takes two operands with an input valid
+This library holds six synthesizable Verilog floating-point units in the
+IEEE-754 binary format. Each \emph{unit} takes two operands (three in \sig{ffma}) with an input valid
 strobe, and returns a result with an output valid strobe. Table~\ref{tab:units} lists the units and
 their latencies in clock cycles (Section~\ref{sec:protocol}).
 
@@ -11,6 +11,7 @@ their latencies in clock cycles (Section~\ref{sec:protocol}).
 \sig{fmul} & 4 & Multiplication (Chapter~\ref{ch:fmul}). \\ \hline
 \sig{fdiv} & $\mathtt{MAN\_W}+6$ (30 for binary32) & Division (Chapter~\ref{ch:fdiv}). \\ \hline
 \sig{fmac} & 8, from the last product & Sum of a stream of products (Chapter~\ref{ch:fmac}). \\ \hline
+\sig{ffma} & 6 & Fused multiply-add, $a\cdot b+c$ (Chapter~\ref{ch:ffma}). \\ \hline
 \sig{fpu} & 5 for addition, subtraction and multiplication; as \sig{fdiv} for division & Addition, subtraction, multiplication and division (Chapter~\ref{ch:fpu}). \\
 \end{threetable}
 
@@ -33,6 +34,7 @@ synthesis (Chapter~\ref{ch:syn}) and the software model (Chapter~\ref{ch:sw}).
 \item Iterative division.
 \item Accumulation of a stream of products in \sig{fmac}, with one product per
   clock cycle.
+\item A fused multiply-add in \sig{ffma}, one per clock cycle.
 \item Simple interface with an input and an output valid strobe.
 \item Asynchronous, active-high reset.
 \end{itemize}
@@ -152,6 +154,7 @@ files needed to compile each unit, as in its \file{hw/hw.mk}.
 \sig{fmul} & \file{fmul/hw/src/fmul.v}, \file{fmul/hw/src/fmul\_core.v}, and the same \file{lib/src} files \\ \hline
 \sig{fdiv} & \file{fdiv/hw/src/fdiv.v}, \file{fdiv/hw/src/fdiv\_core.v}, and the same \file{lib/src} files \\ \hline
 \sig{fmac} & \file{fmac/hw/src/fmac.v}, \file{fmac/hw/src/fmac\_core.v}, and the \file{lib/src} files except \file{norm.v} \\ \hline
+\sig{ffma} & \file{ffma/hw/src/ffma.v}, \file{ffma/hw/src/ffma\_core.v}, and the \file{lib/src} files except \file{norm.v} \\ \hline
 \sig{fpu} & \file{fpu/hw/src/fpu.v}, \file{fadd/hw/src/fadd\_core.v}, \file{fmul/hw/src/fmul\_core.v}, \file{fdiv/hw/src/fdiv\_core.v}, and the same \file{lib/src} files as \sig{fadd} \\
 \end{twotable}
 

@@ -5,7 +5,9 @@
 // NaN matches any NaN. Failing vectors are written to fails.tv.
 
 // The run configuration (TF_DUT, TF_DATA_W, TF_EXP_W, TF_RND, TF_FPU, TF_FUNCT, TF_3OP,
-// TF_RESTART) comes from sim_config.vh, written by the make flow
+// TF_FMA, TF_RESTART) comes from sim_config.vh, written by the make flow. With TF_3OP a
+// unit computes a*b + c as the stream a*b, c*1.0 (fmac), or with TF_FMA in one
+// operation (ffma)
 `include "sim_config.vh"
 
 module testfloat_tb;
@@ -29,6 +31,7 @@ module testfloat_tb;
    wire        valid_o;
    reg  [DATA_W-1:0] op_a = 0;
    reg  [DATA_W-1:0] op_b = 0;
+   reg  [DATA_W-1:0] op_c = 0;
    wire [DATA_W-1:0] res;
 
    `TF_DUT #(
@@ -45,6 +48,9 @@ module testfloat_tb;
 `endif
       .op_a   (op_a),
       .op_b   (op_b),
+`ifdef TF_FMA
+      .op_c   (op_c),
+`endif
       .res    (res)
    );
 
@@ -97,13 +103,16 @@ module testfloat_tb;
 `endif
          op_a    = vec_a;
          op_b    = vec_b;
+         op_c    = vec_c;
          valid_i = 1;
          @(negedge clk);
 `ifdef TF_3OP
+`ifndef TF_FMA
          // a*b + c*1.0
          op_a = vec_c;
          op_b = ONE;
          @(negedge clk);
+`endif
 `endif
          valid_i = 0;
 

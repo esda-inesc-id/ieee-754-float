@@ -1,4 +1,4 @@
-CORE_LIST=fadd fmul fdiv fmac fpu
+CORE_LIST=fadd fmul fdiv fmac ffma fpu
 CORE?=fpu
 ifeq ($(filter $(CORE),$(CORE_LIST)),)
 $(error CORE must be one of: $(CORE_LIST))
@@ -45,6 +45,7 @@ FADD_DIR=$(FPU_DIR)/fadd
 FMUL_DIR=$(FPU_DIR)/fmul
 FDIV_DIR=$(FPU_DIR)/fdiv
 FMAC_DIR=$(FPU_DIR)/fmac
+FFMA_DIR=$(FPU_DIR)/ffma
 FPU_UNIT_DIR=$(FPU_DIR)/fpu
 
 # INCLUDES AND HEADERS

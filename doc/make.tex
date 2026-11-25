@@ -13,7 +13,7 @@ software model (Section~\ref{sec:make_sw}).
 \label{sec:make_targets}
 
 A command has the form \sig{make <target> CORE=<unit>}, where \sig{CORE} is
-\sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac} or \sig{fpu}. Its default is
+\sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{ffma} or \sig{fpu}. Its default is
 \sig{fpu}. The test and clean targets cover every unit unless \sig{CORE} is on the
 command line. Table~\ref{tab:make_targets} lists the targets.
 
@@ -86,7 +86,7 @@ TestFloat, every unit & First \sig{SMOKE\_N} vectors per operation & Level 1; fi
 \sig{SMOKE\_FMTS} & \sig{f16 f32 f64} & TestFloat formats in \sig{test-smoke}. \\ \hline
 \sig{TF\_FMTS} & \sig{f32} & TestFloat formats in \sig{test-regular}. \\ \hline
 \sig{TF\_MODES} & \sig{rne rtz rdn rup rmm} & Rounding modes of the TestFloat runs: to nearest even, toward zero, down, up, to nearest away. \\ \hline
-\sig{TF\_N} & empty; \sig{200000} for \sig{fmac} & Keep only the first \sig{TF\_N} vectors of each operation in \sig{test-regular}. Empty runs the full level. \\ \hline
+\sig{TF\_N} & empty; \sig{200000} for \sig{fmac} and \sig{ffma} & Keep only the first \sig{TF\_N} vectors of each operation in \sig{test-regular}. Empty runs the full level. \\ \hline
 \sig{STREAM\_N} & \sig{6000} & \sig{fmac} streams in \sig{test-regular}. \\ \hline
 \sig{MIX\_N} & \sig{100000} & \sig{fpu} operations in \sig{test-regular}. \\
 \end{threetable}

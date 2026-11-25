@@ -1,4 +1,4 @@
-// Bit-accurate C model of the IEEE-754 units: fadd, fmul, fdiv, fmac and fpu.
+// Bit-accurate C model of the IEEE-754 units: fadd, fmul, fdiv, fmac, ffma and fpu.
 //
 // Operands and results are raw encodings in the low data_w bits of a uint64_t.
 // Rounding follows the mode set by ieee754_set_rounding, to nearest ties to even by
@@ -38,6 +38,9 @@ uint64_t ieee754_add(uint64_t a, uint64_t b, int data_w, int exp_w);
 uint64_t ieee754_sub(uint64_t a, uint64_t b, int data_w, int exp_w);
 uint64_t ieee754_mul(uint64_t a, uint64_t b, int data_w, int exp_w);
 uint64_t ieee754_div(uint64_t a, uint64_t b, int data_w, int exp_w);
+
+// ffma: a*b + c, rounded once. Returns 0 for an unsupported format.
+uint64_t ieee754_fma(uint64_t a, uint64_t b, uint64_t c, int data_w, int exp_w);
 
 // Conversions from and to binary64, always rounding to nearest even.
 uint64_t ieee754_from_double(double value, int data_w, int exp_w);

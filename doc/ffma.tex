@@ -1,0 +1,84 @@
+\chapter{Fused Multiply-Add Unit (ffma)}
+\label{ch:ffma}
+
+\section{Introduction}
+
+\sig{ffma} computes $\mathtt{op\_a}\times\mathtt{op\_b}+\mathtt{op\_c}$ with a
+single rounding, one operation per clock cycle. Three \sig{unpack} modules split the
+operands. The \sig{ffma\_core} module multiplies $a$ and $b$ exactly, aligns the
+product and $c$ as magnitudes, shifting the smaller one right with a sticky bit, adds
+them in two's complement and normalizes the sum, as \sig{fmac\_core} does with its
+accumulator. \sig{pack} rounds the sum in the mode of \sig{rnd\_mode}, as
+Figure~\ref{fig:ffma} shows.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=7mm]
+  \node[ugblock] (u) {3 $\times$ \sig{unpack}};
+  \node[ugblock,right=of u,minimum width=44mm] (a) {\sig{ffma\_core}\\multiply, align, add, normalize};
+  \node[ugblock,right=of a] (p) {\sig{pack}\\1 cycle};
+  \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
+  \draw[ugarrow] (u) -- (a); \draw[ugarrow] (a) -- (p);
+  \draw[ugarrow] (p) -- ($(p.east)+(9mm,0)$) node[above left,font=\footnotesize\ttfamily,xshift=1mm] {res};
+\end{tikzpicture}
+\caption{\sig{ffma} Block Diagram}
+\label{fig:ffma}
+\end{figure}
+
+\section{Features}
+
+\begin{itemize}
+\item A fused multiply-add, correctly rounded, one operation per clock cycle.
+\item A latency of 6 clock cycles.
+\item The rounding mode is \sig{rnd\_mode} with the operands.
+\item Subnormal operands and results.
+\item NaN and infinity handling, selected by \sig{SPECIAL\_CASES}.
+\end{itemize}
+
+\section{Parameters}
+
+\sig{ffma} has the parameters of Table~\ref{tab:common_params}.
+
+\section{Interface Signals}
+
+\sig{ffma} has the signals of Table~\ref{tab:common_sigs} and the third operand
+\sig{op\_c}, with the width of \sig{op\_a}.
+
+\Needspace*{23\baselineskip}
+\section{Instantiation}
+
+The example below instantiates \sig{ffma} for binary32.
+Compile it with the files of Table~\ref{tab:files}.
+
+\begin{vcode}
+ffma #(
+   .DATA_W       (32),
+   .EXP_W        (8),
+   .SPECIAL_CASES(1)
+) ffma0 (
+   .clk     (clk),
+   .rst     (rst),
+   .valid_i (valid_i),
+   .valid_o (valid_o),
+   .rnd_mode(rnd_mode),
+   .op_a    (op_a),
+   .op_b    (op_b),
+   .op_c    (op_c),
+   .res     (res)
+);
+\end{vcode}
+
+\section{Operation}
+
+Raise \sig{valid\_i} with each set of operands; \sig{valid\_o} is high with the
+result 6 clock cycles later. The special results follow IEEE~754: NaN if any operand
+is NaN, for infinity times zero, or for the sum of a product infinity and an
+infinity of the other sign; an infinity if either term is infinite; a zero with the
+sign of both terms when both are zeros of one sign, and otherwise, for an exact
+zero sum, $+0$, or $-0$ when \sig{rnd\_mode} is 2.
+
+\section{Accuracy}
+
+\sig{ffma} is correctly rounded: it passes the TestFloat \sig{f32\_mulAdd} vectors
+in all five rounding modes (Section~\ref{sec:testfloat}), and the binary16 and
+binary64 ones.

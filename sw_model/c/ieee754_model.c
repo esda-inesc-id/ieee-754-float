@@ -606,3 +606,15 @@ uint64_t ieee754_mac_result(ieee754_mac *mac) {
   mac->pushed = 0;
   return res;
 }
+
+// ffma computes a*b + c correctly rounded, as the two-product stream a*b, c*1.0 of fmac
+// does with its default guards
+uint64_t ieee754_fma(uint64_t a, uint64_t b, uint64_t c, int data_w, int exp_w) {
+  ieee754_mac *m = ieee754_mac_new(data_w, exp_w, 0, 0);
+  if (!m) return 0;
+  ieee754_mac_push(m, a, b);
+  ieee754_mac_push(m, c, ieee754_from_double(1.0, data_w, exp_w));
+  uint64_t r = ieee754_mac_result(m);
+  ieee754_mac_free(m);
+  return r;
+}

@@ -40,6 +40,10 @@ CFG+=TF_DATA_W=$(TF_DATA_W_$(TF_FMT)) TF_EXP_W=$(TF_EXP_W_$(TF_FMT))
 ifeq ($(TF_OP),mulAdd)
 CFG+=TF_3OP
 endif
+# ffma takes the three operands at once
+ifeq ($(CORE),ffma)
+CFG+=TF_FMA
+endif
 ifeq ($(CORE),fpu)
 TF_FUNCT_add=0
 TF_FUNCT_sub=1

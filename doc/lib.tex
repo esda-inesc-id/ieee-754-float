@@ -9,11 +9,11 @@ module. A user does not instantiate them directly when using a unit, but must
 compile them with it (Section~\ref{sec:files}).
 
 \begin{threetable}{Shared Modules and the Units That Use Them}{tab:lib_use}{Module}{Clocked}{Used by}{2.4cm}{1.8cm}
-\sig{unpack} & No & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{fpu} \\ \hline
-\sig{cls} & No & \sig{norm}, and the \sig{fdiv\_core} and \sig{fmac\_core} datapaths \\ \hline
-\sig{norm} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fpu}; \sig{fmac} normalizes inside \sig{fmac\_core} \\ \hline
+\sig{unpack} & No & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{ffma}, \sig{fpu} \\ \hline
+\sig{cls} & No & \sig{norm}, and the \sig{fdiv\_core}, \sig{fmac\_core} and \sig{ffma\_core} datapaths \\ \hline
+\sig{norm} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fpu}; \sig{fmac} and \sig{ffma} normalize inside their cores \\ \hline
 \sig{round} & No & \sig{pack} \\ \hline
-\sig{pack} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{fpu} \\
+\sig{pack} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{ffma}, \sig{fpu} \\
 \end{threetable}
 
 \section{unpack}
@@ -103,13 +103,12 @@ encoding, or the largest finite number when the mode rounds toward zero for
 
 Its parameter \sig{DATA\_W} is the \emph{mantissa} width (default 24), and
 \sig{EXP\_W} is the exponent width (default 8). With \sig{INV}~=~1 (default 0) it
-also accepts a mantissa in one's complement, flagged by \sig{inv}; only \sig{fmac}
-needs it. The module always takes three extra bits. Its signals are listed in Table~\ref{tab:round}.
+also accepts a mantissa in one's complement when \sig{sign} is 1, as \sig{fmac} and
+\sig{ffma} produce it. The module always takes three extra bits. Its signals are listed in Table~\ref{tab:round}.
 
 \begin{sigtable}{\sig{round} Signals}{tab:round}
 exponent\_i & Input & EXP\_I\_W & Exponent, never negative. \sig{EXP\_I\_W} is EXP\_W+1, or EXP\_W in \sig{fadd}, whose exponent never exceeds $2^{\mathtt{EXP\_W}}-1$ before rounding. \\ \hline
 mantissa\_i & Input & DATA\_W+3 & Mantissa followed by the guard, round and sticky bits. \\ \hline
-inv & Input & 1 & With \sig{INV}~=~1, the mantissa is in one's complement. Ignored with \sig{INV}~=~0. \\ \hline
 sign & Input & 1 & Sign of the result, for the directed modes. \\ \hline
 rnd\_mode & Input & 3 & Rounding mode. \\ \hline
 exponent\_o & Output & EXP\_W & Rounded exponent. \\ \hline
@@ -127,15 +126,13 @@ exact cancellation, so it is $+0$, or $-0$ when \sig{rnd\_mode} is 2; the cores 
 zero operands as special zero codes with their sign. A special result code other
 than the computed result replaces the result. Its parameters are \sig{DATA\_W},
 \sig{EXP\_W} and \sig{MAN\_W} (Table~\ref{tab:common_params}), and \sig{INV},
-passed to \sig{round}; \sig{fmac} sets it to 1, and the other units leave \sig{inv}
-unconnected. Its signals are listed in Table~\ref{tab:pack}.
+passed to \sig{round}; \sig{fmac} and \sig{ffma} set it to 1. Its signals are listed in Table~\ref{tab:pack}.
 
 \begin{sigtable}{\sig{pack} Signals}{tab:pack}
 clk & Input & 1 & Clock. \\ \hline
 rst & Input & 1 & Asynchronous reset, active high. \\ \hline
 valid\_i & Input & 1 & Input data valid. \\ \hline
 valid\_o & Output & 1 & \sig{valid\_i} delayed by one clock cycle. \\ \hline
-inv & Input & 1 & With \sig{INV}~=~1, the mantissa is in one's complement, passed to \sig{round}. Ignored with \sig{INV}~=~0. \\ \hline
 rnd\_mode & Input & 3 & Rounding mode, passed to \sig{round}. \\ \hline
 res\_special\_i & Input & 3 & Special result code \{kind, sign\}. Kind 0: the computed result; 1: the canonical NaN; 2: an infinity; 3: a zero, with the sign. \\ \hline
 sign\_i & Input & 1 & Sign. \\ \hline

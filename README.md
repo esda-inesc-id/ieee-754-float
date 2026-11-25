@@ -10,6 +10,7 @@ The user guide is `doc/ieee754_float_ug.pdf`.
 | `fmul` | Multiplication                    | 4, pipelined       |
 | `fdiv` | Division                          | 30, iterative      |
 | `fmac` | Sum of a stream of products       | 8, after the last product |
+| `ffma` | Fused multiply-add, a*b + c       | 6, pipelined       |
 | `fpu`  | Add, subtract, multiply, divide   | 5; division 30     |
 
 `sw_model` holds a bit-accurate C model of the units, with C++ types, a Python

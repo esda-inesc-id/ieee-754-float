@@ -1,7 +1,7 @@
 // Command-line driver of the C model, reading vectors from stdin.
 //
 // model_run tf <add|sub|mul|div|mulAdd> <data_w> <exp_w> [rnd]   compares with TestFloat
-//                                                     vectors; mulAdd runs fmac on a*b + c*1
+//                                                     vectors; mulAdd runs ieee754_fma
 // model_run mix <data_w> <exp_w> [rnd]                "funct a b ..." lines, one result per line
 // model_run mac <data_w> <exp_w> <lguard> <rguard> <step> [rnd]
 //                                                     product streams, one result per stream;
@@ -50,9 +50,6 @@ static int run_testfloat(const char *name, int data_w, int exp_w) {
   binary_op op = find_op(name);
   int mul_add = !strcmp(name, "mulAdd");
   if (!op && !mul_add) return 2;
-  ieee754_mac *mac = mul_add ? ieee754_mac_new(data_w, exp_w, 0, 0) : NULL;
-  if (mul_add && !mac) return 2;
-  uint64_t one = ieee754_from_double(1.0, data_w, exp_w);
 
   char line[256];
   uint64_t vectors = 0, mismatches = 0;
@@ -64,9 +61,7 @@ static int run_testfloat(const char *name, int data_w, int exp_w) {
     uint64_t expected = v[n - 2];
     uint64_t res;
     if (mul_add) {
-      ieee754_mac_push(mac, v[0], v[1]);
-      ieee754_mac_push(mac, v[2], one);
-      res = ieee754_mac_result(mac);
+      res = ieee754_fma(v[0], v[1], v[2], data_w, exp_w);
     } else {
       res = op(v[0], v[1], data_w, exp_w);
     }
@@ -79,7 +74,6 @@ static int run_testfloat(const char *name, int data_w, int exp_w) {
       mismatches++;
     }
   }
-  if (mac) ieee754_mac_free(mac);
   printf("f%d_%s rnd=%d vectors=%" PRIu64 " mismatches=%" PRIu64 "\n", data_w, name,
          ieee754_get_rounding(), vectors, mismatches);
   return mismatches != 0 || vectors == 0;

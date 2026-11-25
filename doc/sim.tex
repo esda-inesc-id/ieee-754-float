@@ -24,6 +24,7 @@ waveforms to \file{<unit>.vcd}. Table~\ref{tab:tbs} lists what each one applies.
 \sig{fmul\_tb} & Directed multiplications. It prints nothing; inspect the waveforms. \\ \hline
 \sig{fdiv\_tb} & Directed divisions. It prints nothing; inspect the waveforms. \\ \hline
 \sig{fmac\_tb} & Streams of products: small integers, a simple sum, $\cos(i)$, $\sum 1/i$, $\sum 1/i^2$, a Taylor series of $e^{-2\pi}$, normally distributed values, random values, equally spaced values, heavy cancellation, and one large value with many small ones. It prints each result next to a double-precision reference, with the relative and absolute errors. \\ \hline
+\sig{ffma\_tb} & Four fused multiply-adds, one per clock cycle. It prints the results. \\ \hline
 \sig{fpu\_tb} & Directed additions (\sig{funct} 0), multiplications (2) and divisions (3). It prints nothing; inspect the waveforms. \\
 \end{twotable}
 
@@ -50,20 +51,21 @@ exception flag outputs. Any NaN result matches any expected NaN.
 Table~\ref{tab:tf_ops} lists the operations of each unit, and
 Table~\ref{tab:tf_runs} the two test runs. For \sig{f32\_mulAdd}, the testbench
 sends a stream of two products to \sig{fmac}, $a \cdot b$ and $c \cdot 1.0$, so
-the expected result is $a \cdot b + c$.
+the expected result is $a \cdot b + c$, and the three operands at once to \sig{ffma}.
 
 \begin{twotable}{TestFloat Operations of Each Unit}{tab:tf_ops}{Unit}{Operations}{2.6cm}
 \sig{fadd} & \sig{f32\_add} \\ \hline
 \sig{fmul} & \sig{f32\_mul} \\ \hline
 \sig{fdiv} & \sig{f32\_div} \\ \hline
 \sig{fmac} & \sig{f32\_mul}, \sig{f32\_mulAdd} \\ \hline
+\sig{ffma} & \sig{f32\_mulAdd} \\ \hline
 \sig{fpu} & \sig{f32\_add}, \sig{f32\_sub}, \sig{f32\_mul}, \sig{f32\_div} \\
 \end{twotable}
 
 \begin{twotable}{TestFloat Runs}{tab:tf_runs}{Run}{Vectors}{2.6cm}
 Smoke & The first 1,000 vectors of each operation. \\ \hline
-Regular & TestFloat level 1: 46,464 vectors per two-operand operation. For \sig{fmac}, \sig{f32\_mul} and the first 200,000 of the 6,133,248 level 1 \sig{f32\_mulAdd} vectors. \\ \hline
-Full & The smoke run, then the regular run with all 6,133,248 \sig{f32\_mulAdd} vectors for \sig{fmac}. \\
+Regular & TestFloat level 1: 46,464 vectors per two-operand operation. For \sig{fmac}, \sig{f32\_mul} and the first 200,000 of the 6,133,248 level 1 \sig{f32\_mulAdd} vectors, and for \sig{ffma} those 200,000. \\ \hline
+Full & The smoke run, then the regular run with all 6,133,248 \sig{f32\_mulAdd} vectors for \sig{fmac} and \sig{ffma}. \\
 \end{twotable}
 
 The test writes these files to \file{<unit>/hw/sim}:

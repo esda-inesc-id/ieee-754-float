@@ -1,4 +1,4 @@
-# make <target> [CORE=fadd|fmul|fdiv|fmac|fpu] [SIMULATOR=icarus|xezim|xsim|xcelium|verilator]
+# make <target> [CORE=fadd|fmul|fdiv|fmac|ffma|fpu] [SIMULATOR=icarus|xezim|xsim|xcelium|verilator]
 # CADENCE_SERVER (Xcelium, Genus) and VIVADO_SERVER: empty runs locally
 # make run CPROG=<example>|all|ieee754_tests
 # make run PYPROG=<program> [ARGS="<arguments>"]

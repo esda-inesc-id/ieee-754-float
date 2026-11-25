@@ -39,6 +39,7 @@ always round to nearest, ties to even.
 \sig{ieee754\_format\_ok(data\_w, exp\_w)} & Returns 1 if the format is accepted. \\ \hline
 \sig{ieee754\_set\_rounding(mode)}, \sig{ieee754\_get\_rounding()} & Sets or returns the rounding mode. \\ \hline
 \sig{ieee754\_add}, \sig{ieee754\_sub}, \sig{ieee754\_mul}, \sig{ieee754\_div} & Operation on \sig{(a, b, data\_w, exp\_w)}. \\ \hline
+\sig{ieee754\_fma} & \sig{ffma}: $a\cdot b+c$ rounded once, on \sig{(a, b, c, data\_w, exp\_w)}. \\ \hline
 \sig{ieee754\_from\_double(value, data\_w, exp\_w)} & Conversion from binary64, rounding to nearest even. \\ \hline
 \sig{ieee754\_to\_double(bits, data\_w, exp\_w)} & Conversion to binary64. \\ \hline
 \sig{ieee754\_mac\_new(data\_w, exp\_w, lguard\_w, rguard\_w)} & Creates a clocked model of the \sig{fmac\_core} pipeline. Returns \sig{NULL} for an unaccepted format or if $\mathtt{lguard\_w}+\mathtt{rguard\_w}+2(\mathtt{data\_w}-\mathtt{exp\_w})+5 > 128$. \\ \hline
