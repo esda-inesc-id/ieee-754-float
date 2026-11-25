@@ -1,7 +1,8 @@
 # ieee-754-float
 
 IEEE-754 floating-point units in Verilog, parameterized in word and exponent
-width (binary32 by default), with subnormals and round to nearest, ties to even.
+width (binary32 by default), with subnormals and the five IEEE-754 rounding modes,
+selected at run time.
 The user guide is `doc/ieee754_float_ug.pdf`.
 
 | Unit   | Function                          | Latency (binary32) |
@@ -15,6 +16,9 @@ The user guide is `doc/ieee754_float_ug.pdf`.
 
 `sw_model` holds a bit-accurate C model of the units, with C++ types, a Python
 wrapper, a math library built on the model (`sqrt`, `exp`, `log`) and examples.
+`sw_model/study` holds an accuracy study of `fmac` against FMA chains, separate
+multiply and add, and an exact accumulator (`make -C sw_model fmac-accuracy`,
+needs MPFR).
 
 ## Usage
 
