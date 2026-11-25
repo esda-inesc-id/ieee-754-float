@@ -132,6 +132,7 @@ sw-test:
 	$(MAKE_SUB) -C $(FPU_SW_DIR) test
 
 sw-check:
+	$(MAKE_SUB) -C fadd/hw/sim testfloat-build
 	$(MAKE_SUB) -C $(FPU_SW_DIR) check
 
 #

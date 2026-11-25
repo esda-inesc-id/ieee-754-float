@@ -23,6 +23,9 @@ $(TF_GEN):
 	$(MAKE) -C $(TF_BUILD)/berkeley-softfloat-3/build/Linux-x86_64-GCC
 	$(MAKE) -C $(TF_BUILD)/berkeley-testfloat-3/build/Linux-x86_64-GCC testfloat_gen
 
+# builds TestFloat only (the model check uses testfloat_gen)
+testfloat-build: $(TF_GEN)
+
 testfloat: $(TF_GEN)
 	@status=0; for fmt in $(TF_FMTS); do for op in $(TF_OPS); do for m in $(TF_MODES); do \
 	  case $$m in rne) r=0 g=-rnear_even;; rtz) r=1 g=-rminMag;; rdn) r=2 g=-rmin;; \
@@ -38,4 +41,4 @@ testfloat: $(TF_GEN)
 testfloat-clean:
 	@rm -f vectors.tv fails.tv fails_*.tv testfloat_*.rpt sim_config.vh
 
-.PHONY: testfloat testfloat-clean
+.PHONY: testfloat testfloat-build testfloat-clean
