@@ -5,7 +5,9 @@ module fmac #(
    parameter EXP_W         = 8,
    parameter SPECIAL_CASES = 1,
    parameter LGUARD_W      = 0,
-   parameter RGUARD_W      = 0
+   parameter RGUARD_W      = 0,
+   // accumulator normalization step; see fmac_core.v
+   parameter STEP          = 1
 ) (
    input clk,
    input rst,
@@ -79,7 +81,8 @@ module fmac #(
       .EXP_W        (EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES),
       .LGUARD_W     (LGUARD_W),
-      .RGUARD_W     (RGUARD_W)
+      .RGUARD_W     (RGUARD_W),
+      .STEP         (STEP)
    ) mac0 (
       .clk(clk),
       .rst(rst),

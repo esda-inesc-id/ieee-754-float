@@ -49,7 +49,8 @@ $\mathtt{LGUARD\_W}+2\cdot\mathtt{MAN\_W}+\mathtt{RGUARD\_W}+5$ bits.
 
 \begin{paramtable}{\sig{fmac} Additional Parameters}{tab:fmac_params}
 LGUARD\_W & 0 & Guard bits added above the product in the accumulator. \\ \hline
-RGUARD\_W & 0 & Guard bits added below the product in the accumulator. \\
+RGUARD\_W & 0 & Guard bits added below the product in the accumulator. \\ \hline
+STEP & 1 & Largest left normalization shift of the accumulator per accumulation, for architecture studies: up to $\mathtt{LGUARD\_W}+2\cdot\mathtt{MAN\_W}+\mathtt{RGUARD\_W}+3$ (full normalization). \\
 \end{paramtable}
 
 \section{Interface Signals}

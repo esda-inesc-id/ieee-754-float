@@ -6,7 +6,10 @@ module fmac_core #(
    parameter MAN_W         = DATA_W - EXP_W,
    parameter SPECIAL_CASES = 1,
    parameter LGUARD_W      = 0,
-   parameter RGUARD_W      = 0
+   parameter RGUARD_W      = 0,
+   // largest left normalization shift of the accumulator per accumulation: 1, or up to
+   // LGUARD_W + 2 * MAN_W + RGUARD_W + 3 for full normalization (architecture studies)
+   parameter STEP          = 1
 ) (
    input clk,
    input rst,
@@ -165,14 +168,37 @@ module fmac_core #(
    wire ovf_int = ^acc_man_reg[ACC_W+EXTRA-:2];
    wire undf_int = (~^acc_man_reg[ACC_W+EXTRA-1-:2]) & (|acc_man_reg);
 
+   // left normalization: 1 bit, or up to STEP bits keeping two sign bits
+   localparam STEP_LZ_W = $clog2(STEP + 2);
+   wire [EXP_W+1:0] acc_exp_lsh;
+   wire [ACC_W+1:0] acc_man_lsh;
+   generate
+      if (STEP == 1) begin : gen_step1
+         assign acc_exp_lsh = acc_exp_reg - 1'b1;
+         assign acc_man_lsh = {acc_odd[ACC_W-1:0], 2'b00};
+      end else begin : gen_step
+         // leading bits equal to the sign below it, within STEP + 1 bits
+         wire [STEP_LZ_W-1:0] step_lz;
+         cls #(
+            .DATA_W(STEP + 1)
+         ) cls_step (
+            .data_in (acc_man_reg[ACC_W+EXTRA-1-:STEP+1] ^ {(STEP + 1) {acc_man_reg[ACC_W+EXTRA]}}),
+            .data_out(step_lz)
+         );
+         wire [STEP_LZ_W-1:0] step_sh = step_lz - 1'b1;
+         assign acc_exp_lsh = acc_exp_reg - step_sh;
+         assign acc_man_lsh = {acc_odd, 1'b0} << step_sh;
+      end
+   endgenerate
+
    wire [EXP_W+1:0] B_exp_int = acc_clr ? EXP_ZERO :
       ovf_int ? acc_exp_reg + 1'b1 :
-      undf_int ? acc_exp_reg - 1'b1 :
+      undf_int ? acc_exp_lsh :
       acc_exp_reg;
    wire [ACC_W+1:0] B_man_hi =
       acc_clr ? {(ACC_W + 2) {1'b0}} :
       ovf_int ? {acc_man_reg[ACC_W+EXTRA], acc_odd} :
-      undf_int ? {acc_odd[ACC_W-1:0], 2'b00} :
+      undf_int ? acc_man_lsh :
       {acc_odd, 1'b0};
 
    wire comp = ($signed(

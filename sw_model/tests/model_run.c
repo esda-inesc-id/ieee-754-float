@@ -3,8 +3,9 @@
 // model_run tf <add|sub|mul|div|mulAdd> <data_w> <exp_w> [rnd]   compares with TestFloat
 //                                                     vectors; mulAdd runs fmac on a*b + c*1
 // model_run mix <data_w> <exp_w> [rnd]                "funct a b ..." lines, one result per line
-// model_run mac <data_w> <exp_w> <lguard> <rguard> [rnd]
-//                                                     product streams, one result per stream
+// model_run mac <data_w> <exp_w> <lguard> <rguard> <step> [rnd]
+//                                                     product streams, one result per stream;
+//                                                     step is the fmac STEP parameter
 //
 // rnd is the rounding mode, 0 (default) to 7, or "cycle": operation or product k (from 0)
 // then rounds in mode cycle_mode(k), as rtl_tb.v drives it with +rnd_cycle.
@@ -98,9 +99,10 @@ static int run_mix(int data_w, int exp_w) {
   return 0;
 }
 
-static int run_mac(int data_w, int exp_w, int lguard_w, int rguard_w) {
+static int run_mac(int data_w, int exp_w, int lguard_w, int rguard_w, int step) {
   ieee754_mac *mac = ieee754_mac_new(data_w, exp_w, lguard_w, rguard_w);
   if (!mac) return 2;
+  ieee754_mac_set_step(mac, step);
   unsigned n, k = 0;
   while (scanf("%u", &n) == 1) {
     for (unsigned i = 0; i < n; i++) {
@@ -116,7 +118,7 @@ static int run_mac(int data_w, int exp_w, int lguard_w, int rguard_w) {
 }
 
 int main(int argc, char **argv) {
-  int base = argc > 1 && !strcmp(argv[1], "tf") ? 5 : argc > 1 && !strcmp(argv[1], "mix") ? 4 : 6;
+  int base = argc > 1 && !strcmp(argv[1], "tf") ? 5 : argc > 1 && !strcmp(argv[1], "mix") ? 4 : 7;
   if (argc == base + 1) {
     set_mode(argv[base]);
     argc--;
@@ -125,8 +127,8 @@ int main(int argc, char **argv) {
     return run_testfloat(argv[2], atoi(argv[3]), atoi(argv[4]));
   }
   if (argc == 4 && !strcmp(argv[1], "mix")) return run_mix(atoi(argv[2]), atoi(argv[3]));
-  if (argc == 6 && !strcmp(argv[1], "mac")) {
-    return run_mac(atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]));
+  if (argc == 7 && !strcmp(argv[1], "mac")) {
+    return run_mac(atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
   }
   fprintf(stderr, "usage: see the header of model_run.c\n");
   return 2;

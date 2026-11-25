@@ -16,6 +16,7 @@ module rtl_tb;
    parameter EXP_W = `RTL_EXP_W;
    parameter LGUARD_W = `RTL_LGUARD_W;
    parameter RGUARD_W = `RTL_RGUARD_W;
+   parameter STEP = `RTL_STEP;
    parameter CLK_PER = 20;
    parameter GAP = 2;
    parameter MAX_WAIT = 1024;
@@ -59,7 +60,8 @@ module rtl_tb;
       .DATA_W  (DATA_W),
       .EXP_W   (EXP_W),
       .LGUARD_W(LGUARD_W),
-      .RGUARD_W(RGUARD_W)
+      .RGUARD_W(RGUARD_W),
+      .STEP    (STEP)
    ) dut (
       .clk    (clk),
       .rst    (rst),

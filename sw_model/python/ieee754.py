@@ -37,6 +37,8 @@ def _library():
     lib.ieee754_to_double.restype = ctypes.c_double
     lib.ieee754_mac_new.argtypes = [cint, cint, cint, cint]
     lib.ieee754_mac_new.restype = ctypes.c_void_p
+    lib.ieee754_mac_set_step.argtypes = [ctypes.c_void_p, cint]
+    lib.ieee754_mac_set_step.restype = None
     lib.ieee754_mac_free.argtypes = [ctypes.c_void_p]
     lib.ieee754_mac_free.restype = None
     lib.ieee754_mac_push.argtypes = [ctypes.c_void_p, u64, u64]
@@ -75,11 +77,12 @@ class Rounding:
 class Mac:
     """Streaming fmac: push products, then read the result of the stream."""
 
-    def __init__(self, data_w=32, exp_w=8, lguard_w=0, rguard_w=0):
+    def __init__(self, data_w=32, exp_w=8, lguard_w=0, rguard_w=0, step=1):
         self._lib = _library()
         self._handle = self._lib.ieee754_mac_new(data_w, exp_w, lguard_w, rguard_w)
         if not self._handle:
             raise ValueError("unsupported fmac configuration")
+        self._lib.ieee754_mac_set_step(self._handle, step)
 
     def push(self, a, b):
         self._lib.ieee754_mac_push(self._handle, a, b)
