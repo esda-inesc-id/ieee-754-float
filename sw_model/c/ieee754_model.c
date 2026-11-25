@@ -378,6 +378,9 @@ struct ieee754_mac {
   int pushed;
   int rnd;  // rounding mode at the last product
   int step;  // largest left normalization shift per accumulation (1 in the RTL)
+  // statistics for architecture studies: accumulations of products, those that align
+  // with a not fully normalized accumulator, and their missing normalization bits
+  long stat_accs, stat_lagged, stat_lag_bits;
   mac_regs r;
 };
 
@@ -401,6 +404,12 @@ ieee754_mac *ieee754_mac_new(int data_w, int exp_w, int lguard_w, int rguard_w) 
 void ieee754_mac_free(ieee754_mac *mac) { free(mac); }
 
 void ieee754_mac_set_step(ieee754_mac *mac, int step) { mac->step = step < 1 ? 1 : step; }
+
+void ieee754_mac_stats(const ieee754_mac *mac, long *accs, long *lagged, long *lag_bits) {
+  *accs = mac->stat_accs;
+  *lagged = mac->stat_lagged;
+  *lag_bits = mac->stat_lag_bits;
+}
 
 // acc_odd: the accumulator rounded to odd at acc_w + 1 bits.
 static u128 mac_acc_odd(const ieee754_mac *m) {
@@ -504,6 +513,10 @@ static void mac_clock(ieee754_mac *m, int valid_i, uint64_t op_a, uint64_t op_b)
     // shift left by up to step positions, keeping two sign bits
     uint32_t lsc = count_leading(r->acc_man, word_w, acc_top);
     uint32_t sh = lsc - 2 < (uint32_t)m->step ? lsc - 2 : (uint32_t)m->step;
+    if (r->valid_d2 && lsc - 2 > sh) {
+      m->stat_lagged++;
+      m->stat_lag_bits += lsc - 2 - sh;
+    }
     b_exp_int = (r->acc_exp - sh) & f->exp_mask;
     b_man_int = shift_left(acc_odd, EXTRA + sh) & mask(word_w);
   } else {
@@ -511,6 +524,7 @@ static void mac_clock(ieee754_mac *m, int valid_i, uint64_t op_a, uint64_t op_b)
     b_man_int = acc_odd << EXTRA;
   }
 
+  if (r->valid_d2) m->stat_accs++;
   int comp = exp_signed(f, a_exp_int) >= exp_signed(f, b_exp_int);
   uint32_t big_exp = comp ? a_exp_int : b_exp_int;
   uint32_t small_exp = comp ? b_exp_int : a_exp_int;

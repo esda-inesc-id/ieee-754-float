@@ -34,8 +34,8 @@ enum { V_FMAC1, V_FMAC8, V_FMACF, V_FMA, V_MULADD, V_EXACT, NV };
 static const char *vname[NV] = {"fmac-1", "fmac-8", "fmac-full", "fma", "mul+add", "exact"};
 static const int vstep[3] = {1, 8, 128};
 
-// the format under study
-static int data_w, exp_w, prec, bias;
+// the format under study, and the fmac right guard
+static int data_w, exp_w, prec, bias, rguard;
 static mpfr_exp_t emin_fmt, emax_fmt;
 
 // Deterministic random numbers (xorshift64*)
@@ -81,6 +81,7 @@ static void exact_dot(const double *a, const double *b, int n, mpfr_t out) {
 typedef struct {
   double max_ulp, sum_ulp, bound;
   long count, correct;
+  long accs, lagged, lag_bits;  // fmac-1 normalization lag
 } stat;
 
 static ieee754_mac *mac[3];
@@ -97,11 +98,17 @@ static void run(const double *a, const double *b, int n, stat *st) {
   for (int i = 0; i < n; i++) sabs += fabs(a[i] * b[i]);
 
   double res[NV];
+  long accs0, lagged0, bits0, accs1, lagged1, bits1;
+  ieee754_mac_stats(mac[0], &accs0, &lagged0, &bits0);
   for (int v = 0; v < 3; v++) {
     for (int i = 0; i < n; i++)
       ieee754_mac_push(mac[v], ieee754_from_double(a[i], data_w, exp_w), ieee754_from_double(b[i], data_w, exp_w));
     res[v] = ieee754_to_double(ieee754_mac_result(mac[v]), data_w, exp_w);
   }
+  ieee754_mac_stats(mac[0], &accs1, &lagged1, &bits1);
+  st[0].accs += accs1 - accs0;
+  st[0].lagged += lagged1 - lagged0;
+  st[0].lag_bits += bits1 - bits0;
   double acc = 0;
   for (int i = 0; i < n; i++) {  // fma: acc = round(a*b + acc)
     mpfr_set_d(tmp, a[i], MPFR_RNDN);
@@ -146,7 +153,9 @@ static void report(const char *stream, const char *param, stat *st) {
     printf(" | 2^%.1f", log2(st[V_FMAC1].bound));
   else
     printf(" | -");
-  printf("\n");
+  // fmac-1: % of products aligned with a lagging accumulator, mean missing bits then
+  printf(" | lag %.2f%% %.1f\n", 100.0 * st[0].lagged / (st[0].accs ? st[0].accs : 1),
+         st[0].lagged ? (double)st[0].lag_bits / st[0].lagged : 0.0);
 }
 
 // Ogita, Rump and Oishi, "Accurate sum and dot product", Algorithm 6.1 (GenDot), in the
@@ -210,7 +219,7 @@ static void study(int dw, int ew, double scale, const double *conds, int nconds)
   emax_fmt = bias + 1;
   mpfr_set_prec(fmt_tmp, prec);
   for (int v = 0; v < 3; v++) {
-    mac[v] = ieee754_mac_new(dw, ew, 0, 0);
+    mac[v] = ieee754_mac_new(dw, ew, 0, rguard);
     ieee754_mac_set_step(mac[v], vstep[v]);
   }
   int nmax = 100000;
@@ -285,20 +294,218 @@ static void study(int dw, int ew, double scale, const double *conds, int nconds)
   free(b);
 }
 
-int main(int argc, char **argv) {
-  // optional argument: the formats to run, e.g. "16 32 64" (default all)
-  int run16 = argc < 2, run32 = argc < 2, run64 = argc < 2;
-  for (int i = 1; i < argc; i++) {
-    run16 |= atoi(argv[i]) == 16;
-    run32 |= atoi(argv[i]) == 32;
-    run64 |= atoi(argv[i]) == 64;
+// Relative error against the condition number c = 2 sum|ab| / |s| of GenDot streams of
+// length 100, binned by the decade of the measured c: the largest relative error of
+// fmac-1, fmac-8, fma and mul+add, and the bound of Theorem 1 at the bin's upper edge.
+static void sweep(int dw, int ew, int decades, int trials) {
+  data_w = dw;
+  exp_w = ew;
+  prec = dw - ew;
+  bias = (1 << (ew - 1)) - 1;
+  emin_fmt = 3 - bias - prec;
+  emax_fmt = bias + 1;
+  mpfr_set_prec(fmt_tmp, prec);
+  for (int v = 0; v < 3; v++) {
+    mac[v] = ieee754_mac_new(dw, ew, 0, rguard);
+    ieee754_mac_set_step(mac[v], vstep[v]);
   }
+  enum { NB = 48 };
+  int n = 100;
+  double a[100], b[100], maxrel[NB][NV] = {{0}};
+  long cnt[NB] = {0};
+  for (int d = 1; d <= decades; d++) {
+    for (int t = 0; t < trials; t++) {
+      gendot(a, b, n, pow(10, d));
+      exact_dot(a, b, n, exact_acc);
+      double s = mpfr_get_d(exact_acc, MPFR_RNDN), sabs = 0;
+      for (int i = 0; i < n; i++) sabs += fabs(a[i] * b[i]);
+      if (s == 0) continue;
+      int bin = (int)floor(log10(2 * sabs / fabs(s)));
+      if (bin < 0) bin = 0;
+      if (bin >= NB) continue;
+      double res[NV];
+      for (int v = 0; v < 3; v++) {
+        for (int i = 0; i < n; i++)
+          ieee754_mac_push(mac[v], ieee754_from_double(a[i], dw, ew), ieee754_from_double(b[i], dw, ew));
+        res[v] = ieee754_to_double(ieee754_mac_result(mac[v]), dw, ew);
+      }
+      double acc = 0;
+      for (int i = 0; i < n; i++) {
+        mpfr_set_d(tmp, a[i], MPFR_RNDN);
+        mpfr_mul_d(tmp, tmp, b[i], MPFR_RNDN);
+        mpfr_add_d(tmp, tmp, acc, MPFR_RNDN);
+        acc = round_fmt(tmp);
+      }
+      res[V_FMA] = acc;
+      acc = 0;
+      for (int i = 0; i < n; i++) {
+        mpfr_set_d(tmp, a[i], MPFR_RNDN);
+        mpfr_mul_d(tmp, tmp, b[i], MPFR_RNDN);
+        double p = round_fmt(tmp);
+        mpfr_set_d(tmp, acc, MPFR_RNDN);
+        mpfr_add_d(tmp, tmp, p, MPFR_RNDN);
+        acc = round_fmt(tmp);
+      }
+      res[V_MULADD] = acc;
+      cnt[bin]++;
+      for (int v = 0; v < NV - 1; v++) {
+        if (v == V_FMACF) continue;
+        mpfr_sub_d(tmp, exact_acc, res[v], MPFR_RNDN);
+        double rel = fabs(mpfr_get_d(tmp, MPFR_RNDN)) / fabs(s);
+        if (rel > maxrel[bin][v]) maxrel[bin][v] = rel;
+      }
+    }
+  }
+  for (int bin = 0; bin < NB; bin++) {
+    if (!cnt[bin]) continue;
+    // bound: u/2 + (n+1) 2^-(2p+g_R-3) S/|s|, with S/|s| = c/2 at the bin's upper edge
+    double bound = ldexp(1, -prec) + (n + 1) * ldexp(1, -(2 * prec + rguard - 3)) * pow(10, bin + 1) / 2;
+    printf("sweep f%d c=1e%d streams=%ld fmac1=%.3g fmac8=%.3g fma=%.3g muladd=%.3g bound=%.3g\n", dw, bin,
+           cnt[bin], maxrel[bin][V_FMAC1], maxrel[bin][V_FMAC8], maxrel[bin][V_FMA], maxrel[bin][V_MULADD], bound);
+  }
+  for (int v = 0; v < 3; v++) ieee754_mac_free(mac[v]);
+}
+
+// One dot product of every variant: results in res[NV] (doubles in the format)
+static void dot_all(const double *a, const double *b, int n, double *res) {
+  for (int v = 0; v < 3; v++) {
+    for (int i = 0; i < n; i++)
+      ieee754_mac_push(mac[v], ieee754_from_double(a[i], data_w, exp_w), ieee754_from_double(b[i], data_w, exp_w));
+    res[v] = ieee754_to_double(ieee754_mac_result(mac[v]), data_w, exp_w);
+  }
+  double acc = 0;
+  for (int i = 0; i < n; i++) {
+    mpfr_set_d(tmp, a[i], MPFR_RNDN);
+    mpfr_mul_d(tmp, tmp, b[i], MPFR_RNDN);
+    mpfr_add_d(tmp, tmp, acc, MPFR_RNDN);
+    acc = round_fmt(tmp);
+  }
+  res[V_FMA] = acc;
+  acc = 0;
+  for (int i = 0; i < n; i++) {
+    mpfr_set_d(tmp, a[i], MPFR_RNDN);
+    mpfr_mul_d(tmp, tmp, b[i], MPFR_RNDN);
+    double p = round_fmt(tmp);
+    mpfr_set_d(tmp, acc, MPFR_RNDN);
+    mpfr_add_d(tmp, tmp, p, MPFR_RNDN);
+    acc = round_fmt(tmp);
+  }
+  res[V_MULADD] = acc;
+  exact_dot(a, b, n, exact_acc);
+  res[V_EXACT] = mpfr_get_d(exact_acc, MPFR_RNDN);  // exact (to binary64)
+}
+
+static void set_format(int dw, int ew) {
+  data_w = dw;
+  exp_w = ew;
+  prec = dw - ew;
+  bias = (1 << (ew - 1)) - 1;
+  emin_fmt = 3 - bias - prec;
+  emax_fmt = bias + 1;
+  mpfr_set_prec(fmt_tmp, prec);
+  for (int v = 0; v < 3; v++) {
+    mac[v] = ieee754_mac_new(dw, ew, 0, rguard);
+    ieee754_mac_set_step(mac[v], vstep[v]);
+  }
+}
+
+// Applications: (1) a 63-tap windowed-sinc low-pass FIR filter on a signal of three
+// tones plus noise: output SNR (dB) against the exact filter output; (2) k-means
+// assignment: 2,000 points of dimension 128 to 16 centroids by squared distance,
+// computed as the dot product of the differences with themselves: assignments that
+// differ from the exact ones.
+static void apps(int dw, int ew) {
+  set_format(dw, ew);
+  enum { TAPS = 63, LEN = 20000 };
+  static double h[TAPS], x[LEN + TAPS], win[TAPS], res[NV];
+  for (int k = 0; k < TAPS; k++) {
+    double t = k - (TAPS - 1) / 2.0, fc = 0.1;
+    double sinc = t == 0 ? 2 * fc : sin(2 * M_PI * fc * t) / (M_PI * t);
+    h[k] = to_fmt(sinc * (0.54 - 0.46 * cos(2 * M_PI * k / (TAPS - 1))));
+  }
+  for (int i = 0; i < LEN + TAPS; i++)
+    x[i] = to_fmt(0.5 * sin(0.05 * i) + 0.3 * sin(0.31 * i) + 0.1 * sin(1.7 * i) + 0.05 * nrand());
+  double sig = 0, noise[NV] = {0};
+  for (int i = 0; i < LEN; i++) {
+    for (int k = 0; k < TAPS; k++) win[k] = x[i + k];
+    dot_all(win, h, TAPS, res);
+    sig += res[V_EXACT] * res[V_EXACT];
+    for (int v = 0; v < NV - 1; v++) noise[v] += (res[v] - res[V_EXACT]) * (res[v] - res[V_EXACT]);
+  }
+  printf("app f%d fir snr_db", dw);
+  for (int v = 0; v < NV - 1; v++) printf(" %s=%.1f", vname[v], noise[v] > 0 ? 10 * log10(sig / noise[v]) : INFINITY);
+  // the reference: the exact output rounded once to the format
+  double qn = 0;
+  for (int i = 0; i < LEN; i++) {
+    for (int k = 0; k < TAPS; k++) win[k] = x[i + k];
+    exact_dot(win, h, TAPS, exact_acc);
+    double e = mpfr_get_d(exact_acc, MPFR_RNDN), q = round_fmt(exact_acc);
+    qn += (q - e) * (q - e);
+  }
+  printf(" rounded-exact=%.1f\n", 10 * log10(sig / qn));
+
+  enum { PTS = 2000, DIM = 128, K = 16 };
+  static double cent[K][DIM], pt[DIM], d[DIM];
+  for (int c = 0; c < K; c++)
+    for (int j = 0; j < DIM; j++) cent[c][j] = to_fmt(nrand());
+  long wrong[NV] = {0};
+  for (int p = 0; p < PTS; p++) {
+    int c0 = (int)(urand() * K);
+    for (int j = 0; j < DIM; j++) pt[j] = to_fmt(cent[c0][j] + 4 * nrand());
+    double best[NV];
+    int arg[NV];
+    for (int v = 0; v < NV; v++) best[v] = INFINITY, arg[v] = -1;
+    for (int c = 0; c < K; c++) {
+      for (int j = 0; j < DIM; j++) d[j] = to_fmt(pt[j] - cent[c][j]);
+      dot_all(d, d, DIM, res);
+      for (int v = 0; v < NV; v++)
+        if (res[v] < best[v]) best[v] = res[v], arg[v] = c;
+    }
+    for (int v = 0; v < NV - 1; v++) wrong[v] += arg[v] != arg[V_EXACT];
+  }
+  printf("app f%d kmeans wrong_assignments_of_%d", dw, PTS);
+  for (int v = 0; v < NV - 1; v++) printf(" %s=%ld", vname[v], wrong[v]);
+  printf("\n");
+  for (int v = 0; v < 3; v++) ieee754_mac_free(mac[v]);
+}
+
+int main(int argc, char **argv) {
+  // arguments: the formats to run, e.g. "16 32 64" (default all); "-g N" sets the fmac
+  // right guard; "-s" runs the condition sweep instead of the study
+  int run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0;
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "-g") && i + 1 < argc) {
+      rguard = atoi(argv[++i]);
+    } else if (!strcmp(argv[i], "-s")) {
+      do_sweep = 1;
+    } else if (!strcmp(argv[i], "-a")) {
+      do_apps = 1;
+    } else {
+      nfmt++;
+      run16 |= atoi(argv[i]) == 16;
+      run32 |= atoi(argv[i]) == 32;
+      run64 |= atoi(argv[i]) == 64;
+    }
+  }
+  if (!nfmt) run16 = run32 = run64 = 1;
   mpfr_init2(exact_acc, 4500);
   mpfr_init2(tmp, 4500);
   mpfr_init2(prod, 128);
   mpfr_init2(fmt_tmp, 53);
 
-  printf("round to nearest even; per variant: max ulp, mean ulp, %% correctly rounded\n");
+  if (do_apps) {
+    if (run16) apps(16, 5);
+    if (run32) apps(32, 8);
+    return 0;
+  }
+  if (do_sweep) {
+    if (run16) sweep(16, 5, 5, 300);
+    if (run32) sweep(32, 8, 16, 300);
+    if (run64) sweep(64, 11, 32, 100);
+    return 0;
+  }
+  printf("round to nearest even, fmac right guard %d; per variant: max ulp, mean ulp, %% correctly rounded\n",
+         rguard);
   printf("%-3s %-7s %-11s", "fmt", "stream", "param");
   for (int v = 0; v < NV; v++) printf(" | %-27s", vname[v]);
   printf(" | fmac-1 bound\n");

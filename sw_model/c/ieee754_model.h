@@ -56,6 +56,11 @@ void ieee754_mac_free(ieee754_mac *mac);
 // normalizes fully every cycle.
 void ieee754_mac_set_step(ieee754_mac *mac, int step);
 
+// Architecture studies only: since the unit was created, the products accumulated, those
+// aligned with an accumulator not yet fully normalized, and the sum of its missing
+// normalization bits.
+void ieee754_mac_stats(const ieee754_mac *mac, long *accs, long *lagged, long *lag_bits);
+
 // Applies one product of the current stream. The stream rounds in the mode current at
 // its last product, as fmac samples rnd_mode with it.
 void ieee754_mac_push(ieee754_mac *mac, uint64_t a, uint64_t b);
