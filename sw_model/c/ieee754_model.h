@@ -5,8 +5,10 @@
 // default. There are no exception flags.
 // Every NaN result is the quiet NaN with sign 0 and only the top fraction bit set.
 //
-// Supported formats: 6 <= data_w - exp_w <= 53, 2 <= exp_w <= 11, data_w <= 64; fmac and ffma
-// also take precisions data_w - exp_w down to 2 (FP8 E5M2 and E4M3, FP4 E2M1).
+// Supported formats: 6 <= data_w - exp_w <= 53, 2 <= exp_w <= 11, data_w <= 64. fmac and ffma
+// also take precisions data_w - exp_w from 2 (FP8 E5M2 and E4M3, FP4 E2M1) to 113, with
+// 2 <= exp_w <= 15 and data_w <= 128 (binary128), through the _w functions, whose
+// operands and results are raw encodings in the low data_w bits of an ieee754_u128.
 
 #ifndef IEEE754_MODEL_H
 #define IEEE754_MODEL_H
@@ -16,6 +18,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef unsigned __int128 ieee754_u128;
 
 // Returns 1 if the format is supported by every unit.
 int ieee754_format_ok(int data_w, int exp_w);
@@ -52,16 +56,19 @@ uint64_t ieee754_div(uint64_t a, uint64_t b, int data_w, int exp_w);
 
 // ffma: a*b + c, rounded once. Returns 0 for an unsupported format.
 uint64_t ieee754_fma(uint64_t a, uint64_t b, uint64_t c, int data_w, int exp_w);
+ieee754_u128 ieee754_fma_w(ieee754_u128 a, ieee754_u128 b, ieee754_u128 c, int data_w, int exp_w);
 
 // Conversions from and to binary64, always rounding to nearest even.
 uint64_t ieee754_from_double(double value, int data_w, int exp_w);
 double ieee754_to_double(uint64_t bits, int data_w, int exp_w);
+ieee754_u128 ieee754_from_double_w(double value, int data_w, int exp_w);
+double ieee754_to_double_w(ieee754_u128 bits, int data_w, int exp_w);
 
 // Streaming fmac: a clocked model of the mac pipeline.
 typedef struct ieee754_mac ieee754_mac;
 
-// Returns NULL if the format is unsupported or the accumulator exceeds 128 bits
-// (lguard_w + rguard_w + 2 * (data_w - exp_w) + 5 <= 128).
+// Returns NULL if the format is unsupported or the accumulator exceeds 256 bits
+// (lguard_w + rguard_w + 2 * (data_w - exp_w) + 5 <= 256).
 ieee754_mac *ieee754_mac_new(int data_w, int exp_w, int lguard_w, int rguard_w);
 void ieee754_mac_free(ieee754_mac *mac);
 
@@ -92,6 +99,10 @@ void ieee754_mac_push(ieee754_mac *mac, uint64_t a, uint64_t b);
 
 // Ends the stream and returns its sum; returns +0 for an empty stream.
 uint64_t ieee754_mac_result(ieee754_mac *mac);
+
+// push and result for any format, up to binary128
+void ieee754_mac_push_w(ieee754_mac *mac, ieee754_u128 a, ieee754_u128 b);
+ieee754_u128 ieee754_mac_result_w(ieee754_mac *mac);
 
 #ifdef __cplusplus
 }

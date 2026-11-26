@@ -6,7 +6,7 @@
 #                                              needs no RTL tools
 # make check                                   bit-accuracy against TestFloat and the RTL
 # make fmac-accuracy                            fmac accuracy study (needs MPFR)
-# make small-formats                            exhaustive ffma test of FP4/FP6/FP8 (needs MPFR)
+# make fma-formats                              ffma test, FP4 to binary128 (needs MPFR)
 # make clean
 
 CC=gcc
@@ -23,7 +23,7 @@ CPROG?=all
 CFLAGS=-std=c11 -D_GNU_SOURCE -Wall -Wextra -O2 -fPIC -Ic
 CXXFLAGS=-std=c++11 -Wall -O2 -Ic -Icpp -Iexamples -Iexamples/common $(addprefix -Iexamples/,$(EXAMPLES))
 
-MODEL_HDR:=c/ieee754_model.h c/ieee754_math.h
+MODEL_HDR:=c/ieee754_model.h c/ieee754_math.h c/ieee754_mac.inc
 MODEL_OBJ:=$(BUILD_DIR)/ieee754_model.o $(BUILD_DIR)/ieee754_math.o
 LIB:=$(BUILD_DIR)/libieee754.so
 MODEL_RUN:=$(BUILD_DIR)/model_run
@@ -68,14 +68,14 @@ fmac-accuracy: $(FMAC_ACCURACY)
 $(FMAC_ACCURACY): study/fmac_accuracy.c $(MODEL_OBJ) $(MODEL_HDR)
 	$(CC) $(CFLAGS) -ffp-contract=off study/fmac_accuracy.c $(MODEL_OBJ) -lmpfr -lgmp -lm -o $@
 
-SMALL_FORMATS:=$(BUILD_DIR)/small_formats
+FMA_FORMATS:=$(BUILD_DIR)/fma_formats
 
-# exhaustive ffma/fmac test of FP4, FP6 and FP8, random bfloat16 (needs MPFR)
-small-formats: $(SMALL_FORMATS)
-	$(SMALL_FORMATS)
+# ffma/fmac test: FP4, FP6, FP8 exhaustive; bfloat16 to binary128 random (needs MPFR)
+fma-formats: $(FMA_FORMATS)
+	$(FMA_FORMATS)
 
-$(SMALL_FORMATS): tests/small_formats.c $(MODEL_OBJ) $(MODEL_HDR)
-	$(CC) $(CFLAGS) -ffp-contract=off tests/small_formats.c $(MODEL_OBJ) -lmpfr -lgmp -lm -o $@
+$(FMA_FORMATS): tests/fma_formats.c $(MODEL_OBJ) $(MODEL_HDR)
+	$(CC) $(CFLAGS) -ffp-contract=off tests/fma_formats.c $(MODEL_OBJ) -lmpfr -lgmp -lm -o $@
 
 check: $(MODEL_RUN) $(LIB)
 	IEEE754_LIB=$(abspath $(LIB)) $(PYTHON) tests/check.py --rtl $(RTL_DIR) \
