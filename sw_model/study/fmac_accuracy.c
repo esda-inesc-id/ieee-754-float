@@ -617,6 +617,52 @@ static void matrix(const char *path, int dw, int ew) {
   free(ri), free(ci), free(v), free(start), free(pos), free(col), free(val), free(x), free(a), free(b);
 }
 
+// Real data from a stream file: per stream int32 n, then n float64 a, then n float64 b
+// (little endian). a and b are each scaled by a power of 2 so their largest magnitude is
+// in [0.5, 1), then rounded to the format. Same variants as matrix().
+static void streams(const char *path, int dw, int ew) {
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    perror(path);
+    exit(1);
+  }
+  set_format(dw, ew);
+  ieee754_mac_set_feedback(mac[1], IEEE754_FB_NEAR_EVEN);
+  ieee754_mac_set_step(mac[1], 1);
+  int cap = 0;
+  double *a = NULL, *b = NULL;
+  stat st[NV] = {0};
+  int32_t n;
+  long len = 0;
+  while (fread(&n, sizeof n, 1, f) == 1) {
+    if (n <= 0) exit(1);
+    if (n > cap) {
+      cap = n;
+      a = realloc(a, cap * sizeof *a);
+      b = realloc(b, cap * sizeof *b);
+    }
+    if (fread(a, sizeof *a, n, f) != (size_t)n || fread(b, sizeof *b, n, f) != (size_t)n) exit(1);
+    double ma = 0, mb = 0;
+    for (int i = 0; i < n; i++) ma = fmax(ma, fabs(a[i])), mb = fmax(mb, fabs(b[i]));
+    int ea = 0, eb = 0;
+    if (ma > 0) frexp(ma, &ea);
+    if (mb > 0) frexp(mb, &eb);
+    for (int i = 0; i < n; i++) a[i] = to_fmt(ldexp(a[i], -ea)), b[i] = to_fmt(ldexp(b[i], -eb));
+    run(a, b, n, st);
+    len += n;
+  }
+  fclose(f);
+  const char *name = strrchr(path, '/') ? strrchr(path, '/') + 1 : path;
+  printf("data f%d %-16s streams=%-7ld mean_n=%-5.0f", dw, name, st[0].count, (double)len / st[0].count);
+  static const char *lbl[NV] = {"odd", "ne", "full", "fma", "mul+add", "exact"};
+  for (int k = 0; k < NV - 1; k++)
+    printf(" %s=%.2f%%/%.3g", lbl[k], 100.0 * st[k].correct / st[k].count, st[k].sum_ulp / st[k].count);
+  printf("\n");
+  fflush(stdout);
+  for (int k = 0; k < 3; k++) ieee754_mac_free(mac[k]);
+  free(a), free(b);
+}
+
 int main(int argc, char **argv) {
   // arguments: the formats to run, e.g. "16 32 64" (default all); "-g N" sets the fmac
   // right guard; "-f N" sets the feedback rounding (0 odd, the RTL; 1 truncate; 2 first
@@ -624,10 +670,13 @@ int main(int argc, char **argv) {
   // sweep instead of the study; "-G" runs the odd/nearest-even grid; "-r N" seeds the
   // random numbers
   // "-m file.mtx" runs the rows of a Matrix Market matrix (repeatable)
-  int run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0, do_grid = 0, nmtx = 0;
-  const char *mtx[16];
+  // "-d file" runs the streams of a stream file (repeatable)
+  int run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0, do_grid = 0, nmtx = 0, ndat = 0;
+  const char *mtx[16], *dat[16];
   for (int i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "-m") && i + 1 < argc && nmtx < 16) {
+    if (!strcmp(argv[i], "-d") && i + 1 < argc && ndat < 16) {
+      dat[ndat++] = argv[++i];
+    } else if (!strcmp(argv[i], "-m") && i + 1 < argc && nmtx < 16) {
       mtx[nmtx++] = argv[++i];
     } else if (!strcmp(argv[i], "-G")) {
       do_grid = 1;
@@ -655,6 +704,15 @@ int main(int argc, char **argv) {
   mpfr_init2(prod, 128);
   mpfr_init2(fmt_tmp, 53);
 
+  if (ndat) {
+    printf("per variant: %% of streams correctly rounded / mean ulp error\n");
+    for (int k = 0; k < ndat; k++) {
+      if (run16) streams(dat[k], 16, 5);
+      if (run32) streams(dat[k], 32, 8);
+      if (run64) streams(dat[k], 64, 11);
+    }
+    return 0;
+  }
   if (nmtx) {
     printf("per variant: %% of rows correctly rounded / mean ulp error\n");
     for (int k = 0; k < nmtx; k++) {
