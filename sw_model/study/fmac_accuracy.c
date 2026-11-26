@@ -473,14 +473,95 @@ static void apps(int dw, int ew) {
   for (int v = 0; v < 3; v++) ieee754_mac_free(mac[v]);
 }
 
+// Blocks of 16 as in cancel, with the large products 2^d times the residue they leave:
+// d sets the cancellation depth.
+static void cancel_depth(double *a, double *b, int n, int d) {
+  for (int i = 0; i < n; i += 16) {
+    for (int k = 0; k < 2 && i + k + 2 < n; k++) {
+      double big = to_fmt(ldexp(1 + urand(), d - 3));
+      a[i + k] = big;
+      b[i + k] = 1;
+      a[i + k + 2] = -to_fmt(big - ldexp(1 + (int)(urand() * 8), -3));
+      b[i + k + 2] = 1;
+    }
+    for (int k = 4; k < 16 && i + k < n; k++) {
+      a[i + k] = to_fmt(nrand() * ldexp(1, -(prec / 2 - 2)));
+      b[i + k] = to_fmt(1 + urand());
+    }
+  }
+}
+
+// Grid study: odd against nearest-even feedback on the same streams (fmac-1, the RTL
+// normalization). Per cell: streams, % correctly rounded of each, streams only odd rounds
+// correctly, streams only nearest-even does, and McNemar's z (positive favours odd).
+static void grid(int dw, int ew) {
+  data_w = dw;
+  exp_w = ew;
+  prec = dw - ew;
+  bias = (1 << (ew - 1)) - 1;
+  emin_fmt = 3 - bias - prec;
+  emax_fmt = bias + 1;
+  mpfr_set_prec(fmt_tmp, prec);
+  ieee754_mac *m[2];
+  for (int v = 0; v < 2; v++) {
+    m[v] = ieee754_mac_new(dw, ew, 0, rguard);
+    ieee754_mac_set_feedback(m[v], v ? IEEE754_FB_NEAR_EVEN : IEEE754_FB_ODD);
+  }
+  static const int ns[] = {4, 8, 16, 32, 64, 128, 256};
+  static double a[256], b[256];
+  for (int s = 0; s < 2; s++) {
+    int nlev = s == 0 ? 7 : (prec + 8) / 4 + 1;
+    for (int k = 0; k < 7; k++) {
+      int n = ns[k];
+      for (int l = 0; l < nlev; l++) {
+        if (s == 1 && n < 16) continue;  // a cancel block needs 16 products
+        int d = 4 * l;
+        long trials = s == 0 ? 2000000 / (n * n / 16 + n) + 2000 : 400000 / n + 2000;
+        long ok[2] = {0}, only[2] = {0};
+        for (long t = 0; t < trials; t++) {
+          if (s == 0)
+            gendot(a, b, n, pow(10, l));
+          else
+            cancel_depth(a, b, n, d);
+          exact_dot(a, b, n, exact_acc);
+          double ref = round_fmt(exact_acc);
+          int c[2];
+          for (int v = 0; v < 2; v++) {
+            for (int i = 0; i < n; i++)
+              ieee754_mac_push(m[v], ieee754_from_double(a[i], dw, ew), ieee754_from_double(b[i], dw, ew));
+            c[v] = ieee754_to_double(ieee754_mac_result(m[v]), dw, ew) == ref;
+            ok[v] += c[v];
+          }
+          if (c[0] != c[1]) only[c[1]]++;
+        }
+        double z = only[0] + only[1] ? (only[0] - only[1]) / sqrt((double)(only[0] + only[1])) : 0;
+        if (s == 0)
+          printf("grid f%d gendot n=%d c=1e%d", dw, n, l);
+        else
+          printf("grid f%d cancel n=%d d=%d", dw, n, d);
+        printf(" T=%ld odd=%.2f ne=%.2f odd_only=%ld ne_only=%ld z=%.2f\n", trials, 100.0 * ok[0] / trials,
+               100.0 * ok[1] / trials, only[0], only[1], z);
+        fflush(stdout);
+      }
+    }
+  }
+  for (int v = 0; v < 2; v++) ieee754_mac_free(m[v]);
+}
+
 int main(int argc, char **argv) {
   // arguments: the formats to run, e.g. "16 32 64" (default all); "-g N" sets the fmac
   // right guard; "-f N" sets the feedback rounding (0 odd, the RTL; 1 truncate; 2 first
   // dropped bit; 3 nearest, ties up; 4 nearest, ties to even); "-s" runs the condition
-  // sweep instead of the study
-  int run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0;
+  // sweep instead of the study; "-G" runs the odd/nearest-even grid; "-r N" seeds the
+  // random numbers
+  int run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0, do_grid = 0;
   for (int i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "-g") && i + 1 < argc) {
+    if (!strcmp(argv[i], "-G")) {
+      do_grid = 1;
+    } else if (!strcmp(argv[i], "-r") && i + 1 < argc) {
+      rng_state ^= 0x9e3779b97f4a7c15ull * (uint64_t)atoll(argv[++i]);
+      if (!rng_state) rng_state = 1;
+    } else if (!strcmp(argv[i], "-g") && i + 1 < argc) {
       rguard = atoi(argv[++i]);
     } else if (!strcmp(argv[i], "-f") && i + 1 < argc) {
       feedback = atoi(argv[++i]);
@@ -501,6 +582,12 @@ int main(int argc, char **argv) {
   mpfr_init2(prod, 128);
   mpfr_init2(fmt_tmp, 53);
 
+  if (do_grid) {
+    if (run16) grid(16, 5);
+    if (run32) grid(32, 8);
+    if (run64) grid(64, 11);
+    return 0;
+  }
   if (do_apps) {
     if (run16) apps(16, 5);
     if (run32) apps(32, 8);
