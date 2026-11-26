@@ -548,15 +548,88 @@ static void grid(int dw, int ew) {
   for (int v = 0; v < 2; v++) ieee754_mac_free(m[v]);
 }
 
+// Real data: the rows of a sparse matrix (Matrix Market coordinate, real) times a vector x,
+// x = 1 (row sums) or x ~ N(0,1). Each row is scaled by a power of 2 so its largest entry
+// is in [0.5, 1); the products are then rounded to the format. Variants: fmac-1 with odd
+// feedback (the RTL), fmac-1 with nearest-even feedback, fmac-full, fma, mul+add.
+static void matrix(const char *path, int dw, int ew) {
+  FILE *f = fopen(path, "r");
+  if (!f) {
+    perror(path);
+    exit(1);
+  }
+  char line[1024];
+  int sym = 0, nr = 0, nc = 0;
+  long nnz = 0;
+  if (!fgets(line, sizeof line, f) || !strstr(line, "coordinate") || !strstr(line, "real")) {
+    fprintf(stderr, "%s: not a real coordinate matrix\n", path);
+    exit(1);
+  }
+  sym = strstr(line, "symmetric") != NULL;
+  while (fgets(line, sizeof line, f) && line[0] == '%') {
+  }
+  if (sscanf(line, "%d %d %ld", &nr, &nc, &nnz) != 3) exit(1);
+  long cap = sym ? 2 * nnz : nnz, m = 0;
+  int *ri = malloc(cap * sizeof *ri), *ci = malloc(cap * sizeof *ci);
+  double *v = malloc(cap * sizeof *v);
+  for (long k = 0; k < nnz; k++) {
+    int i, j;
+    double x;
+    if (fscanf(f, "%d %d %lf", &i, &j, &x) != 3) exit(1);
+    ri[m] = i - 1, ci[m] = j - 1, v[m++] = x;
+    if (sym && i != j) ri[m] = j - 1, ci[m] = i - 1, v[m++] = x;
+  }
+  fclose(f);
+  int *start = calloc(nr + 1, sizeof *start), *pos = malloc(nr * sizeof *pos);
+  for (long k = 0; k < m; k++) start[ri[k] + 1]++;
+  for (int i = 0; i < nr; i++) start[i + 1] += start[i];
+  int *col = malloc(m * sizeof *col);
+  double *val = malloc(m * sizeof *val);
+  memcpy(pos, start, nr * sizeof *pos);
+  for (long k = 0; k < m; k++) col[pos[ri[k]]] = ci[k], val[pos[ri[k]]++] = v[k];
+
+  set_format(dw, ew);
+  ieee754_mac_set_feedback(mac[1], IEEE754_FB_NEAR_EVEN);
+  ieee754_mac_set_step(mac[1], 1);
+  double *x = malloc(nc * sizeof *x), *a = malloc(nc * sizeof *a), *b = malloc(nc * sizeof *b);
+  const char *name = strrchr(path, '/') ? strrchr(path, '/') + 1 : path;
+  for (int s = 0; s < 2; s++) {
+    for (int j = 0; j < nc; j++) x[j] = s == 0 ? 1.0 : to_fmt(nrand());
+    stat st[NV] = {0};
+    for (int i = 0; i < nr; i++) {
+      int n = start[i + 1] - start[i];
+      if (!n) continue;
+      double mx = 0;
+      for (int k = start[i]; k < start[i + 1]; k++) mx = fmax(mx, fabs(val[k]));
+      int e;
+      frexp(mx, &e);
+      for (int k = 0; k < n; k++) a[k] = to_fmt(ldexp(val[start[i] + k], -e)), b[k] = x[col[start[i] + k]];
+      run(a, b, n, st);
+    }
+    printf("mtx f%d %-14s x=%-4s rows=%-6ld", dw, name, s ? "N01" : "1", st[0].count);
+    static const char *lbl[NV] = {"odd", "ne", "full", "fma", "mul+add", "exact"};
+    for (int k = 0; k < NV - 1; k++)
+      printf(" %s=%.2f%%/%.3g", lbl[k], 100.0 * st[k].correct / st[k].count, st[k].sum_ulp / st[k].count);
+    printf("\n");
+    fflush(stdout);
+  }
+  for (int k = 0; k < 3; k++) ieee754_mac_free(mac[k]);
+  free(ri), free(ci), free(v), free(start), free(pos), free(col), free(val), free(x), free(a), free(b);
+}
+
 int main(int argc, char **argv) {
   // arguments: the formats to run, e.g. "16 32 64" (default all); "-g N" sets the fmac
   // right guard; "-f N" sets the feedback rounding (0 odd, the RTL; 1 truncate; 2 first
   // dropped bit; 3 nearest, ties up; 4 nearest, ties to even); "-s" runs the condition
   // sweep instead of the study; "-G" runs the odd/nearest-even grid; "-r N" seeds the
   // random numbers
-  int run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0, do_grid = 0;
+  // "-m file.mtx" runs the rows of a Matrix Market matrix (repeatable)
+  int run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0, do_grid = 0, nmtx = 0;
+  const char *mtx[16];
   for (int i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "-G")) {
+    if (!strcmp(argv[i], "-m") && i + 1 < argc && nmtx < 16) {
+      mtx[nmtx++] = argv[++i];
+    } else if (!strcmp(argv[i], "-G")) {
       do_grid = 1;
     } else if (!strcmp(argv[i], "-r") && i + 1 < argc) {
       rng_state ^= 0x9e3779b97f4a7c15ull * (uint64_t)atoll(argv[++i]);
@@ -582,6 +655,15 @@ int main(int argc, char **argv) {
   mpfr_init2(prod, 128);
   mpfr_init2(fmt_tmp, 53);
 
+  if (nmtx) {
+    printf("per variant: %% of rows correctly rounded / mean ulp error\n");
+    for (int k = 0; k < nmtx; k++) {
+      if (run16) matrix(mtx[k], 16, 5);
+      if (run32) matrix(mtx[k], 32, 8);
+      if (run64) matrix(mtx[k], 64, 11);
+    }
+    return 0;
+  }
   if (do_grid) {
     if (run16) grid(16, 5);
     if (run32) grid(32, 8);
