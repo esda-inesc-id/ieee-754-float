@@ -36,6 +36,17 @@ TF_DATA_W_f32=32
 TF_EXP_W_f32=8
 TF_DATA_W_f64=64
 TF_EXP_W_f64=11
+TF_DATA_W_f128=128
+TF_EXP_W_f128=15
+# small formats (exhaustive tests from the C model)
+TF_DATA_W_fp4=4
+TF_EXP_W_fp4=2
+TF_DATA_W_fp6=6
+TF_EXP_W_fp6=3
+TF_DATA_W_e4m3=8
+TF_EXP_W_e4m3=4
+TF_DATA_W_e5m2=8
+TF_EXP_W_e5m2=5
 CFG+=TF_DATA_W=$(TF_DATA_W_$(TF_FMT)) TF_EXP_W=$(TF_EXP_W_$(TF_FMT))
 ifeq ($(TF_OP),mulAdd)
 CFG+=TF_3OP

@@ -77,6 +77,12 @@ fma-formats: $(FMA_FORMATS)
 $(FMA_FORMATS): tests/fma_formats.c $(MODEL_OBJ) $(MODEL_HDR)
 	$(CC) $(CFLAGS) -ffp-contract=off tests/fma_formats.c $(MODEL_OBJ) -lmpfr -lgmp -lm -o $@
 
+FMA_VECTORS:=$(BUILD_DIR)/fma_vectors
+
+# exhaustive mulAdd vectors of a small format for the RTL testbench (fmac/hw/sim)
+$(FMA_VECTORS): tests/fma_vectors.c $(MODEL_OBJ) $(MODEL_HDR)
+	$(CC) $(CFLAGS) tests/fma_vectors.c $(MODEL_OBJ) -lm -o $@
+
 check: $(MODEL_RUN) $(LIB)
 	IEEE754_LIB=$(abspath $(LIB)) $(PYTHON) tests/check.py --rtl $(RTL_DIR) \
 	  --work $(ABS_BUILD_DIR)/check --model-run $(MODEL_RUN)

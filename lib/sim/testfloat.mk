@@ -5,7 +5,7 @@ TF_LEVEL?=1
 # rounding modes tested, by name; TF_RND is the rnd_mode value of one run
 TF_MODES?=rne rtz rdn rup rmm
 TF_RND?=0
-# formats tested: f16, f32 and f64
+# formats tested: f16, f32, f64 and f128
 TF_FMTS?=f32
 # keep only the first TF_N vectors (smoke test); empty runs the full level
 TF_N?=
@@ -38,7 +38,27 @@ testfloat: $(TF_GEN)
 	  grep -Eq 'TESTFLOAT vectors=[1-9][0-9]* fails=0$$' testfloat_$${fmt}_$${op}_$$m.rpt || status=1; \
 	done; done; done; rm -f vectors.tv; $(MAKE) --no-print-directory clean; exit $$status
 
-testfloat-clean:
-	@rm -f vectors.tv fails.tv fails_*.tv testfloat_*.rpt sim_config.vh
+# every a*b + c of the small formats (EX_FMTS: fp4 fp6 e4m3 e5m2) in each mode, the
+# expected results from the bit-accurate C model (sw_model/tests/fma_vectors.c)
+EX_FMTS?=fp4 fp6 e4m3 e5m2
+FMA_VECTORS=$(abspath $(FPU_DIR)/sw_model/build/fma_vectors)
 
-.PHONY: testfloat testfloat-build testfloat-clean
+$(FMA_VECTORS):
+	$(MAKE) -C $(FPU_DIR)/sw_model build/fma_vectors
+
+exhaustive: $(FMA_VECTORS)
+	@status=0; for fmt in $(EX_FMTS); do for m in $(TF_MODES); do \
+	  case $$fmt in fp4) w="4 2";; fp6) w="6 3";; e4m3) w="8 4";; e5m2) w="8 5";; *) echo "unknown format $$fmt"; exit 1;; esac; \
+	  case $$m in rne) r=0;; rtz) r=1;; rdn) r=2;; rup) r=3;; rmm) r=4;; *) echo "unknown mode $$m"; exit 1;; esac; \
+	  $(FMA_VECTORS) $$w $$r > vectors.tv; \
+	  $(MAKE) --no-print-directory clean; \
+	  $(MAKE) --no-print-directory run TESTFLOAT=1 TF_OP=mulAdd TF_RND=$$r TF_FMT=$$fmt > exhaustive_$${fmt}_$$m.rpt 2>&1; \
+	  [ -f fails.tv ] && mv fails.tv fails_$${fmt}_$$m.tv; \
+	  echo "$(CORE) $$fmt mulAdd $$m: $$(grep -h 'TESTFLOAT' exhaustive_$${fmt}_$$m.rpt | tail -1)"; \
+	  grep -Eq 'TESTFLOAT vectors=[1-9][0-9]* fails=0$$' exhaustive_$${fmt}_$$m.rpt || status=1; \
+	done; done; rm -f vectors.tv; $(MAKE) --no-print-directory clean; exit $$status
+
+testfloat-clean:
+	@rm -f vectors.tv fails.tv fails_*.tv testfloat_*.rpt exhaustive_*.rpt sim_config.vh
+
+.PHONY: testfloat testfloat-build testfloat-clean exhaustive
