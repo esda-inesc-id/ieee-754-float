@@ -77,8 +77,8 @@ module fmac #(
    wire [MAN_W+EXTRA-1:0] mac_man;
    wire [          2:0] mac_res_special;
    fmac_core #(
-      .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
+      .MAN_W        (DATA_W - EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES),
       .LGUARD_W     (LGUARD_W),
       .RGUARD_W     (RGUARD_W),

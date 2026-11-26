@@ -1,9 +1,8 @@
 `timescale 1ns / 1ps
 
 module fdiv_core #(
-   parameter DATA_W        = 32,
    parameter EXP_W         = 8,
-   parameter MAN_W         = DATA_W - EXP_W,
+   parameter MAN_W         = 24,
    parameter SPECIAL_CASES = 1
 ) (
    input clk,

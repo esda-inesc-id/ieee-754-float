@@ -73,8 +73,8 @@ module fadd #(
    wire [MAN_W+EXTRA:0] add_man;
    wire [        2:0] add_res_special;
    fadd_core #(
-      .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
+      .MAN_W        (DATA_W - EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES)
    ) add0 (
       .clk(clk),

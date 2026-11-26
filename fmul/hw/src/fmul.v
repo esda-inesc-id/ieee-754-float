@@ -73,8 +73,8 @@ module fmul #(
    wire [2*MAN_W-1:0] mul_man;
    wire [      2:0] mul_res_special;
    fmul_core #(
-      .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
+      .MAN_W        (DATA_W - EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES),
       .PRENORM      (1)
    ) mul0 (

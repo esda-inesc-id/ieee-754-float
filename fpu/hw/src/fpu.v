@@ -80,8 +80,8 @@ module fpu #(
    wire [MAN_W+EXTRA:0] add_man;
    wire [        2:0] add_res_special;
    fadd_core #(
-      .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
+      .MAN_W        (DATA_W - EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES)
    ) add0 (
       .clk(clk),
@@ -119,8 +119,8 @@ module fpu #(
    wire [2*MAN_W-1:0] mul_man;
    wire [      2:0] mul_res_special;
    fmul_core #(
-      .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
+      .MAN_W        (DATA_W - EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES),
       .OUT_REG      (1)
    ) mul0 (
@@ -159,8 +159,8 @@ module fpu #(
    wire [MAN_W+EXTRA:0] div_man;
    wire [      2:0] div_res_special;
    fdiv_core #(
-      .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
+      .MAN_W        (DATA_W - EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES)
    ) div0 (
       .clk(clk),

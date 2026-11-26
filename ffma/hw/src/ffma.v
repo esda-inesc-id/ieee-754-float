@@ -96,8 +96,8 @@ module ffma #(
    wire [MAN_W+EXTRA-1:0] fma_man;
    wire [          2:0] fma_res_special;
    ffma_core #(
-      .DATA_W       (DATA_W),
       .EXP_W        (EXP_W),
+      .MAN_W        (DATA_W - EXP_W),
       .SPECIAL_CASES(SPECIAL_CASES)
    ) fma0 (
       .clk(clk),

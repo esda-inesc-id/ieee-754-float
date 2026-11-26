@@ -4,9 +4,8 @@
 // and c are aligned as magnitudes, the smaller one with a sticky bit, then added in two's
 // complement and normalized as in fmac_core.
 module ffma_core #(
-   parameter DATA_W        = 32,
    parameter EXP_W         = 8,
-   parameter MAN_W         = DATA_W - EXP_W,
+   parameter MAN_W         = 24,
    parameter SPECIAL_CASES = 1
 ) (
    input clk,
