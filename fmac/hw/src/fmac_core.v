@@ -156,6 +156,11 @@ module fmac_core #(
 
    wire [EXP_W+1:0] A_exp_int = valid_d2 ? mul_exp_reg : acc_exp_reg2;
    wire [ACC_W+EXTRA:0] A_man_int = valid_d2 ? mul_man_c : {acc_man_reg2, {(EXTRA - 1) {1'b0}}};
+   // a negative product that is the smaller addend is aligned as a magnitude and negated
+   // after the shift (sticky included), so the carry-in completes its two's complement
+   // (the smaller addend has EXTRA - 1 low zero bits, which are not stored)
+   wire [ACC_W+1:0] A_man_pos = valid_d2 ?
+      {{(LGUARD_W + 2) {1'b0}}, mul_man_reg, {(RGUARD_W + 1) {1'b0}}} : acc_man_reg2;
 
    wire cin_int = valid_d2 & mul_sign_reg;
 
@@ -169,11 +174,15 @@ module fmac_core #(
    // left normalization: 1 bit, or up to STEP bits keeping two sign bits
    localparam STEP_LZ_W = $clog2(STEP + 2);
    wire [EXP_W+1:0] acc_exp_lsh;
-   wire [ACC_W+1:0] acc_man_lsh;
+   wire [ACC_W+1:0] B_man_hi;
    generate
       if (STEP == 1) begin : gen_step1
          assign acc_exp_lsh = acc_exp_reg - 1'b1;
-         assign acc_man_lsh = {acc_fb[ACC_W-1:0], 2'b00};
+         assign B_man_hi =
+            acc_clr ? {(ACC_W + 2) {1'b0}} :
+            ovf_int ? {acc_man_reg[ACC_W+EXTRA], acc_fb} :
+            undf_int ? {acc_fb[ACC_W-1:0], 2'b00} :
+            {acc_fb, 1'b0};
       end else begin : gen_step
          // leading bits equal to the sign below it, within STEP + 1 bits
          wire [STEP_LZ_W-1:0] step_lz;
@@ -185,7 +194,11 @@ module fmac_core #(
          );
          wire [STEP_LZ_W-1:0] step_sh = step_lz - 1'b1;
          assign acc_exp_lsh = acc_exp_reg - step_sh;
-         assign acc_man_lsh = {acc_fb, 1'b0} << step_sh;
+         assign B_man_hi =
+            acc_clr ? {(ACC_W + 2) {1'b0}} :
+            ovf_int ? {acc_man_reg[ACC_W+EXTRA], acc_fb} :
+            undf_int ? {acc_fb, 1'b0} << step_sh :
+            {acc_fb, 1'b0};
       end
    endgenerate
 
@@ -193,11 +206,6 @@ module fmac_core #(
       ovf_int ? acc_exp_reg + 1'b1 :
       undf_int ? acc_exp_lsh :
       acc_exp_reg;
-   wire [ACC_W+1:0] B_man_hi =
-      acc_clr ? {(ACC_W + 2) {1'b0}} :
-      ovf_int ? {acc_man_reg[ACC_W+EXTRA], acc_fb} :
-      undf_int ? acc_man_lsh :
-      {acc_fb, 1'b0};
 
    wire comp = ($signed(
        A_exp_int
@@ -209,7 +217,8 @@ module fmac_core #(
    wire [ACC_W+EXTRA:0] A_man = comp ? A_man_int : {B_man_hi, {(EXTRA - 1) {1'b0}}};
 
    wire [EXP_W+1:0] B_exp = comp ? B_exp_int : A_exp_int;
-   wire [ACC_W+EXTRA:0] B_man = comp ? {B_man_hi, {(EXTRA - 1) {1'b0}}} : A_man_int;
+   wire [ACC_W+1:0] B_man = comp ? B_man_hi : A_man_pos;
+   wire inv_int = ~comp & cin_int;
 
    localparam STICKY_BITS = ACC_W + EXTRA + 2;
 
@@ -217,10 +226,10 @@ module fmac_core #(
    wire [EXP_W+1:0] diff_exp = A_exp - B_exp;
    localparam SH_W = $clog2(STICKY_BITS + 1);
    wire [SH_W-1:0] shift = (diff_exp > STICKY_BITS) ? STICKY_BITS[SH_W-1:0] : diff_exp[SH_W-1:0];
-   wire [ACC_W+EXTRA+STICKY_BITS:0] B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> shift;
+   wire [ACC_W+1+STICKY_BITS:0] B_man_in = $signed({B_man, {STICKY_BITS{1'b0}}}) >>> shift;
 
-   // Sticky
-   wire sticky = |B_man_in[STICKY_BITS:0];
+   // Sticky: the bits below the adder's EXTRA - 1 low bits
+   wire sticky = |B_man_in[STICKY_BITS+1-EXTRA:0];
 
    // pipeline stage 3
    reg [EXP_W+1:0] A_exp_reg;
@@ -228,7 +237,7 @@ module fmac_core #(
 
    reg [ACC_W+EXTRA:0] B_man_reg;
 
-   reg cin;
+   reg cin, inv;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
          A_exp_reg <= {(EXP_W + 2) {1'b0}};
@@ -237,22 +246,24 @@ module fmac_core #(
          B_man_reg <= {(ACC_W + 1 + EXTRA) {1'b0}};
 
          cin       <= 1'b0;
+         inv       <= 1'b0;
 
          valid_d3  <= 1'b0;
       end else begin
          A_exp_reg <= A_exp;
          A_man_reg <= A_man;
 
-         B_man_reg <= {B_man_in[STICKY_BITS+1+:ACC_W+EXTRA], sticky};
+         B_man_reg <= {B_man_in[STICKY_BITS+2-EXTRA+:ACC_W+EXTRA], sticky};
 
          cin       <= cin_int;
+         inv       <= inv_int;
 
          valid_d3  <= valid_d2;
       end
    end
 
    // Accumulation
-   wire [ACC_W+EXTRA:0] acc_man = A_man_reg + B_man_reg + cin;
+   wire [ACC_W+EXTRA:0] acc_man = A_man_reg + (B_man_reg ^ {(ACC_W + EXTRA + 1) {inv}}) + cin;
 
    // pipeline stage 4
    always @(posedge clk, posedge rst) begin

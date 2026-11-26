@@ -21,6 +21,8 @@ sys.path.insert(0, os.path.join(HERE, "..", "python"))
 import ieee754  # noqa: E402
 
 FORMATS = [(32, 8), (16, 5), (64, 11)]
+# fmac only, with the one-cycle loop (fmac_core1): FP4 E2M1, FP8 E4M3 and E5M2
+MAC_FORMATS = [(4, 2), (8, 4), (8, 5)]
 OPS = ["add", "sub", "mul", "div"]
 OP_WEIGHTS = [30, 30, 35, 5]
 # fmac configurations (LGUARD_W, RGUARD_W, STEP); STEP 51 normalizes fully in binary32
@@ -44,7 +46,7 @@ LIB_SRC = ["unpack.v", "cls.v", "round.v", "pack.v"]
 def rtl_sources(root, unit):
     lib = [os.path.join(root, "lib/src", name) for name in LIB_SRC]
     if unit == "fmac":
-        return [os.path.join(root, "fmac/hw/src", name) for name in ("fmac.v", "fmac_core.v")] + lib
+        return [os.path.join(root, "fmac/hw/src", name) for name in ("fmac.v", "fmac_core.v", "fmac_core1.v")] + lib
     files = ["fpu/hw/src/fpu.v", "fadd/hw/src/fadd_core.v", "fmul/hw/src/fmul_core.v", "fdiv/hw/src/fdiv_core.v",
              "lib/src/norm.v"]
     return [os.path.join(root, name) for name in files] + lib
@@ -268,6 +270,15 @@ def check_format(root, work, tool, data_w, exp_w, stream_runs, mix_runs):
         failed |= report(f"{tag} model vs RTL", mix_rtl[rnd], mix_model, labels)
         failed |= check_wrapper(tag, fmt, mix_rows, mix_model, rnd)
 
+    return failed | check_mac(root, work, tool, data_w, exp_w, stream_runs)
+
+
+def check_mac(root, work, tool, data_w, exp_w, stream_runs):
+    """fmac streams: model against RTL, and the C library against the model."""
+    failed = 0
+    # fmac takes formats that the other units do not (FP4, FP8)
+    fmt = argparse.Namespace(data_w=data_w, exp_w=exp_w)
+    name = f"f{data_w}" if data_w >= 16 else f"e{exp_w}m{data_w - exp_w - 1}"
     for lguard, rguard, step in (GUARDS_32 if data_w == 32 else GUARDS_OTHER):
         mac_rtl = simulate(root, work, "fmac", stream_runs, data_w, exp_w, lguard, rguard, step)
         for rnd, vectors in stream_runs.items():
@@ -318,6 +329,16 @@ def main():
         failed |= check_format(root, work, tool, data_w, exp_w,
                                mode_runs(streams_tv, streams, gen_streams),
                                mode_runs(mix_tv, mix, gen_mix))
+
+    for data_w, exp_w in MAC_FORMATS:
+        streams_tv = os.path.join(work, f"streams_{data_w}_{exp_w}.tv")
+
+        def gen_streams(path, count, data_w=data_w, exp_w=exp_w):
+            write_streams(path, data_w, exp_w, count)
+
+        gen_streams(streams_tv, OTHER_STREAMS)
+        failed |= check_mac(root, work, tool, data_w, exp_w,
+                            mode_runs(streams_tv, OTHER_STREAMS, gen_streams))
 
     print("check: PASS" if not failed else "check: FAIL")
     return 1 if failed else 0

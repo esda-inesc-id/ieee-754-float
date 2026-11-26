@@ -13,22 +13,7 @@ ifeq ($(VCD),1)
 CFG+=VCD
 endif
 
-ifeq ($(STREAMS),1)
-TB_TOP=fmac_streams_tb
-VSRC+=$(FMAC_DIR)/hw/sim/src/fmac_streams_tb.v
-else ifeq ($(FPU_MIX),1)
-TB_TOP=fpu_mix_tb
-VSRC+=$(FPU_UNIT_DIR)/hw/sim/src/fpu_mix_tb.v
-else ifeq ($(TESTFLOAT),1)
-TB_TOP=testfloat_tb
-VSRC+=$(FPU_DIR)/lib/sim/src/testfloat_tb.v
-CFG+=TF_DUT=$(CORE)
-TF_RND?=0
-CFG+=TF_RND=$(TF_RND)
-# divisions are iterative: each one first restarts a dummy division
-ifeq ($(TF_OP),div)
-CFG+=TF_RESTART
-endif
+# the formats of the TestFloat and stream runs (TF_FMT)
 TF_FMT?=f32
 TF_DATA_W_f16=16
 TF_EXP_W_f16=5
@@ -47,6 +32,26 @@ TF_DATA_W_e4m3=8
 TF_EXP_W_e4m3=4
 TF_DATA_W_e5m2=8
 TF_EXP_W_e5m2=5
+
+ifeq ($(STREAMS),1)
+TB_TOP=fmac_streams_tb
+VSRC+=$(FMAC_DIR)/hw/sim/src/fmac_streams_tb.v
+CFG+=ST_DATA_W=$(TF_DATA_W_$(TF_FMT)) ST_EXP_W=$(TF_EXP_W_$(TF_FMT))
+ST_RND?=0
+CFG+=ST_RND=$(ST_RND)
+else ifeq ($(FPU_MIX),1)
+TB_TOP=fpu_mix_tb
+VSRC+=$(FPU_UNIT_DIR)/hw/sim/src/fpu_mix_tb.v
+else ifeq ($(TESTFLOAT),1)
+TB_TOP=testfloat_tb
+VSRC+=$(FPU_DIR)/lib/sim/src/testfloat_tb.v
+CFG+=TF_DUT=$(CORE)
+TF_RND?=0
+CFG+=TF_RND=$(TF_RND)
+# divisions are iterative: each one first restarts a dummy division
+ifeq ($(TF_OP),div)
+CFG+=TF_RESTART
+endif
 CFG+=TF_DATA_W=$(TF_DATA_W_$(TF_FMT)) TF_EXP_W=$(TF_EXP_W_$(TF_FMT))
 ifeq ($(TF_OP),mulAdd)
 CFG+=TF_3OP

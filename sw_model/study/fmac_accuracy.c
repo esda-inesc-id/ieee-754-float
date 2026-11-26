@@ -37,6 +37,9 @@ static const int vstep[3] = {1, 8, 128};
 // the format under study, and the fmac right guard
 static int data_w, exp_w, prec, bias, rguard;
 static int feedback = IEEE754_FB_NEAR_EVEN;  // fmac feedback rounding (-f)
+// rounding mode of the results (-R): 0 nearest even, 1 toward zero, 2 down, 3 up
+static int rmode = 0;
+static const mpfr_rnd_t mpfr_mode[4] = {MPFR_RNDN, MPFR_RNDZ, MPFR_RNDD, MPFR_RNDU};
 static mpfr_exp_t emin_fmt, emax_fmt;
 
 // Deterministic random numbers (xorshift64*)
@@ -55,15 +58,17 @@ static double nrand(void) {
 // x rounded to the format (to nearest even), as a double
 static double to_fmt(double x) { return ieee754_to_double(ieee754_from_double(x, data_w, exp_w), data_w, exp_w); }
 
-// y = x rounded to the format, with its subnormals and overflow
+// y = x rounded to the format in the mode of the results (-R), with its subnormals and
+// overflow
 static mpfr_t fmt_tmp;
 static double round_fmt(mpfr_t x) {
   mpfr_exp_t emin = mpfr_get_emin(), emax = mpfr_get_emax();
   mpfr_set_emin(emin_fmt);
   mpfr_set_emax(emax_fmt);
-  int inex = mpfr_set(fmt_tmp, x, MPFR_RNDN);
-  inex = mpfr_check_range(fmt_tmp, inex, MPFR_RNDN);
-  mpfr_subnormalize(fmt_tmp, inex, MPFR_RNDN);
+  mpfr_rnd_t r = mpfr_mode[rmode];
+  int inex = mpfr_set(fmt_tmp, x, r);
+  inex = mpfr_check_range(fmt_tmp, inex, r);
+  mpfr_subnormalize(fmt_tmp, inex, r);
   mpfr_set_emin(emin);
   mpfr_set_emax(emax);
   return mpfr_get_d(fmt_tmp, MPFR_RNDN);
@@ -689,6 +694,9 @@ int main(int argc, char **argv) {
       rguard = atoi(argv[++i]);
     } else if (!strcmp(argv[i], "-f") && i + 1 < argc) {
       feedback = atoi(argv[++i]);
+    } else if (!strcmp(argv[i], "-R") && i + 1 < argc) {
+      rmode = atoi(argv[++i]) & 3;
+      ieee754_set_rounding(rmode);
     } else if (!strcmp(argv[i], "-s")) {
       do_sweep = 1;
     } else if (!strcmp(argv[i], "-a")) {
@@ -741,8 +749,9 @@ int main(int argc, char **argv) {
     if (run64) sweep(64, 11, 32, 100);
     return 0;
   }
-  printf("round to nearest even, fmac right guard %d; per variant: max ulp, mean ulp, %% correctly rounded\n",
-         rguard);
+  static const char *mode_name[4] = {"to nearest even", "toward zero", "down", "up"};
+  printf("round %s, fmac feedback %d, right guard %d; per variant: max ulp, mean ulp, %% correctly rounded\n",
+         mode_name[rmode], feedback, rguard);
   printf("%-3s %-7s %-11s", "fmt", "stream", "param");
   for (int v = 0; v < NV; v++) printf(" | %-27s", vname[v]);
   printf(" | fmac-1 bound\n");

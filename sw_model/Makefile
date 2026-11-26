@@ -83,6 +83,12 @@ FMA_VECTORS:=$(BUILD_DIR)/fma_vectors
 $(FMA_VECTORS): tests/fma_vectors.c $(MODEL_OBJ) $(MODEL_HDR)
 	$(CC) $(CFLAGS) tests/fma_vectors.c $(MODEL_OBJ) -lm -o $@
 
+MAC_VECTORS:=$(BUILD_DIR)/mac_vectors
+
+# random fmac streams of a format with the model's results, for the RTL stream testbench
+$(MAC_VECTORS): tests/mac_vectors.c $(MODEL_OBJ) $(MODEL_HDR)
+	$(CC) $(CFLAGS) tests/mac_vectors.c $(MODEL_OBJ) -lm -o $@
+
 check: $(MODEL_RUN) $(LIB)
 	IEEE754_LIB=$(abspath $(LIB)) $(PYTHON) tests/check.py --rtl $(RTL_DIR) \
 	  --work $(ABS_BUILD_DIR)/check --model-run $(MODEL_RUN)

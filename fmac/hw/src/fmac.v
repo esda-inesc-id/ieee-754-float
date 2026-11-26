@@ -75,52 +75,108 @@ module fmac #(
    wire                   mac_sign;
    wire [        EXP_W:0] mac_exp;
    wire [MAN_W+EXTRA-1:0] mac_man;
-   wire [          2:0] mac_res_special;
-   fmac_core #(
-      .EXP_W        (EXP_W),
-      .MAN_W        (DATA_W - EXP_W),
-      .SPECIAL_CASES(SPECIAL_CASES),
-      .LGUARD_W     (LGUARD_W),
-      .RGUARD_W     (RGUARD_W),
-      .STEP         (STEP)
-   ) mac0 (
-      .clk(clk),
-      .rst(rst),
+   wire [            2:0] mac_res_special;
 
-      .valid_i(mac_valid_i),
-      .valid_o(mac_valid_o),
+   // formats up to 8 bits: product, alignment and addition in one cycle into one
+   // accumulator (fmac_core1); wider ones: the pipelined core with two interleaved
+   // accumulators
+   localparam LOOP1 = DATA_W <= 8;
+   // cycles from the last product to the pack input, where the rounding mode is used
+   localparam RND_DLY = LOOP1 ? 1 : 7;
 
-      .op_a_sign(op_a_sign),
-      .op_a_exp (op_a_exp),
-      .op_a_man (op_a_man),
-      .op_a_nan (op_a_nan),
-      .op_a_inf (op_a_inf),
-      .op_a_zero(op_a_zero),
+   generate
+      if (LOOP1) begin : gen_loop1
+         fmac_core1 #(
+            .EXP_W        (EXP_W),
+            .MAN_W        (MAN_W),
+            .SPECIAL_CASES(SPECIAL_CASES),
+            .LGUARD_W     (LGUARD_W),
+            .RGUARD_W     (RGUARD_W)
+         ) mac0 (
+            .clk(clk),
+            .rst(rst),
 
-      .op_b_sign(op_b_sign),
-      .op_b_exp (op_b_exp),
-      .op_b_man (op_b_man),
-      .op_b_nan (op_b_nan),
-      .op_b_inf (op_b_inf),
-      .op_b_zero(op_b_zero),
-      .res_special(mac_res_special),
+            .valid_i(mac_valid_i),
+            .valid_o(mac_valid_o),
 
-      .res_sign(mac_sign),
-      .res_exp (mac_exp),
-      .res_man (mac_man)
-   );
+            .op_a_sign(op_a_sign),
+            .op_a_exp (op_a_exp),
+            .op_a_man (op_a_man),
+            .op_a_nan (op_a_nan),
+            .op_a_inf (op_a_inf),
+            .op_a_zero(op_a_zero),
+
+            .op_b_sign(op_b_sign),
+            .op_b_exp (op_b_exp),
+            .op_b_man (op_b_man),
+            .op_b_nan (op_b_nan),
+            .op_b_inf (op_b_inf),
+            .op_b_zero(op_b_zero),
+            .res_special(mac_res_special),
+
+            .res_sign(mac_sign),
+            .res_exp (mac_exp),
+            .res_man (mac_man)
+         );
+      end else begin : gen_pipe
+         fmac_core #(
+            .EXP_W        (EXP_W),
+            .MAN_W        (MAN_W),
+            .SPECIAL_CASES(SPECIAL_CASES),
+            .LGUARD_W     (LGUARD_W),
+            .RGUARD_W     (RGUARD_W),
+            .STEP         (STEP)
+         ) mac0 (
+            .clk(clk),
+            .rst(rst),
+
+            .valid_i(mac_valid_i),
+            .valid_o(mac_valid_o),
+
+            .op_a_sign(op_a_sign),
+            .op_a_exp (op_a_exp),
+            .op_a_man (op_a_man),
+            .op_a_nan (op_a_nan),
+            .op_a_inf (op_a_inf),
+            .op_a_zero(op_a_zero),
+
+            .op_b_sign(op_b_sign),
+            .op_b_exp (op_b_exp),
+            .op_b_man (op_b_man),
+            .op_b_nan (op_b_nan),
+            .op_b_inf (op_b_inf),
+            .op_b_zero(op_b_zero),
+            .res_special(mac_res_special),
+
+            .res_sign(mac_sign),
+            .res_exp (mac_exp),
+            .res_man (mac_man)
+         );
+      end
+   endgenerate
 
    wire pack_valid_i = mac_valid_o;
    // Rounding mode, delayed to the pack input (mac, from the last product)
-   localparam RND_DLY = 7;
    reg [3*RND_DLY-1:0] rnd_pipe;
-   always @(posedge clk, posedge rst) begin
-      if (rst) begin
-         rnd_pipe <= {(3 * RND_DLY) {1'b0}};
-      end else begin
-         rnd_pipe <= {rnd_pipe[3*RND_DLY-4:0], rnd_mode};
+   generate
+      if (RND_DLY == 1) begin : gen_rnd1
+         always @(posedge clk, posedge rst) begin
+            if (rst) begin
+               rnd_pipe <= 3'b000;
+            end else begin
+               rnd_pipe <= rnd_mode;
+            end
+         end
+      end else begin : gen_rnd
+         always @(posedge clk, posedge rst) begin
+            if (rst) begin
+               rnd_pipe <= {(3 * RND_DLY) {1'b0}};
+            end else begin
+               rnd_pipe <= {rnd_pipe[3*RND_DLY-4:0], rnd_mode};
+            end
+         end
       end
-   end
+   endgenerate
    wire [2:0] pack_rnd_mode = rnd_pipe[3*RND_DLY-1-:3];
 
    pack #(

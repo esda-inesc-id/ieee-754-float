@@ -3,7 +3,14 @@
 // Applies the product streams of streams.tv with the minimum idle gap between
 // them and writes one result per stream to streams.out.
 
+// The format (ST_DATA_W, ST_EXP_W) and rounding mode (ST_RND) come from sim_config.vh,
+// written by the make flow.
+`include "sim_config.vh"
+
 module fmac_streams_tb;
+   localparam DATA_W = `ST_DATA_W;
+   localparam EXP_W = `ST_EXP_W;
+   localparam [2:0] RND = `ST_RND;
 
    parameter CLK_PER = 20;
    parameter GAP = 2;
@@ -12,17 +19,20 @@ module fmac_streams_tb;
    reg         clk = 0;
    reg         rst = 0;
    reg         valid_i = 0;
-   reg  [31:0] op_a = 0;
-   reg  [31:0] op_b = 0;
+   reg  [DATA_W-1:0] op_a = 0;
+   reg  [DATA_W-1:0] op_b = 0;
    wire        valid_o;
-   wire [31:0] res;
+   wire [DATA_W-1:0] res;
 
-   fmac dut (
+   fmac #(
+      .DATA_W(DATA_W),
+      .EXP_W (EXP_W)
+   ) dut (
       .clk    (clk),
       .rst    (rst),
       .valid_i(valid_i),
       .valid_o(valid_o),
-      .rnd_mode(3'd0),
+      .rnd_mode(RND),
       .op_a   (op_a),
       .op_b   (op_b),
       .res    (res)

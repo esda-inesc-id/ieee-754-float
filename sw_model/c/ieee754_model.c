@@ -371,6 +371,9 @@ static double to_double(format f, u128 bits) {
 
 double ieee754_to_double(uint64_t bits, int data_w, int exp_w) { return to_double(make_format(data_w, exp_w), bits); }
 
+// fmac formats up to this width have a one-cycle loop (fmac.v)
+#define MAC_LOOP1_W 8
+
 // Accumulator words: native 128 bits, and 256 bits for formats up to binary128.
 typedef u128 word128;
 static inline word128 w128_from(u128 x) { return x; }
@@ -438,6 +441,7 @@ typedef struct {
   int word_w;  // acc_w + EXTRA + 1
   uint32_t exp_zero;
   int step;  // largest left normalization shift per accumulation (1 in the RTL)
+  int loop1;  // one-cycle loop and a single accumulator (fmac_core1.v, small formats)
   int fb;    // feedback rounding (IEEE754_FB_NEAR_EVEN in the RTL)
   // statistics for architecture studies: accumulations of products, those that align
   // with a not fully normalized accumulator, and their missing normalization bits
@@ -479,6 +483,7 @@ ieee754_mac *ieee754_mac_new(int data_w, int exp_w, int lguard_w, int rguard_w) 
   m->c.acc_w = acc_w;
   m->c.word_w = acc_w + EXTRA + 1;
   m->c.step = 1;
+  m->c.loop1 = data_w <= MAC_LOOP1_W;
   m->c.fb = IEEE754_FB_NEAR_EVEN;
   m->c.exp_zero = (0u - ((1u << exp_w) + 2u * (uint32_t)m->c.f.man_w)) & m->c.f.exp_mask;
   m->wide = m->c.word_w > 128;
