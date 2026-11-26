@@ -385,8 +385,14 @@ struct ieee754_mac {
   mac_regs r;
 };
 
+// fmac and ffma also take precisions down to 2 (FP8, FP4)
+static int mac_format_ok(int data_w, int exp_w) {
+  int man_w = data_w - exp_w;
+  return data_w <= 64 && exp_w >= 2 && exp_w <= 11 && man_w >= 2 && man_w <= 53;
+}
+
 ieee754_mac *ieee754_mac_new(int data_w, int exp_w, int lguard_w, int rguard_w) {
-  if (!ieee754_format_ok(data_w, exp_w) || lguard_w < 0 || rguard_w < 0) return NULL;
+  if (!mac_format_ok(data_w, exp_w) || lguard_w < 0 || rguard_w < 0) return NULL;
   int acc_w = lguard_w + 1 + 2 * (data_w - exp_w) + rguard_w;
   if (acc_w + EXTRA + 1 > 128) return NULL;
 

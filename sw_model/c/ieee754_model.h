@@ -5,7 +5,8 @@
 // default. There are no exception flags.
 // Every NaN result is the quiet NaN with sign 0 and only the top fraction bit set.
 //
-// Supported formats: 6 <= data_w - exp_w <= 53, 2 <= exp_w <= 11, data_w <= 64.
+// Supported formats: 6 <= data_w - exp_w <= 53, 2 <= exp_w <= 11, data_w <= 64; fmac and ffma
+// also take precisions data_w - exp_w down to 2 (FP8 E5M2 and E4M3, FP4 E2M1).
 
 #ifndef IEEE754_MODEL_H
 #define IEEE754_MODEL_H
@@ -16,7 +17,7 @@
 extern "C" {
 #endif
 
-// Returns 1 if the format is supported.
+// Returns 1 if the format is supported by every unit.
 int ieee754_format_ok(int data_w, int exp_w);
 
 // Rounding modes, encoded as the rnd_mode input of the units (RISC-V frm).

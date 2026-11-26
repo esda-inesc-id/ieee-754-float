@@ -6,6 +6,7 @@
 #                                              needs no RTL tools
 # make check                                   bit-accuracy against TestFloat and the RTL
 # make fmac-accuracy                            fmac accuracy study (needs MPFR)
+# make small-formats                            exhaustive ffma test of FP4/FP6/FP8 (needs MPFR)
 # make clean
 
 CC=gcc
@@ -66,6 +67,15 @@ fmac-accuracy: $(FMAC_ACCURACY)
 
 $(FMAC_ACCURACY): study/fmac_accuracy.c $(MODEL_OBJ) $(MODEL_HDR)
 	$(CC) $(CFLAGS) -ffp-contract=off study/fmac_accuracy.c $(MODEL_OBJ) -lmpfr -lgmp -lm -o $@
+
+SMALL_FORMATS:=$(BUILD_DIR)/small_formats
+
+# exhaustive ffma/fmac test of FP4, FP6 and FP8, random bfloat16 (needs MPFR)
+small-formats: $(SMALL_FORMATS)
+	$(SMALL_FORMATS)
+
+$(SMALL_FORMATS): tests/small_formats.c $(MODEL_OBJ) $(MODEL_HDR)
+	$(CC) $(CFLAGS) -ffp-contract=off tests/small_formats.c $(MODEL_OBJ) -lmpfr -lgmp -lm -o $@
 
 check: $(MODEL_RUN) $(LIB)
 	IEEE754_LIB=$(abspath $(LIB)) $(PYTHON) tests/check.py --rtl $(RTL_DIR) \
