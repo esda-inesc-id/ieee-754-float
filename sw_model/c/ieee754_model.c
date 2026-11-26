@@ -15,7 +15,14 @@ typedef struct {
   int f_w;
   int bias;
   uint32_t exp_mask;  // the internal exponent has exp_w + 2 bits
+  int special;        // IEEE754_SPECIAL_*
 } format;
+
+static int special_kind = IEEE754_SPECIAL_IEEE;
+
+void ieee754_set_special(int kind) { special_kind = kind; }
+
+int ieee754_get_special(void) { return special_kind; }
 
 typedef struct {
   int nan;
@@ -59,6 +66,7 @@ static format make_format(int data_w, int exp_w) {
   f.f_w = f.man_w - 1;
   f.bias = (1 << (exp_w - 1)) - 1;
   f.exp_mask = (1u << (exp_w + 2)) - 1;
+  f.special = special_kind;
   return f;
 }
 
@@ -70,11 +78,27 @@ static int32_t exp_signed(const format *f, uint32_t value) {
   return exp_negative(f, value) ? (int32_t)(value | ~f->exp_mask) : (int32_t)value;
 }
 
+// The largest exponent field of a finite number
+static uint32_t exp_field_max(const format *f) {
+  return f->special == IEEE754_SPECIAL_IEEE ? (1u << f->exp_w) - 2 : (1u << f->exp_w) - 1;
+}
+
+// The largest finite number of a sign
+static uint64_t max_bits(const format *f, int sign) {
+  uint64_t frac = (uint64_t)mask(f->f_w) - (f->special == IEEE754_SPECIAL_FN);
+  return ((uint64_t)sign << (f->data_w - 1)) | ((uint64_t)exp_field_max(f) << f->f_w) | frac;
+}
+
+// Without NaN (FINITE), an invalid operation gives the largest finite number
 static uint64_t nan_bits(const format *f) {
+  if (f->special == IEEE754_SPECIAL_FN) return (uint64_t)mask(f->data_w - 1);
+  if (f->special == IEEE754_SPECIAL_FINITE) return max_bits(f, 0);
   return ((uint64_t)((1u << f->exp_w) - 1) << f->f_w) | ((uint64_t)1 << (f->f_w - 1));
 }
 
+// Without infinities (FN, FINITE), infinity saturates to the largest finite number
 static uint64_t inf_bits(const format *f, int sign) {
+  if (f->special != IEEE754_SPECIAL_IEEE) return max_bits(f, sign);
   return ((uint64_t)sign << (f->data_w - 1)) | ((uint64_t)((1u << f->exp_w) - 1) << f->f_w);
 }
 
@@ -83,8 +107,13 @@ static unpacked unpack(const format *f, uint64_t bits) {
   uint32_t exp_field = (uint32_t)(bits >> f->f_w) & ((1u << f->exp_w) - 1);
   uint64_t fraction = bits & (uint64_t)mask(f->f_w);
   int exp_ones = exp_field == (1u << f->exp_w) - 1;
-  u.nan = exp_ones && fraction != 0;
-  u.inf = exp_ones && fraction == 0;
+  if (f->special == IEEE754_SPECIAL_IEEE) {
+    u.nan = exp_ones && fraction != 0;
+    u.inf = exp_ones && fraction == 0;
+  } else {
+    u.nan = f->special == IEEE754_SPECIAL_FN && exp_ones && fraction == (uint64_t)mask(f->f_w);
+    u.inf = 0;
+  }
   u.zero = exp_field == 0 && fraction == 0;
   u.sign = (int)(bits >> (f->data_w - 1)) & 1;
   u.exp = exp_field ? exp_field : 1;
@@ -158,8 +187,13 @@ static uint64_t pack(const format *f, int rnd, int inv, int nsub, int sign_i, ui
   // Overflow gives infinity, or the largest finite number when the mode rounds toward
   // zero for the sign of the result. A zero mantissa is never an overflow: the exponent
   // of a zero sum can wrap.
-  uint32_t exp_max = (1u << f->exp_w) - 2;
-  if (man_rnd != 0 && exp_negative(f, (exp_max - exp_rnd) & f->exp_mask)) {
+  uint32_t exp_max = exp_field_max(f);
+  int ovf = man_rnd != 0 && exp_negative(f, (exp_max - exp_rnd) & f->exp_mask);
+  // FN: the largest exponent with an all-ones fraction is NaN, so it overflows too
+  ovf |= f->special == IEEE754_SPECIAL_FN && exp_rnd == exp_max && (man_rnd & mask(f->f_w)) == mask(f->f_w) &&
+         (man_rnd >> f->f_w) & 1;
+  if (ovf && f->special != IEEE754_SPECIAL_IEEE) return max_bits(f, sign_i);  // saturate
+  if (ovf) {
     int ovf_inf = rnd == IEEE754_RTZ ? 0 : rnd == IEEE754_RDN ? sign_i : rnd == IEEE754_RUP ? !sign_i : 1;
     exp_rnd = ovf_inf ? (1u << f->exp_w) - 1 : exp_max;
     man_rnd = ovf_inf ? (uint64_t)1 << f->f_w : (uint64_t)mask(f->man_w);
@@ -319,7 +353,10 @@ uint64_t ieee754_from_double(double value, int data_w, int exp_w) {
     kept >>= 1;
     exp_field++;
   }
-  if (exp_field >= (1 << f.exp_w) - 1) return inf_bits(&f, sign);
+  int emax = (int)exp_field_max(&f);
+  if (exp_field > emax ||
+      (f.special == IEEE754_SPECIAL_FN && exp_field == emax && (kept & mask(f.f_w)) == mask(f.f_w)))
+    return inf_bits(&f, sign);
   return sign_bits | ((uint64_t)exp_field << f.f_w) | (kept & (uint64_t)mask(f.f_w));
 }
 

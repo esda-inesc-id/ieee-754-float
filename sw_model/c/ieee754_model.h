@@ -30,6 +30,16 @@ enum {
   IEEE754_RMM = 4   // to nearest, ties away from zero
 };
 
+// Encodings of the special values, for later operations and mac units created after the
+// call. IEEE (default): infinities and NaNs as in IEEE 754. FN (OCP FP8 E4M3): no
+// infinities; the largest exponent holds normal numbers and the only NaN has every
+// exponent and fraction bit set. FINITE (OCP FP4 E2M1): no infinities and no NaN.
+// Without infinities, overflow saturates to the largest finite number in every rounding
+// mode; without NaN, an invalid operation also gives the largest finite number.
+enum { IEEE754_SPECIAL_IEEE, IEEE754_SPECIAL_FN, IEEE754_SPECIAL_FINITE };
+void ieee754_set_special(int kind);
+int ieee754_get_special(void);
+
 // Sets the rounding mode of later add, sub, mul, div and fmac products (low 3 bits of mode).
 void ieee754_set_rounding(int mode);
 int ieee754_get_rounding(void);

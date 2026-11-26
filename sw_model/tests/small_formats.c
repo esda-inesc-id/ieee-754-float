@@ -2,8 +2,9 @@
 // a, b, c in every rounding mode against MPFR, correctly rounded with the format's
 // subnormals and overflow. Formats too large to enumerate get random operands.
 //
-// usage: small_formats [data_w exp_w [random_cases]] ... (default: FP4 E2M1, FP6 E3M2,
-// FP8 E4M3 and E5M2 exhaustive, bfloat16 random)
+// usage: small_formats [data_w:exp_w[:kind[:random_cases]]] ... (kind 0 IEEE, 1 FN, 2
+// FINITE; default: FP4 E2M1 and FP6 E3M2 IEEE and finite, FP8 E4M3 IEEE and FN, E5M2,
+// all exhaustive, and bfloat16 random)
 
 #include <math.h>
 #include <mpfr.h>
@@ -13,7 +14,8 @@
 
 #include "ieee754_model.h"
 
-static int data_w, exp_w, prec;
+static int data_w, exp_w, prec, kind;
+static double max_fin;  // the largest finite number
 static mpfr_exp_t emin_fmt, emax_fmt;
 static mpfr_t x, r, t;
 
@@ -84,17 +86,23 @@ static void check(uint64_t a, uint64_t b, uint64_t c, int mode) {
       want = round_fmt(mode);
     }
   }
+  if (kind != IEEE754_SPECIAL_IEEE && !isnan(want) && fabs(want) > max_fin) want = copysign(max_fin, want);
   cases++;
   int ok = isnan(want) ? isnan(got) : got == want && signbit(got) == signbit(want);
   if (!ok && errors++ < 10)
     printf("  mismatch e%dm%d mode %d: %a * %a + %a = %a, want %a\n", exp_w, prec - 1, mode, da, db, dc, got, want);
 }
 
-static void run(int dw, int ew, long random_cases) {
-  data_w = dw, exp_w = ew, prec = dw - ew;
+static const char *kname[] = {"", " fn", " finite"};
+
+static void run(int dw, int ew, int k, long random_cases) {
+  data_w = dw, exp_w = ew, prec = dw - ew, kind = k;
+  ieee754_set_special(k);
   int bias = (1 << (ew - 1)) - 1;
   emin_fmt = 3 - bias - prec;
-  emax_fmt = bias + 1;
+  // without infinities the largest exponent holds normal numbers; FN loses one value
+  emax_fmt = k == IEEE754_SPECIAL_IEEE ? bias + 1 : bias + 2;
+  max_fin = ldexp(2 - ldexp(1, 1 - prec) * (k == IEEE754_SPECIAL_FN ? 2 : 1), (int)emax_fmt - 1);
   mpfr_set_prec(r, prec);
   errors = cases = 0;
   uint64_t n = (uint64_t)1 << dw;
@@ -109,7 +117,8 @@ static void run(int dw, int ew, long random_cases) {
     }
   }
   ieee754_set_rounding(IEEE754_RNE);
-  printf("ffma %d-bit e%dm%d %s: %ld cases, %ld mismatches\n", dw, ew, prec - 1,
+  ieee754_set_special(IEEE754_SPECIAL_IEEE);
+  printf("ffma %d-bit e%dm%d%s %s: %ld cases, %ld mismatches\n", dw, ew, prec - 1, kname[k],
          random_cases ? "random" : "exhaustive", cases, errors);
 }
 
@@ -118,24 +127,21 @@ int main(int argc, char **argv) {
   mpfr_init2(r, 53);
   mpfr_init2(t, 600);
   long total = 0;
-  if (argc > 1) {
-    for (int i = 1; i + 1 < argc; i += 2) {
-      long rc = i + 2 < argc && atol(argv[i + 2]) > 64 ? atol(argv[i + 2]) : 0;
-      run(atoi(argv[i]), atoi(argv[i + 1]), rc);
+  if (argc > 1) {  // arguments: data_w:exp_w[:kind[:random_cases]], kind 0 IEEE, 1 FN, 2 FINITE
+    for (int i = 1; i < argc; i++) {
+      int dw = 0, ew = 0, k = 0;
+      long rc = 0;
+      sscanf(argv[i], "%d:%d:%d:%ld", &dw, &ew, &k, &rc);
+      run(dw, ew, k, rc);
       total += errors;
-      if (rc) i++;
     }
   } else {
-    run(4, 2, 0);
-    total += errors;
-    run(6, 3, 0);
-    total += errors;
-    run(8, 4, 0);
-    total += errors;
-    run(8, 5, 0);
-    total += errors;
-    run(16, 8, 2000000);
-    total += errors;
+    static const int fmts[][4] = {{4, 2, 0, 0}, {4, 2, 2, 0}, {6, 3, 0, 0}, {6, 3, 2, 0}, {8, 4, 0, 0},
+                                  {8, 4, 1, 0}, {8, 5, 0, 0}, {16, 8, 0, 2000000}};
+    for (unsigned i = 0; i < sizeof fmts / sizeof fmts[0]; i++) {
+      run(fmts[i][0], fmts[i][1], fmts[i][2], fmts[i][3]);
+      total += errors;
+    }
   }
   return total != 0;
 }
