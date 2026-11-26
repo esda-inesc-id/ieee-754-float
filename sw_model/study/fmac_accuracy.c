@@ -19,7 +19,7 @@
 // All roundings to the format (fma, mul+add, exact) use MPFR, to nearest even.
 // Errors are |result - exact| in ulps of the exact result rounded to the format.
 // "bound" is the largest (|err| - ulp/2) / ((n+1) sum|ab|) of fmac-1, as a power of 2,
-// against the bound 2^-(2p+rguard-3), half an ulp aside.
+// against the bound 2^-(2p+rguard-2), half an ulp aside.
 
 #include <math.h>
 #include <mpfr.h>
@@ -361,8 +361,8 @@ static void sweep(int dw, int ew, int decades, int trials) {
   }
   for (int bin = 0; bin < NB; bin++) {
     if (!cnt[bin]) continue;
-    // bound: u/2 + (n+1) 2^-(2p+g_R-3) S/|s|, with S/|s| = c/2 at the bin's upper edge
-    double bound = ldexp(1, -prec) + (n + 1) * ldexp(1, -(2 * prec + rguard - 3)) * pow(10, bin + 1) / 2;
+    // bound: u/2 + (n+1) 2^-(2p+g_R-2) S/|s|, with S/|s| = c/2 at the bin's upper edge
+    double bound = ldexp(1, -prec) + (n + 1) * ldexp(1, -(2 * prec + rguard - 2)) * pow(10, bin + 1) / 2;
     printf("sweep f%d c=1e%d streams=%ld fmac1=%.3g fmac8=%.3g fma=%.3g muladd=%.3g bound=%.3g\n", dw, bin,
            cnt[bin], maxrel[bin][V_FMAC1], maxrel[bin][V_FMAC8], maxrel[bin][V_FMA], maxrel[bin][V_MULADD], bound);
   }
