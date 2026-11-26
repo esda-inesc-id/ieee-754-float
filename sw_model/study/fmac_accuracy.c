@@ -36,6 +36,7 @@ static const int vstep[3] = {1, 8, 128};
 
 // the format under study, and the fmac right guard
 static int data_w, exp_w, prec, bias, rguard;
+static int feedback = IEEE754_FB_ODD;  // fmac feedback rounding (-f)
 static mpfr_exp_t emin_fmt, emax_fmt;
 
 // Deterministic random numbers (xorshift64*)
@@ -221,6 +222,7 @@ static void study(int dw, int ew, double scale, const double *conds, int nconds)
   for (int v = 0; v < 3; v++) {
     mac[v] = ieee754_mac_new(dw, ew, 0, rguard);
     ieee754_mac_set_step(mac[v], vstep[v]);
+    ieee754_mac_set_feedback(mac[v], feedback);
   }
   int nmax = 100000;
   double *a = malloc(nmax * sizeof *a), *b = malloc(nmax * sizeof *b);
@@ -308,6 +310,7 @@ static void sweep(int dw, int ew, int decades, int trials) {
   for (int v = 0; v < 3; v++) {
     mac[v] = ieee754_mac_new(dw, ew, 0, rguard);
     ieee754_mac_set_step(mac[v], vstep[v]);
+    ieee754_mac_set_feedback(mac[v], feedback);
   }
   enum { NB = 48 };
   int n = 100;
@@ -406,6 +409,7 @@ static void set_format(int dw, int ew) {
   for (int v = 0; v < 3; v++) {
     mac[v] = ieee754_mac_new(dw, ew, 0, rguard);
     ieee754_mac_set_step(mac[v], vstep[v]);
+    ieee754_mac_set_feedback(mac[v], feedback);
   }
 }
 
@@ -471,11 +475,15 @@ static void apps(int dw, int ew) {
 
 int main(int argc, char **argv) {
   // arguments: the formats to run, e.g. "16 32 64" (default all); "-g N" sets the fmac
-  // right guard; "-s" runs the condition sweep instead of the study
+  // right guard; "-f N" sets the feedback rounding (0 odd, the RTL; 1 truncate; 2 first
+  // dropped bit; 3 nearest, ties up; 4 nearest, ties to even); "-s" runs the condition
+  // sweep instead of the study
   int run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0;
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-g") && i + 1 < argc) {
       rguard = atoi(argv[++i]);
+    } else if (!strcmp(argv[i], "-f") && i + 1 < argc) {
+      feedback = atoi(argv[++i]);
     } else if (!strcmp(argv[i], "-s")) {
       do_sweep = 1;
     } else if (!strcmp(argv[i], "-a")) {

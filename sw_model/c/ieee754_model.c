@@ -378,6 +378,7 @@ struct ieee754_mac {
   int pushed;
   int rnd;  // rounding mode at the last product
   int step;  // largest left normalization shift per accumulation (1 in the RTL)
+  int fb;    // feedback rounding (IEEE754_FB_ODD in the RTL)
   // statistics for architecture studies: accumulations of products, those that align
   // with a not fully normalized accumulator, and their missing normalization bits
   long stat_accs, stat_lagged, stat_lag_bits;
@@ -405,16 +406,27 @@ void ieee754_mac_free(ieee754_mac *mac) { free(mac); }
 
 void ieee754_mac_set_step(ieee754_mac *mac, int step) { mac->step = step < 1 ? 1 : step; }
 
+void ieee754_mac_set_feedback(ieee754_mac *mac, int fb) { mac->fb = fb; }
+
 void ieee754_mac_stats(const ieee754_mac *mac, long *accs, long *lagged, long *lag_bits) {
   *accs = mac->stat_accs;
   *lagged = mac->stat_lagged;
   *lag_bits = mac->stat_lag_bits;
 }
 
-// acc_odd: the accumulator rounded to odd at acc_w + 1 bits.
+// acc_odd: the accumulator rounded to odd at acc_w + 1 bits (the RTL), or, for studies,
+// with another feedback rounding.
 static u128 mac_acc_odd(const ieee754_mac *m) {
   u128 acc = m->r.acc_man;
-  return ((acc >> (EXTRA + 1)) << 1) | (u128)((acc & mask(EXTRA + 1)) != 0);
+  u128 kept = acc >> EXTRA, first = (acc >> (EXTRA - 1)) & 1;
+  int rest = (acc & mask(EXTRA - 1)) != 0;
+  switch (m->fb) {
+    case IEEE754_FB_TRUNC: return kept;
+    case IEEE754_FB_FIRST: return kept | first;
+    case IEEE754_FB_NEAR_UP: return kept + first;
+    case IEEE754_FB_NEAR_EVEN: return kept + (first & (u128)(rest | (int)(kept & 1)));
+    default: return ((acc >> (EXTRA + 1)) << 1) | (u128)((acc & mask(EXTRA + 1)) != 0);
+  }
 }
 
 // Normalization of the accumulator into res_exp and res_man.

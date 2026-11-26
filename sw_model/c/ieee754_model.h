@@ -59,6 +59,17 @@ void ieee754_mac_free(ieee754_mac *mac);
 // normalizes fully every cycle.
 void ieee754_mac_set_step(ieee754_mac *mac, int step);
 
+// Architecture studies only: how the accumulator drops its EXTRA low bits on feedback. The
+// RTL rounds to odd (the default).
+enum {
+  IEEE754_FB_ODD,       // last kept bit |= OR of the dropped bits
+  IEEE754_FB_TRUNC,     // truncate
+  IEEE754_FB_FIRST,     // last kept bit |= first dropped bit
+  IEEE754_FB_NEAR_UP,   // nearest, ties up
+  IEEE754_FB_NEAR_EVEN  // nearest, ties to even
+};
+void ieee754_mac_set_feedback(ieee754_mac *mac, int fb);
+
 // Architecture studies only: since the unit was created, the products accumulated, those
 // aligned with an accumulator not yet fully normalized, and the sum of its missing
 // normalization bits.
