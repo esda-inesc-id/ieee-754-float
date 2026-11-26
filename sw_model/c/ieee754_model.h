@@ -78,7 +78,7 @@ void ieee754_mac_free(ieee754_mac *mac);
 void ieee754_mac_set_step(ieee754_mac *mac, int step);
 
 // Architecture studies only: how the accumulator drops its EXTRA low bits on feedback. The
-// RTL rounds to odd (the default).
+// RTL rounds to nearest, ties to even (the default).
 enum {
   IEEE754_FB_ODD,       // last kept bit |= OR of the dropped bits
   IEEE754_FB_TRUNC,     // truncate

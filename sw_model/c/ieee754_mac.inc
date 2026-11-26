@@ -58,9 +58,9 @@ typedef struct {
   int valid_o;
 } REGS;
 
-// acc_odd: the accumulator rounded to odd at acc_w + 1 bits (the RTL), or, for studies,
-// with another feedback rounding.
-static word FN(mac_acc_odd)(const mac_cfg *m, const REGS *r) {
+// acc_fb: the accumulator rounded at acc_w + 1 bits to nearest, ties to even (the RTL), or,
+// for studies, with another feedback rounding.
+static word FN(mac_acc_fb)(const mac_cfg *m, const REGS *r) {
   word acc = r->acc_man;
   word kept = wf(_shr)(acc, EXTRA);
   int first = wf(_bit)(acc, EXTRA - 1);
@@ -69,10 +69,10 @@ static word FN(mac_acc_odd)(const mac_cfg *m, const REGS *r) {
     case IEEE754_FB_TRUNC: return kept;
     case IEEE754_FB_FIRST: return wf(_or)(kept, wf(_from)((u128)first));
     case IEEE754_FB_NEAR_UP: return wf(_add)(kept, wf(_from)((u128)first));
-    case IEEE754_FB_NEAR_EVEN: return wf(_add)(kept, wf(_from)((u128)(first & (rest | wf(_bit)(kept, 0)))));
-    default:
+    case IEEE754_FB_ODD:
       return wf(_or)(wf(_shl)(wf(_shr)(acc, EXTRA + 1), 1),
                      wf(_from)((u128)wf(_nz)(wf(_and)(acc, wf(_mask)(EXTRA + 1)))));
+    default: return wf(_add)(kept, wf(_from)((u128)(first & (rest | wf(_bit)(kept, 0)))));
   }
 }
 
@@ -158,7 +158,7 @@ static void FN(mac_clock)(mac_cfg *m, REGS *r, int valid_i, u128 op_a, u128 op_b
   int acc_top2 = wf(_bit)(r->acc_man, word_w - 3);
   int ovf = acc_top ^ acc_top1;
   int undf = !(acc_top1 ^ acc_top2) && wf(_nz)(r->acc_man);
-  word acc_odd = FN(mac_acc_odd)(m, r);
+  word acc_fb = FN(mac_acc_fb)(m, r);
 
   uint32_t b_exp_int;
   word b_man_int;
@@ -167,7 +167,7 @@ static void FN(mac_clock)(mac_cfg *m, REGS *r, int valid_i, u128 op_a, u128 op_b
     b_man_int = wf(_from)(0);
   } else if (ovf) {
     b_exp_int = (r->acc_exp + 1) & f->exp_mask;
-    b_man_int = wf(_or)(wf(_shl)(wf(_from)((u128)acc_top), (uint32_t)(word_w - 1)), wf(_shl)(acc_odd, EXTRA - 1));
+    b_man_int = wf(_or)(wf(_shl)(wf(_from)((u128)acc_top), (uint32_t)(word_w - 1)), wf(_shl)(acc_fb, EXTRA - 1));
   } else if (undf) {
     // shift left by up to step positions, keeping two sign bits
     uint32_t lsc = FN(count_leading_w)(r->acc_man, word_w, acc_top);
@@ -177,10 +177,10 @@ static void FN(mac_clock)(mac_cfg *m, REGS *r, int valid_i, u128 op_a, u128 op_b
       m->stat_lag_bits += lsc - 2 - sh;
     }
     b_exp_int = (r->acc_exp - sh) & f->exp_mask;
-    b_man_int = wf(_and)(wf(_shl)(acc_odd, EXTRA + sh), wf(_mask)(word_w));
+    b_man_int = wf(_and)(wf(_shl)(acc_fb, EXTRA + sh), wf(_mask)(word_w));
   } else {
     b_exp_int = r->acc_exp;
-    b_man_int = wf(_shl)(acc_odd, EXTRA);
+    b_man_int = wf(_shl)(acc_fb, EXTRA);
   }
 
   if (r->valid_d2) m->stat_accs++;

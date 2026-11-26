@@ -10,9 +10,9 @@ multiplies them, adds each product to a two's complement accumulator and
 normalizes the sum. \sig{pack} rounds the sum in the mode of \sig{rnd\_mode}, as
 Figure~\ref{fig:fmac} shows.
 
-The value fed back to the accumulator is rounded to odd: the bits shifted out are
-ORed into its least significant bit, so that the final rounding can see that the
-value is inexact. The output normalization uses the full adder word.
+The value fed back to the accumulator is rounded to nearest, ties to even, dropping
+its three low bits; on long streams this is more accurate than rounding to odd or
+truncating. The output normalization uses the full adder word.
 
 \begin{figure}[H]
 \centering
@@ -34,8 +34,8 @@ value is inexact. The output normalization uses the full adder word.
 \item Accumulation of a stream of products, with one product per clock cycle.
 \item A latency of 8 clock cycles from the last product.
 \item The rounding mode of a stream is \sig{rnd\_mode} with its last product.
-\item Rounding to odd inside the accumulator, and in the selected mode at the
-  output.
+\item Rounding to nearest, ties to even, inside the accumulator, and in the selected
+  mode at the output.
 \item Accumulator width set by \sig{LGUARD\_W} and \sig{RGUARD\_W}.
 \item Subnormal operands and results.
 \item NaN and infinity handling, selected by \sig{SPECIAL\_CASES}.
@@ -135,8 +135,8 @@ run applies the first 200,000 of them, and \sig{make test-full} all of them
 (Section~\ref{sec:testfloat}).
 
 A longer stream is not always correctly rounded: the accumulator has a fixed
-width, and the value fed back to it is rounded to odd. This keeps the hardware
+width, and the value fed back to it is rounded. This keeps the hardware
 small; an accumulator exact for any stream would need about 600 bits. The stream test (Section~\ref{sec:streams}) checks
 each result against the exact sum, with the error bound given there. In its regular
-run of 6,000 streams, with the default \sig{LGUARD\_W} and \sig{RGUARD\_W}, 4,448
+run of 6,000 streams, with the default \sig{LGUARD\_W} and \sig{RGUARD\_W}, 4,460
 results are correctly rounded and the others are within the bound.

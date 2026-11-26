@@ -438,7 +438,7 @@ typedef struct {
   int word_w;  // acc_w + EXTRA + 1
   uint32_t exp_zero;
   int step;  // largest left normalization shift per accumulation (1 in the RTL)
-  int fb;    // feedback rounding (IEEE754_FB_ODD in the RTL)
+  int fb;    // feedback rounding (IEEE754_FB_NEAR_EVEN in the RTL)
   // statistics for architecture studies: accumulations of products, those that align
   // with a not fully normalized accumulator, and their missing normalization bits
   long stat_accs, stat_lagged, stat_lag_bits;
@@ -479,6 +479,7 @@ ieee754_mac *ieee754_mac_new(int data_w, int exp_w, int lguard_w, int rguard_w) 
   m->c.acc_w = acc_w;
   m->c.word_w = acc_w + EXTRA + 1;
   m->c.step = 1;
+  m->c.fb = IEEE754_FB_NEAR_EVEN;
   m->c.exp_zero = (0u - ((1u << exp_w) + 2u * (uint32_t)m->c.f.man_w)) & m->c.f.exp_mask;
   m->wide = m->c.word_w > 128;
   return m;

@@ -147,13 +147,12 @@ module fmac_core #(
 
    reg [EXP_W+1:0] acc_exp_reg, acc_exp_reg2;
    reg [ACC_W+EXTRA:0] acc_man_reg;
-   // the EXTRA-1 bits below the round-to-odd accumulator are zero and not stored
+   // the EXTRA-1 bits below the rounded accumulator are zero and not stored
    reg [ACC_W+1:0] acc_man_reg2;
 
-   // Round to odd: keeps the final rounding correct
-   wire [ACC_W:0] acc_odd = {
-      acc_man_reg[ACC_W+EXTRA:EXTRA+1], acc_man_reg[EXTRA] | (|acc_man_reg[EXTRA-1:0])
-   };
+   // Feedback rounded to nearest, ties to even, dropping the EXTRA low bits
+   wire acc_rnd = acc_man_reg[EXTRA-1] & (acc_man_reg[EXTRA] | (|acc_man_reg[EXTRA-2:0]));
+   wire [ACC_W:0] acc_fb = acc_man_reg[ACC_W+EXTRA:EXTRA] + {{ACC_W{1'b0}}, acc_rnd};
 
    wire [EXP_W+1:0] A_exp_int = valid_d2 ? mul_exp_reg : acc_exp_reg2;
    wire [ACC_W+EXTRA:0] A_man_int = valid_d2 ? mul_man_c : {acc_man_reg2, {(EXTRA - 1) {1'b0}}};
@@ -174,7 +173,7 @@ module fmac_core #(
    generate
       if (STEP == 1) begin : gen_step1
          assign acc_exp_lsh = acc_exp_reg - 1'b1;
-         assign acc_man_lsh = {acc_odd[ACC_W-1:0], 2'b00};
+         assign acc_man_lsh = {acc_fb[ACC_W-1:0], 2'b00};
       end else begin : gen_step
          // leading bits equal to the sign below it, within STEP + 1 bits
          wire [STEP_LZ_W-1:0] step_lz;
@@ -186,7 +185,7 @@ module fmac_core #(
          );
          wire [STEP_LZ_W-1:0] step_sh = step_lz - 1'b1;
          assign acc_exp_lsh = acc_exp_reg - step_sh;
-         assign acc_man_lsh = {acc_odd, 1'b0} << step_sh;
+         assign acc_man_lsh = {acc_fb, 1'b0} << step_sh;
       end
    endgenerate
 
@@ -196,9 +195,9 @@ module fmac_core #(
       acc_exp_reg;
    wire [ACC_W+1:0] B_man_hi =
       acc_clr ? {(ACC_W + 2) {1'b0}} :
-      ovf_int ? {acc_man_reg[ACC_W+EXTRA], acc_odd} :
+      ovf_int ? {acc_man_reg[ACC_W+EXTRA], acc_fb} :
       undf_int ? acc_man_lsh :
-      {acc_odd, 1'b0};
+      {acc_fb, 1'b0};
 
    wire comp = ($signed(
        A_exp_int

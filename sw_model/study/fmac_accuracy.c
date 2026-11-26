@@ -36,7 +36,7 @@ static const int vstep[3] = {1, 8, 128};
 
 // the format under study, and the fmac right guard
 static int data_w, exp_w, prec, bias, rguard;
-static int feedback = IEEE754_FB_ODD;  // fmac feedback rounding (-f)
+static int feedback = IEEE754_FB_NEAR_EVEN;  // fmac feedback rounding (-f)
 static mpfr_exp_t emin_fmt, emax_fmt;
 
 // Deterministic random numbers (xorshift64*)
@@ -551,7 +551,7 @@ static void grid(int dw, int ew) {
 // Real data: the rows of a sparse matrix (Matrix Market coordinate, real) times a vector x,
 // x = 1 (row sums) or x ~ N(0,1). Each row is scaled by a power of 2 so its largest entry
 // is in [0.5, 1); the products are then rounded to the format. Variants: fmac-1 with odd
-// feedback (the RTL), fmac-1 with nearest-even feedback, fmac-full, fma, mul+add.
+// feedback, fmac-1 with nearest-even feedback (the RTL), fmac-full, fma, mul+add.
 static void matrix(const char *path, int dw, int ew) {
   FILE *f = fopen(path, "r");
   if (!f) {
@@ -589,6 +589,7 @@ static void matrix(const char *path, int dw, int ew) {
   for (long k = 0; k < m; k++) col[pos[ri[k]]] = ci[k], val[pos[ri[k]]++] = v[k];
 
   set_format(dw, ew);
+  ieee754_mac_set_feedback(mac[0], IEEE754_FB_ODD);
   ieee754_mac_set_feedback(mac[1], IEEE754_FB_NEAR_EVEN);
   ieee754_mac_set_step(mac[1], 1);
   double *x = malloc(nc * sizeof *x), *a = malloc(nc * sizeof *a), *b = malloc(nc * sizeof *b);
@@ -627,6 +628,7 @@ static void streams(const char *path, int dw, int ew) {
     exit(1);
   }
   set_format(dw, ew);
+  ieee754_mac_set_feedback(mac[0], IEEE754_FB_ODD);
   ieee754_mac_set_feedback(mac[1], IEEE754_FB_NEAR_EVEN);
   ieee754_mac_set_step(mac[1], 1);
   int cap = 0;
@@ -665,8 +667,8 @@ static void streams(const char *path, int dw, int ew) {
 
 int main(int argc, char **argv) {
   // arguments: the formats to run, e.g. "16 32 64" (default all); "-g N" sets the fmac
-  // right guard; "-f N" sets the feedback rounding (0 odd, the RTL; 1 truncate; 2 first
-  // dropped bit; 3 nearest, ties up; 4 nearest, ties to even); "-s" runs the condition
+  // right guard; "-f N" sets the feedback rounding (0 odd; 1 truncate; 2 first
+  // dropped bit; 3 nearest, ties up; 4 nearest, ties to even, the RTL); "-s" runs the condition
   // sweep instead of the study; "-G" runs the odd/nearest-even grid; "-r N" seeds the
   // random numbers
   // "-m file.mtx" runs the rows of a Matrix Market matrix (repeatable)
