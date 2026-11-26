@@ -1,6 +1,7 @@
 // Writes every a*b + c of a small format, with the model's result, as TestFloat mulAdd
 // vectors ("a b c result flags", hex) for the RTL testbench. The model's ffma matches
-// MPFR on these formats exhaustively (make fma-formats).
+// MPFR on these formats exhaustively (make fma-formats). The special values are those of
+// the OCP format of that width (ieee754_special_of), as in the RTL.
 // usage: fma_vectors <data_w> <exp_w> <rounding mode 0..4>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +19,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   ieee754_set_rounding(atoi(argv[3]));
+  ieee754_set_special(ieee754_special_of(dw, ew));
   int digits = (dw + 3) / 4;
   unsigned n = 1u << dw;
   for (unsigned a = 0; a < n; a++)

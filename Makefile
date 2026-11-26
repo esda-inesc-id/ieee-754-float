@@ -88,7 +88,7 @@ coverage:
 	done
 ifneq ($(filter fmac,$(CORES)),)
 	-@$(MAKE_SUB) -C fmac/hw/sim exhaustive CORE=fmac EX_FMTS=fp4 SIMULATOR=verilator COV=1
-	-@$(MAKE_SUB) -C fmac/hw/sim streams-model CORE=fmac MODEL_FMTS="fp4 e5m2" SIMULATOR=verilator COV=1
+	-@$(MAKE_SUB) -C fmac/hw/sim streams-model CORE=fmac MODEL_FMTS="fp4 e4m3 e5m2" SIMULATOR=verilator COV=1
 endif
 	@$(MAKE_SUB) coverage-report
 

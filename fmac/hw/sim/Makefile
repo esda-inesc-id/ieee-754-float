@@ -13,7 +13,7 @@ streams:
 
 # random streams of the formats MODEL_FMTS in each mode, checked bit for bit against the
 # C model (sw_model/tests/mac_vectors.c)
-MODEL_FMTS?=fp4 e4m3 e5m2
+MODEL_FMTS?=fp4 fp6 e4m3 e5m2
 MODEL_N?=3000
 MAC_VECTORS=$(abspath $(FPU_DIR)/sw_model/build/mac_vectors)
 

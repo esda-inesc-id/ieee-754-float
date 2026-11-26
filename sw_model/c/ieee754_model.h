@@ -43,6 +43,9 @@ enum {
 enum { IEEE754_SPECIAL_IEEE, IEEE754_SPECIAL_FN, IEEE754_SPECIAL_FINITE };
 void ieee754_set_special(int kind);
 int ieee754_get_special(void);
+// The kind of the OCP formats, as the RTL's fmac takes it: FINITE below 8 bits (FP4 E2M1,
+// FP6 E3M2), FN for FP8 E4M3, IEEE for the others
+int ieee754_special_of(int data_w, int exp_w);
 
 // Sets the rounding mode of later add, sub, mul, div and fmac products (low 3 bits of mode).
 void ieee754_set_rounding(int mode);

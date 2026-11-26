@@ -24,6 +24,11 @@ void ieee754_set_special(int kind) { special_kind = kind; }
 
 int ieee754_get_special(void) { return special_kind; }
 
+int ieee754_special_of(int data_w, int exp_w) {
+  if (data_w < 8) return IEEE754_SPECIAL_FINITE;
+  return data_w == 8 && exp_w == 4 ? IEEE754_SPECIAL_FN : IEEE754_SPECIAL_IEEE;
+}
+
 typedef struct {
   int nan;
   int inf;
@@ -435,6 +440,9 @@ static inline word256 w256_mul(u128 a, u128 b) {
 // The parameters of a mac unit, and its statistics
 typedef struct {
   format f;
+  // the accumulator's exponent: f with exp_w + 2 + xe bits, where xe makes the one-cycle
+  // loop (fmac_core1.v) hold the sum of at least 2**16 products of the largest magnitude
+  format af;
   int lguard_w;
   int rguard_w;
   int acc_w;
@@ -485,7 +493,12 @@ ieee754_mac *ieee754_mac_new(int data_w, int exp_w, int lguard_w, int rguard_w) 
   m->c.step = 1;
   m->c.loop1 = data_w <= MAC_LOOP1_W;
   m->c.fb = IEEE754_FB_NEAR_EVEN;
-  m->c.exp_zero = (0u - ((1u << exp_w) + 2u * (uint32_t)m->c.f.man_w)) & m->c.f.exp_mask;
+  m->c.af = m->c.f;
+  if (m->c.loop1 && exp_w < 5) {
+    m->c.af.exp_w = 5;
+    m->c.af.exp_mask = (1u << 7) - 1;
+  }
+  m->c.exp_zero = (0u - ((1u << exp_w) + 2u * (uint32_t)m->c.f.man_w)) & m->c.af.exp_mask;
   m->wide = m->c.word_w > 128;
   return m;
 }

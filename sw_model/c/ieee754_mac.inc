@@ -79,24 +79,25 @@ static word FN(mac_acc_fb)(const mac_cfg *m, const REGS *r) {
 // Normalization of the accumulator into res_exp and res_man.
 static void FN(mac_normalize)(const mac_cfg *m, const REGS *r, uint32_t *exp_o, u128 *man_o) {
   const format *f = &m->f;
+  const format *ae = &m->af;  // accumulator exponents
   int word_w = m->word_w;
   word acc_man = r->acc_man;
   int sign = wf(_bit)(acc_man, word_w - 1);
   uint32_t acc_exp = r->acc_exp;
 
-  uint32_t exp_min = (0u - (uint32_t)(m->lguard_w + 2)) & f->exp_mask;
+  uint32_t exp_min = (0u - (uint32_t)(m->lguard_w + 2)) & ae->exp_mask;
   uint32_t offset = (uint32_t)m->lguard_w + 4;
   uint32_t rshift_lim = (uint32_t)f->man_w + 2;
   uint32_t lsc = FN(count_leading_w)(acc_man, word_w, sign);
 
-  uint32_t exp_diff = (exp_min - acc_exp + lsc) & f->exp_mask;
-  uint32_t exp_diff2 = (exp_min - acc_exp) & f->exp_mask;
-  uint32_t exp_diff2_1 = (acc_exp - exp_min) & f->exp_mask;
-  uint32_t lshift = (exp_negative(f, exp_diff) ? lsc : exp_diff2_1) & f->exp_mask;
+  uint32_t exp_diff = (exp_min - acc_exp + lsc) & ae->exp_mask;
+  uint32_t exp_diff2 = (exp_min - acc_exp) & ae->exp_mask;
+  uint32_t exp_diff2_1 = (acc_exp - exp_min) & ae->exp_mask;
+  uint32_t lshift = (exp_negative(ae, exp_diff) ? lsc : exp_diff2_1) & ae->exp_mask;
   uint32_t rshift = exp_diff2 > rshift_lim ? rshift_lim : exp_diff2;
 
   word man_norm;
-  if (exp_negative(f, exp_diff2)) {
+  if (exp_negative(ae, exp_diff2)) {
     man_norm = wf(_and)(wf(_shl)(acc_man, lshift), wf(_mask)(word_w));
   } else {
     word shifted = FN(shift_right_signed_w)(acc_man, word_w, rshift);
@@ -104,7 +105,11 @@ static void FN(mac_normalize)(const mac_cfg *m, const REGS *r, uint32_t *exp_o, 
     man_norm = wf(_or)(wf(_and)(shifted, wf(_not)(wf(_from)(1))), wf(_from)((u128)sticky));
   }
 
-  *exp_o = (acc_exp + (~lshift & f->exp_mask) + offset) & f->exp_mask;
+  uint32_t e = (acc_exp + (~lshift & ae->exp_mask) + offset) & ae->exp_mask;
+  // with a wider accumulator exponent, from 2**(exp_w+1)-1 up the result's exponent
+  // saturates at 2**(exp_w+1)-2, an overflow for pack (fmac_core1.v)
+  uint32_t exp_top = (1u << (f->exp_w + 1)) - 1;
+  *exp_o = (ae->exp_w > f->exp_w && (e >> (f->exp_w + 1) || (e & exp_top) == exp_top)) ? exp_top - 1 : e;
   int low_w = word_w - f->man_w - 2;
   u128 top = wf(_lo)(wf(_and)(wf(_shr)(man_norm, (uint32_t)low_w), wf(_mask)(f->man_w + 2)));
   *man_o = (top << 1) | (u128)wf(_nz)(wf(_and)(man_norm, wf(_mask)(low_w)));
@@ -121,7 +126,7 @@ static word FN(mac_product)(const mac_cfg *m, word man) {
 // bits left, or cleared at the start of a stream. prod: a product is being accumulated
 // (statistics).
 static void FN(mac_feedback)(mac_cfg *m, const REGS *r, int clr, int prod, uint32_t *exp_o, word *man_o) {
-  const format *f = &m->f;
+  const format *ae = &m->af;  // accumulator exponents
   int word_w = m->word_w;
   int acc_top = wf(_bit)(r->acc_man, word_w - 1);
   int acc_top1 = wf(_bit)(r->acc_man, word_w - 2);
@@ -133,7 +138,7 @@ static void FN(mac_feedback)(mac_cfg *m, const REGS *r, int clr, int prod, uint3
     *exp_o = m->exp_zero;
     *man_o = wf(_from)(0);
   } else if (ovf) {
-    *exp_o = (r->acc_exp + 1) & f->exp_mask;
+    *exp_o = (r->acc_exp + 1) & ae->exp_mask;
     *man_o = wf(_or)(wf(_shl)(wf(_from)((u128)acc_top), (uint32_t)(word_w - 1)), wf(_shl)(acc_fb, EXTRA - 1));
   } else if (undf) {
     // shift left by up to step positions, keeping two sign bits
@@ -143,7 +148,7 @@ static void FN(mac_feedback)(mac_cfg *m, const REGS *r, int clr, int prod, uint3
       m->stat_lagged++;
       m->stat_lag_bits += lsc - 2 - sh;
     }
-    *exp_o = (r->acc_exp - sh) & f->exp_mask;
+    *exp_o = (r->acc_exp - sh) & ae->exp_mask;
     *man_o = wf(_and)(wf(_shl)(acc_fb, EXTRA + sh), wf(_mask)(word_w));
   } else {
     *exp_o = r->acc_exp;
@@ -158,16 +163,16 @@ static void FN(mac_feedback)(mac_cfg *m, const REGS *r, int clr, int prod, uint3
 // that the carry-in always lands on its least significant bit.
 static void FN(mac_align)(const mac_cfg *m, uint32_t a_exp, word a_man, int a_neg, uint32_t b_exp, word b_man,
                           uint32_t *exp_o, word *big_o, word *small_o) {
-  const format *f = &m->f;
+  const format *ae = &m->af;  // accumulator exponents
   int word_w = m->word_w;
-  int comp = exp_signed(f, a_exp) >= exp_signed(f, b_exp);
+  int comp = exp_signed(ae, a_exp) >= exp_signed(ae, b_exp);
   uint32_t small_exp = comp ? b_exp : a_exp;
   word small_man = comp ? b_man : a_man;
   word ones = wf(_mask)(word_w);
   *exp_o = comp ? a_exp : b_exp;
   *big_o = comp ? (a_neg ? wf(_and)(wf(_not)(a_man), ones) : a_man) : b_man;
-  uint32_t sticky_w = ((uint32_t)m->acc_w + EXTRA + 2) & f->exp_mask;
-  uint32_t diff_exp = (*exp_o - small_exp) & f->exp_mask;
+  uint32_t sticky_w = ((uint32_t)m->acc_w + EXTRA + 2) & ae->exp_mask;
+  uint32_t diff_exp = (*exp_o - small_exp) & ae->exp_mask;
   uint32_t shift = diff_exp > sticky_w ? sticky_w : diff_exp;
   word shifted = FN(shift_right_signed_w)(small_man, word_w, shift);
   int low_w = shift > (uint32_t)word_w ? word_w : (int)shift;
@@ -195,6 +200,7 @@ static unsigned FN(mac_flags)(const REGS *r, int valid_i, unpacked a, unpacked b
 // (alignment, addition) with two interleaved accumulators.
 static void FN(mac_clock2)(mac_cfg *m, REGS *r, int valid_i, u128 op_a, u128 op_b) {
   const format *f = &m->f;
+  const format *ae = &m->af;  // accumulator exponents
   REGS n = *r;
   int word_w = m->word_w;
 
@@ -216,7 +222,7 @@ static void FN(mac_clock2)(mac_cfg *m, REGS *r, int valid_i, u128 op_a, u128 op_
   int mul_zero = !(r->a_man && r->b_man);
   n.mul_sign = r->a_sign ^ r->b_sign;
   n.mul_exp = mul_zero ? m->exp_zero
-                       : (r->a_exp + r->b_exp - (uint32_t)f->bias - r->a_lz - r->b_lz) & f->exp_mask;
+                       : (r->a_exp + r->b_exp - (uint32_t)f->bias - r->a_lz - r->b_lz) & ae->exp_mask;
   n.mul_man = wf(_mul)(r->a_man, r->b_man);
   n.valid_d2 = r->valid_d1;
 
@@ -261,6 +267,7 @@ static void FN(mac_clock2)(mac_cfg *m, REGS *r, int valid_i, u128 op_a, u128 op_
 // normalized from it into the output register.
 static void FN(mac_clock1)(mac_cfg *m, REGS *r, int valid_i, u128 op_a, u128 op_b) {
   const format *f = &m->f;
+  const format *ae = &m->af;  // accumulator exponents
   REGS n = *r;
   int word_w = m->word_w;
 
@@ -273,7 +280,7 @@ static void FN(mac_clock1)(mac_cfg *m, REGS *r, int valid_i, u128 op_a, u128 op_
     u128 b_man = shift_left(b.man, b_lz) & mask(f->man_w);
     int mul_sign = a.sign ^ b.sign;
     uint32_t mul_exp = !(a_man && b_man) ? m->exp_zero
-                                         : (a.exp + b.exp - (uint32_t)f->bias - a_lz - b_lz) & f->exp_mask;
+                                         : (a.exp + b.exp - (uint32_t)f->bias - a_lz - b_lz) & ae->exp_mask;
     word product = FN(mac_product)(m, wf(_mul)(a_man, b_man));
     uint32_t b_exp_int;
     word b_man_int;

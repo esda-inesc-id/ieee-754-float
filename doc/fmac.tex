@@ -14,6 +14,14 @@ The value fed back to the accumulator is rounded to nearest, ties to even, dropp
 its three low bits; on long streams this is more accurate than rounding to odd or
 truncating. The output normalization uses the full adder word.
 
+\sig{fmac} takes formats from 4 to 128 bits. Up to 8 bits, \sig{fmac\_core1} replaces
+\sig{fmac\_core}: it multiplies, aligns and adds in one clock cycle into a single
+accumulator, which is smaller than the pipeline at these widths. The special values
+are those of the OCP formats of the width: below 8 bits (FP4 E2M1, FP6 E3M2) there
+are no infinities and no NaN; FP8 E4M3 has no infinities and a single NaN, with every
+exponent and fraction bit set; the other formats follow IEEE~754. Without infinities,
+overflow saturates to the largest finite number in every rounding mode.
+
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[node distance=7mm]
@@ -32,7 +40,8 @@ truncating. The output normalization uses the full adder word.
 
 \begin{itemize}
 \item Accumulation of a stream of products, with one product per clock cycle.
-\item A latency of 8 clock cycles from the last product.
+\item A latency of 8 clock cycles from the last product (2 with \sig{fmac\_core1}, up
+  to 8 bits).
 \item The rounding mode of a stream is \sig{rnd\_mode} with its last product.
 \item Rounding to nearest, ties to even, inside the accumulator, and in the selected
   mode at the output.

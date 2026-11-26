@@ -12,7 +12,10 @@ module round #(
    // input exponent width: EXP_W+1, or EXP_W when it never exceeds 2**EXP_W-1 (fadd)
    parameter EXP_I_W = EXP_W + 1,
    // 1: a negative mantissa is in one's complement; only fmac needs it
-   parameter INV    = 0
+   parameter INV    = 0,
+   // special values, as in unpack: 0 IEEE; 1 FN and 2 FINITE have no infinities, so
+   // overflow saturates to the largest finite number in every mode
+   parameter SPECIAL = 0
 ) (
    input [ EXP_I_W-1:0] exponent_i,
    input [DATA_W+3-1:0] mantissa_i,
@@ -73,19 +76,30 @@ module round #(
    wire [DATA_W-1:0] mantissa_rnd = norm ? mantissa_norm : mantissa_rnd_int[DATA_W-1:0];
 
    // Overflow gives infinity, or the largest finite number when the mode rounds
-   // toward zero for the sign of the result
+   // toward zero for the sign of the result; without infinities it saturates
    localparam [EXP_W-1:0] EXP_MAX = {{(EXP_W - 1) {1'b1}}, 1'b0};
 
    // a zero mantissa is never an overflow: the exponent of a zero sum can wrap
-   // exponent_rnd > EXP_MAX: the top bit, or all ones below it
-   wire             overflow = (exponent_rnd[EXP_W] | (&exponent_rnd[EXP_W-1:0])) & (|mantissa_rnd_int);
-   wire             ovf_inf = (rnd_mode == RTZ) ? 1'b0 :
-                              (rnd_mode == RDN) ? sign :
-                              (rnd_mode == RUP) ? ~sign : 1'b1;
-
-   assign exponent_o = ~overflow ? exponent_rnd[EXP_W-1:0] :
-                       ovf_inf ? {EXP_W{1'b1}} : EXP_MAX;
-   assign mantissa_o = ~overflow ? mantissa_rnd :
-                       ovf_inf ? {1'b1, {(DATA_W - 1) {1'b0}}} : {DATA_W{1'b1}};
+   wire             overflow;
+   generate
+      if (SPECIAL == 0) begin : gen_ieee
+         // exponent_rnd > EXP_MAX: the top bit, or all ones below it
+         assign overflow = (exponent_rnd[EXP_W] | (&exponent_rnd[EXP_W-1:0])) & (|mantissa_rnd_int);
+         wire ovf_inf = (rnd_mode == RTZ) ? 1'b0 :
+                          (rnd_mode == RDN) ? sign :
+                          (rnd_mode == RUP) ? ~sign : 1'b1;
+         assign exponent_o = ~overflow ? exponent_rnd[EXP_W-1:0] :
+                             ovf_inf ? {EXP_W{1'b1}} : EXP_MAX;
+         assign mantissa_o = ~overflow ? mantissa_rnd :
+                             ovf_inf ? {1'b1, {(DATA_W - 1) {1'b0}}} : {DATA_W{1'b1}};
+      end else begin : gen_sat
+         // the largest exponent holds finite numbers; in FN its all-ones mantissa is NaN
+         assign overflow = (exponent_rnd[EXP_W] |
+                            ((SPECIAL == 1) & (&exponent_rnd[EXP_W-1:0]) & (&mantissa_rnd))) &
+                           (|mantissa_rnd_int);
+         assign exponent_o = overflow ? {EXP_W{1'b1}} : exponent_rnd[EXP_W-1:0];
+         assign mantissa_o = overflow ? {{(DATA_W - 1) {1'b1}}, SPECIAL != 1} : mantissa_rnd;
+      end
+   endgenerate
 
 endmodule

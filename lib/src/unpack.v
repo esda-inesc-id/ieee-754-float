@@ -3,7 +3,10 @@
 module unpack #(
    parameter DATA_W = 32,
    parameter EXP_W  = 8,
-   parameter MAN_W  = DATA_W - EXP_W
+   parameter MAN_W  = DATA_W - EXP_W,
+   // special values: 0 IEEE; 1 FN (OCP FP8 E4M3): no infinities, the only NaN has every
+   // exponent and fraction bit set; 2 FINITE (OCP FP4, FP6): no infinities and no NaN
+   parameter SPECIAL = 0
 ) (
    input [DATA_W-1:0] data_i,
 
@@ -25,8 +28,15 @@ module unpack #(
    wire             exp_ones = &exp_field;
    wire             frac_nz = |fraction;
 
-   assign nan      = exp_ones & frac_nz;
-   assign infinite = exp_ones & ~frac_nz;
+   generate
+      if (SPECIAL == 0) begin : gen_ieee
+         assign nan      = exp_ones & frac_nz;
+         assign infinite = exp_ones & ~frac_nz;
+      end else begin : gen_no_inf
+         assign nan      = (SPECIAL == 1) & exp_ones & (&fraction);
+         assign infinite = 1'b0;
+      end
+   endgenerate
    assign zero     = ~nsub & ~frac_nz;
 
    assign sign     = data_i[DATA_W-1];

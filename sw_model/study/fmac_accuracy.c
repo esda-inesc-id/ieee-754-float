@@ -62,6 +62,9 @@ static double to_fmt(double x) { return ieee754_to_double(ieee754_from_double(x,
 // overflow
 static mpfr_t fmt_tmp;
 static double round_fmt(mpfr_t x) {
+  // 8-bit formats: the double holds x exactly on these streams, and the model rounds it
+  // with the format's special values (saturating in OCP FP8 E4M3)
+  if (data_w <= 8) return to_fmt(mpfr_get_d(x, MPFR_RNDN));
   mpfr_exp_t emin = mpfr_get_emin(), emax = mpfr_get_emax();
   mpfr_set_emin(emin_fmt);
   mpfr_set_emax(emax_fmt);
@@ -152,7 +155,10 @@ static void run(const double *a, const double *b, int n, stat *st) {
 }
 
 static void report(const char *stream, const char *param, stat *st) {
-  printf("f%-2d %-7s %-11s", data_w, stream, param);
+  if (data_w == 8)
+    printf("e%dm%d %-7s %-11s", exp_w, data_w - exp_w - 1, stream, param);
+  else
+    printf("f%-2d %-7s %-11s", data_w, stream, param);
   for (int v = 0; v < NV; v++) printf(" | %9.3g %9.3g %5.1f%%", st[v].max_ulp, st[v].sum_ulp / st[v].count,
                                       100.0 * st[v].correct / st[v].count);
   if (st[V_FMAC1].bound > 0)
@@ -224,6 +230,8 @@ static void study(int dw, int ew, double scale, const double *conds, int nconds)
   emin_fmt = 3 - bias - prec;
   emax_fmt = bias + 1;
   mpfr_set_prec(fmt_tmp, prec);
+  // the special values of the OCP format of the width, as in the RTL
+  ieee754_set_special(ieee754_special_of(dw, ew));
   for (int v = 0; v < 3; v++) {
     mac[v] = ieee754_mac_new(dw, ew, 0, rguard);
     ieee754_mac_set_step(mac[v], vstep[v]);
@@ -256,6 +264,8 @@ static void study(int dw, int ew, double scale, const double *conds, int nconds)
       report(s == 0 ? "normal" : "relu", p, st);
     }
   }
+  // 8-bit formats: the dot products only (their range holds no long sums or gendot)
+  if (dw == 8) goto done;
 
   static const int sum_n[] = {1000, 10000, 100000};
   for (int k = 0; k < 3; k++) {
@@ -296,7 +306,9 @@ static void study(int dw, int ew, double scale, const double *conds, int nconds)
     report("cancel", p, st);
   }
 
+done:
   for (int v = 0; v < 3; v++) ieee754_mac_free(mac[v]);
+  ieee754_set_special(IEEE754_SPECIAL_IEEE);
   free(a);
   free(b);
 }
@@ -671,14 +683,15 @@ static void streams(const char *path, int dw, int ew) {
 }
 
 int main(int argc, char **argv) {
-  // arguments: the formats to run, e.g. "16 32 64" (default all); "-g N" sets the fmac
+  // arguments: the formats to run, e.g. "16 32 64" (default all; "8": FP8 E4M3 and E5M2,
+  // dot products only); "-g N" sets the fmac
   // right guard; "-f N" sets the feedback rounding (0 odd; 1 truncate; 2 first
   // dropped bit; 3 nearest, ties up; 4 nearest, ties to even, the RTL); "-s" runs the condition
   // sweep instead of the study; "-G" runs the odd/nearest-even grid; "-r N" seeds the
   // random numbers
   // "-m file.mtx" runs the rows of a Matrix Market matrix (repeatable)
   // "-d file" runs the streams of a stream file (repeatable)
-  int run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0, do_grid = 0, nmtx = 0, ndat = 0;
+  int run8 = 0, run16 = 0, run32 = 0, run64 = 0, nfmt = 0, do_sweep = 0, do_apps = 0, do_grid = 0, nmtx = 0, ndat = 0;
   const char *mtx[16], *dat[16];
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-d") && i + 1 < argc && ndat < 16) {
@@ -703,6 +716,7 @@ int main(int argc, char **argv) {
       do_apps = 1;
     } else {
       nfmt++;
+      run8 |= atoi(argv[i]) == 8;
       run16 |= atoi(argv[i]) == 16;
       run32 |= atoi(argv[i]) == 32;
       run64 |= atoi(argv[i]) == 64;
@@ -759,6 +773,10 @@ int main(int argc, char **argv) {
   static const double c16[] = {1e2, 1e3, 1e4};
   static const double c32[] = {1e3, 1e6, 1e9, 1e12};
   static const double c64[] = {1e6, 1e12, 1e18, 1e24, 1e30};
+  if (run8) {  // OCP FP8 E4M3 and E5M2
+    study(8, 4, 1.0, NULL, 0);
+    study(8, 5, 1.0, NULL, 0);
+  }
   if (run16) study(16, 5, 1.0, c16, 3);
   if (run32) study(32, 8, 1.0, c32, 4);
   if (run64) study(64, 11, 0.25, c64, 5);

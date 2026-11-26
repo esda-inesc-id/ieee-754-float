@@ -94,6 +94,8 @@ static int run_mix(int data_w, int exp_w) {
 }
 
 static int run_mac(int data_w, int exp_w, int lguard_w, int rguard_w, int step) {
+  // the special values of the OCP format of the width, as the RTL's fmac takes them
+  ieee754_set_special(ieee754_special_of(data_w, exp_w));
   ieee754_mac *mac = ieee754_mac_new(data_w, exp_w, lguard_w, rguard_w);
   if (!mac) return 2;
   ieee754_mac_set_step(mac, step);

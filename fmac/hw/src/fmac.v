@@ -26,6 +26,9 @@ module fmac #(
 
    // mantissa width, including the hidden bit
    localparam MAN_W = DATA_W - EXP_W;
+   // special values of the OCP format of the width: FINITE (no infinities, no NaN) below
+   // 8 bits (FP4 E2M1, FP6 E3M2), FN (no infinities, one NaN) for FP8 E4M3, else IEEE
+   localparam SPECIAL = DATA_W < 8 ? 2 : (DATA_W == 8 && EXP_W == 4) ? 1 : 0;
    localparam EXTRA = 3;
 
    wire             op_a_sign;
@@ -35,8 +38,9 @@ module fmac #(
    wire             op_a_inf;
    wire             op_a_zero;
    unpack #(
-      .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
+      .DATA_W (DATA_W),
+      .EXP_W  (EXP_W),
+      .SPECIAL(SPECIAL)
    ) unpack0 (
       .data_i(op_a),
 
@@ -56,8 +60,9 @@ module fmac #(
    wire             op_b_inf;
    wire             op_b_zero;
    unpack #(
-      .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
+      .DATA_W (DATA_W),
+      .EXP_W  (EXP_W),
+      .SPECIAL(SPECIAL)
    ) unpack1 (
       .data_i(op_b),
 
@@ -181,8 +186,9 @@ module fmac #(
 
    pack #(
       .DATA_W(DATA_W),
-      .EXP_W (EXP_W),
-      .INV   (1)
+      .EXP_W  (EXP_W),
+      .INV    (1),
+      .SPECIAL(SPECIAL)
    ) pack0 (
       .clk(clk),
       .rst(rst),

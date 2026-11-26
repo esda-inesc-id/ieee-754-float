@@ -26,6 +26,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "mac_vectors: data_w 4..64\n");
     return 1;
   }
+  // the special values of the OCP format of that width, as in the RTL
+  ieee754_set_special(ieee754_special_of(dw, ew));
   ieee754_mac *mac = ieee754_mac_new(dw, ew, 0, 0);
   FILE *tv = fopen(argv[5], "w"), *exp = fopen(argv[6], "w");
   if (!mac || !tv || !exp) {

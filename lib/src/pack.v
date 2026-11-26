@@ -7,7 +7,9 @@ module pack #(
    // input exponent width, as in round
    parameter EXP_I_W = EXP_W + 1,
    // 1: a negative mantissa is in one's complement; only fmac needs it
-   parameter INV    = 0
+   parameter INV    = 0,
+   // special values, as in unpack
+   parameter SPECIAL = 0
 ) (
    input clk,
    input rst,
@@ -39,7 +41,8 @@ module pack #(
       .DATA_W(MAN_W),
       .EXP_W (EXP_W),
       .EXP_I_W(EXP_I_W),
-      .INV   (INV)
+      .INV   (INV),
+      .SPECIAL(SPECIAL)
    ) round0 (
       .exponent_i(exp_i),
       .mantissa_i(man_i),
@@ -62,9 +65,21 @@ module pack #(
    // -infinity. Zero operands come as special zero codes, with their sign.
    wire       sign = ~normal ? res_special_i[0] & (kind != 2'd1) :
                      nzero ? sign_i : (rnd_mode == 3'd2);
+   // Without infinities (FN, FINITE) an infinity is the largest finite number; the NaN
+   // of FN has every bit set but the sign, and FINITE, without NaN, gives the largest
+   // positive number, the same bits
    wire [EXP_W-1:0] exponent = ~normal ? {EXP_W{kind != 2'd3}} :
                                man_rnd[MAN_W-1] ? exp_rnd : {EXP_W{1'b0}};
-   wire [F_W-1:0] fraction = normal ? man_rnd[F_W-1:0] : {kind == 2'd1, {(F_W - 1) {1'b0}}};
+   wire [F_W-1:0] fraction;
+   generate
+      if (SPECIAL == 0) begin : gen_ieee
+         assign fraction = normal ? man_rnd[F_W-1:0] : {kind == 2'd1, {(F_W - 1) {1'b0}}};
+      end else begin : gen_no_inf
+         assign fraction = normal ? man_rnd[F_W-1:0] :
+                           (kind == 2'd3) ? {F_W{1'b0}} :
+                           {{(F_W - 1) {1'b1}}, (SPECIAL != 1) | (kind == 2'd1)};
+      end
+   endgenerate
 
    always @(posedge clk, posedge rst) begin
       if (rst) begin

@@ -35,6 +35,12 @@ def _library():
     lib.ieee754_from_double.restype = u64
     lib.ieee754_to_double.argtypes = [u64, cint, cint]
     lib.ieee754_to_double.restype = ctypes.c_double
+    lib.ieee754_set_special.argtypes = [cint]
+    lib.ieee754_set_special.restype = None
+    lib.ieee754_get_special.argtypes = []
+    lib.ieee754_get_special.restype = cint
+    lib.ieee754_special_of.argtypes = [cint, cint]
+    lib.ieee754_special_of.restype = cint
     lib.ieee754_mac_new.argtypes = [cint, cint, cint, cint]
     lib.ieee754_mac_new.restype = ctypes.c_void_p
     lib.ieee754_mac_set_step.argtypes = [ctypes.c_void_p, cint]
@@ -75,11 +81,15 @@ class Rounding:
 
 
 class Mac:
-    """Streaming fmac: push products, then read the result of the stream."""
+    """Streaming fmac: push products, then read the result of the stream. The special
+    values are those of the OCP format of the width, as in the RTL."""
 
     def __init__(self, data_w=32, exp_w=8, lguard_w=0, rguard_w=0, step=1):
         self._lib = _library()
+        kind = self._lib.ieee754_get_special()
+        self._lib.ieee754_set_special(self._lib.ieee754_special_of(data_w, exp_w))
         self._handle = self._lib.ieee754_mac_new(data_w, exp_w, lguard_w, rguard_w)
+        self._lib.ieee754_set_special(kind)
         if not self._handle:
             raise ValueError("unsupported fmac configuration")
         self._lib.ieee754_mac_set_step(self._handle, step)
