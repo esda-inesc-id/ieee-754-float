@@ -75,18 +75,19 @@ jobs:
     needs: [ smoke ]
     steps:
       - *checkout_step
-      # the same Verilator release as the development machines (Ubuntu's 5.020 is too old)
+      # the same Verilator release as the development machines (Ubuntu's 5.020 is too old),
+      # built without ccache, which the runs that restore it from the cache do not have
       - name: Verilator cache
         id: verilator
         uses: actions/cache@v4
         with:
           path: ~/verilator
-          key: verilator-5.054-${{ runner.os }}
+          key: verilator-5.054-noccache-${{ runner.os }}
       - name: build Verilator
         if: steps.verilator.outputs.cache-hit != 'true'
         run: >
           sudo apt-get update -q && sudo apt-get install -y -q autoconf flex bison help2man
-          libfl-dev ccache &&
+          libfl-dev &&
           git clone -q --depth 1 --branch v5.054 https://github.com/verilator/verilator /tmp/verilator &&
           cd /tmp/verilator && autoconf && ./configure --prefix=$HOME/verilator &&
           make -j$(nproc) && make install
