@@ -35,6 +35,7 @@ testfloat: $(TF_GEN)
 	  $(MAKE) --no-print-directory run TESTFLOAT=1 TF_OP=$$op TF_RND=$$r TF_FMT=$$fmt > testfloat_$${fmt}_$${op}_$$m.rpt 2>&1; \
 	  [ -f fails.tv ] && mv fails.tv fails_$${fmt}_$${op}_$$m.tv; \
 	  echo "$(CORE) $${fmt}_$$op $$m: $$(grep -h 'TESTFLOAT' testfloat_$${fmt}_$${op}_$$m.rpt | tail -1)"; \
+	  grep -q 'TESTFLOAT' testfloat_$${fmt}_$${op}_$$m.rpt || tail -n 20 testfloat_$${fmt}_$${op}_$$m.rpt; \
 	  grep -Eq 'TESTFLOAT vectors=[1-9][0-9]* fails=0$$' testfloat_$${fmt}_$${op}_$$m.rpt || status=1; \
 	done; done; done; rm -f vectors.tv; $(MAKE) --no-print-directory clean; exit $$status
 
