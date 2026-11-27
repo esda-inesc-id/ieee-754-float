@@ -198,8 +198,7 @@ module fpu #(
       mul_sel ? mul_res_special :
       div_res_special;
 
-   wire norm_valid_o;
-   wire norm_valid_i = add_valid_o | mul_valid_o | div_valid_o;
+   wire pack_valid_i = add_valid_o | mul_valid_o | div_valid_o;
 
    wire op_sign = add_sel ? add_sign : mul_sel ? mul_sign : div_sign;
 
@@ -208,45 +207,9 @@ module fpu #(
    wire [2*MAN_W-1:0] op_man = add_sel ? {add_man, {(MAN_W-EXTRA-1){1'b0}}} :
       mul_sel ? mul_man :
       {div_man, {(MAN_W-EXTRA-1){1'b0}}};
-   wire [     2:0] norm_res_special;
 
-   wire norm_sign;
-   wire [  EXP_W:0] norm_exp;
-   wire [MAN_W+EXTRA-1:0] norm_man;
-   norm #(
-      .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
-   ) norm0 (
-      .clk(clk),
-      .rst(rst),
-
-      .valid_i(norm_valid_i),
-      .valid_o(norm_valid_o),
-
-      .sign_i(op_sign),
-      .exp_i (op_exp),
-      .man_i (op_man),
-      .res_special_i(res_special_int),
-      .res_special_o(norm_res_special),
-
-      .sign_o(norm_sign),
-      .exp_o (norm_exp),
-      .man_o (norm_man)
-   );
-
-   wire pack_valid_i = norm_valid_o;
-
-   // a division result is in norm
-   reg  div_d;
-   always @(posedge clk, posedge rst) begin
-      if (rst) begin
-         div_d <= 1'b0;
-      end else begin
-         div_d <= div_valid_o;
-      end
-   end
-   // Rounding mode, delayed to the pack input (add or mul, and norm)
-   localparam RND_DLY = 4;
+   // Rounding mode, delayed to the pack input (add or mul)
+   localparam RND_DLY = 3;
    reg [3*RND_DLY-1:0] rnd_pipe;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
@@ -267,21 +230,23 @@ module fpu #(
       end
    end
 
+   // one pack, with its normalization stage, for add, mul and div
    pack #(
       .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
+      .EXP_W (EXP_W),
+      .NORM  (1)
    ) pack0 (
       .clk(clk),
       .rst(rst),
 
       .valid_i(pack_valid_i),
       .valid_o(valid_o),
-      .rnd_mode(div_d ? div_rnd_mode : pack_rnd_mode),
-      .res_special_i(norm_res_special),
+      .rnd_mode(div_valid_o ? div_rnd_mode : pack_rnd_mode),
+      .res_special_i(res_special_int),
 
-      .sign_i(norm_sign),
-      .exp_i (norm_exp),
-      .man_i (norm_man),
+      .sign_i(op_sign),
+      .exp_i (op_exp),
+      .man_i (op_man),
 
       .data_o(res)
    );

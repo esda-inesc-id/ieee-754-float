@@ -104,40 +104,8 @@ module fadd #(
       .res_exp (add_exp),
       .res_man (add_man)
    );
-   wire [          2:0] res_special_int = add_res_special;
-
-   wire                   norm_valid_i = add_valid_o;
-   wire                   norm_valid_o;
-   wire [          2:0] norm_res_special;
-   wire                   norm_sign;
-   wire [      EXP_W-1:0] norm_exp;
-   wire [MAN_W+EXTRA-1:0] norm_man;
-   norm #(
-      .DATA_W(DATA_W),
-      .EXP_W (EXP_W),
-      .IN_W  (MAN_W + EXTRA + 1),
-      .RSHIFT(0)
-   ) norm0 (
-      .clk(clk),
-      .rst(rst),
-
-      .valid_i(norm_valid_i),
-      .valid_o(norm_valid_o),
-
-      .sign_i(add_sign),
-      .exp_i (add_exp),
-      .man_i (add_man),
-      .res_special_i(res_special_int),
-      .res_special_o(norm_res_special),
-
-      .sign_o(norm_sign),
-      .exp_o (norm_exp),
-      .man_o (norm_man)
-   );
-
-   wire pack_valid_i = norm_valid_o;
-   // Rounding mode, delayed to the pack input (add and norm)
-   localparam RND_DLY = 4;
+   // Rounding mode, delayed to the pack input (add)
+   localparam RND_DLY = 3;
    reg [3*RND_DLY-1:0] rnd_pipe;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
@@ -151,19 +119,21 @@ module fadd #(
    pack #(
       .DATA_W(DATA_W),
       .EXP_W (EXP_W),
-      .EXP_I_W(EXP_W)
+      .NORM  (1),
+      .IN_W  (MAN_W + EXTRA + 1),
+      .RSHIFT(0)
    ) pack0 (
       .clk(clk),
       .rst(rst),
 
-      .valid_i(pack_valid_i),
+      .valid_i(add_valid_o),
       .valid_o(valid_o),
       .rnd_mode(pack_rnd_mode),
-      .res_special_i(norm_res_special),
+      .res_special_i(add_res_special),
 
-      .sign_i(norm_sign),
-      .exp_i (norm_exp),
-      .man_i (norm_man),
+      .sign_i(add_sign),
+      .exp_i (add_exp),
+      .man_i (add_man),
 
       .data_o(res)
    );

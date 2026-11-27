@@ -40,15 +40,14 @@ MODE_FRACTION = 8
 JOBS = os.cpu_count() or 1
 
 TF_GEN = "lib/sim/testfloat-build/berkeley-testfloat-3/build/Linux-x86_64-GCC/testfloat_gen"
-LIB_SRC = ["unpack.v", "cls.v", "round.v", "pack.v"]
+LIB_SRC = ["unpack.v", "cls.v", "norm.v", "round.v", "pack.v"]
 
 
 def rtl_sources(root, unit):
     lib = [os.path.join(root, "lib/src", name) for name in LIB_SRC]
     if unit == "fmac":
         return [os.path.join(root, "fmac/hw/src", name) for name in ("fmac.v", "fmac_core.v", "fmac_core1.v")] + lib
-    files = ["fpu/hw/src/fpu.v", "fadd/hw/src/fadd_core.v", "fmul/hw/src/fmul_core.v", "fdiv/hw/src/fdiv_core.v",
-             "lib/src/norm.v"]
+    files = ["fpu/hw/src/fpu.v", "fadd/hw/src/fadd_core.v", "fmul/hw/src/fmul_core.v", "fdiv/hw/src/fdiv_core.v"]
     return [os.path.join(root, name) for name in files] + lib
 
 

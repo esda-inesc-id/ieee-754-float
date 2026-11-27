@@ -20,6 +20,13 @@ wrapper, a math library built on the model (`sqrt`, `exp`, `log`) and examples.
 multiply and add, and an exact accumulator (`make -C sw_model fmac-accuracy`,
 needs MPFR).
 
+## Tools
+
+`./install.sh` installs the open-source tools (Ubuntu) of this repository and of the
+repositories built on it (posit): Icarus Verilog, Verilator, xezim, the C toolchain,
+MPFR, TeX Live and SoftPosit. Vivado, Genus, Xcelium and SpyGlass are commercial and
+installed separately.
+
 ## Usage
 
 ```bash

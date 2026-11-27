@@ -6,7 +6,7 @@
 \sig{fpu} computes the addition, subtraction, multiplication or division of two
 operands, selected by \sig{funct}. It holds the \sig{fadd\_core}, \sig{fmul\_core} and \sig{fdiv\_core}
 datapaths of Chapters~\ref{ch:fadd}, \ref{ch:fmul} and~\ref{ch:fdiv}, and they
-share the \sig{unpack}, \sig{norm} and \sig{pack} modules, as
+share the \sig{unpack} and \sig{pack} modules, \sig{pack} with its \sig{norm} stage, as
 Figure~\ref{fig:fpu} shows. Subtraction uses \sig{fadd\_core} with the sign of
 \sig{op\_b} inverted.
 
@@ -17,16 +17,14 @@ Figure~\ref{fig:fpu} shows. Subtraction uses \sig{fadd\_core} with the sign of
   \node[ugblock,right=of u] (m) {\sig{fmul\_core}};
   \node[ugblock,above=of m] (a) {\sig{fadd\_core}};
   \node[ugblock,below=of m] (d) {\sig{fdiv\_core}};
-  \node[ugblock,right=of m] (n) {\sig{norm}};
-  \node[ugblock,right=of n] (p) {\sig{pack}};
+  \node[ugblock,right=of m] (p) {\sig{pack}, with \sig{norm}};
   \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
   \draw[ugarrow] (u.east) -- (m.west);
   \draw[ugarrow] (u.east) -- ++(3mm,0) |- (a.west);
   \draw[ugarrow] (u.east) -- ++(3mm,0) |- (d.west);
-  \draw[ugarrow] (m.east) -- (n.west);
-  \draw[ugarrow] (a.east) -- ++(3mm,0) |- (n.west);
-  \draw[ugarrow] (d.east) -- ++(3mm,0) |- (n.west);
-  \draw[ugarrow] (n) -- (p);
+  \draw[ugarrow] (m.east) -- (p.west);
+  \draw[ugarrow] (a.east) -- ++(3mm,0) |- (p.west);
+  \draw[ugarrow] (d.east) -- ++(3mm,0) |- (p.west);
   \draw[ugarrow] (p) -- ($(p.east)+(9mm,0)$) node[above left,font=\footnotesize\ttfamily,xshift=1mm] {res};
 \end{tikzpicture}
 \caption{\sig{fpu} Block Diagram}

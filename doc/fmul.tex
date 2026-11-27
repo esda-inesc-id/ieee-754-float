@@ -7,18 +7,17 @@
 modules split the operands. The \sig{fmul\_core} module works in two pipeline stages. The
 first normalizes a subnormal operand and computes the sign and exponent of the
 product; the second multiplies the mantissas. When both operands are subnormal the
-product underflows to zero, so normalizing one is enough. \sig{norm} normalizes the product, and
-\sig{pack} rounds it and forms the result, as Figure~\ref{fig:fmul} shows.
+product underflows to zero, so normalizing one is enough. \sig{pack} normalizes the product in its
+\sig{norm} stage, rounds it and forms the result, as Figure~\ref{fig:fmul} shows.
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[node distance=7mm]
   \node[ugblock] (u) {2 $\times$ \sig{unpack}};
   \node[ugblock,right=of u] (a) {\sig{fmul\_core}\\2 cycles};
-  \node[ugblock,right=of a] (n) {\sig{norm}\\1 cycle};
-  \node[ugblock,right=of n] (p) {\sig{pack}\\1 cycle};
+  \node[ugblock,right=of a] (p) {\sig{pack}, with \sig{norm}\\2 cycles};
   \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
-  \draw[ugarrow] (u) -- (a); \draw[ugarrow] (a) -- (n); \draw[ugarrow] (n) -- (p);
+  \draw[ugarrow] (u) -- (a); \draw[ugarrow] (a) -- (p);
   \draw[ugarrow] (p) -- ($(p.east)+(9mm,0)$) node[above left,font=\footnotesize\ttfamily,xshift=1mm] {res};
 \end{tikzpicture}
 \caption{\sig{fmul} Block Diagram}
@@ -42,7 +41,7 @@ datapath also has the parameter \sig{OUT\_REG} (default 0), which adds an output
 register stage when it is not 0, and \sig{PRENORM} (default 0), which enables the
 operand normalization. \sig{fmul} sets \sig{PRENORM} to 1, so \sig{norm} shifts the
 product left by at most one position. \sig{fpu} sets \sig{OUT\_REG} to 1 and keeps
-\sig{PRENORM} at 0, because its \sig{norm} also serves the adder
+\sig{PRENORM} at 0, because its \sig{pack} normalizes the adder's results too
 (Chapter~\ref{ch:fpu}).
 
 \section{Interface Signals}

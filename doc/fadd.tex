@@ -6,7 +6,7 @@
 \sig{fadd} computes $\mathtt{op\_a}+\mathtt{op\_b}$. Two \sig{unpack} modules
 split the operands. The \sig{fadd\_core} module orders the operands by magnitude, aligns
 the smaller mantissa to the larger one and adds them in three pipeline stages. The
-larger operand gives the sign, so a subtraction never gives a negative mantissa. \sig{norm} normalizes the sum, and \sig{pack} rounds it
+larger operand gives the sign, so a subtraction never gives a negative mantissa. \sig{pack} normalizes the sum in its \sig{norm} stage, rounds it
 and forms the result, as Figure~\ref{fig:fadd} shows.
 
 \begin{figure}[H]
@@ -14,10 +14,9 @@ and forms the result, as Figure~\ref{fig:fadd} shows.
 \begin{tikzpicture}[node distance=7mm]
   \node[ugblock] (u) {2 $\times$ \sig{unpack}};
   \node[ugblock,right=of u] (a) {\sig{fadd\_core}\\3 cycles};
-  \node[ugblock,right=of a] (n) {\sig{norm}\\1 cycle};
-  \node[ugblock,right=of n] (p) {\sig{pack}\\1 cycle};
+  \node[ugblock,right=of a] (p) {\sig{pack}, with \sig{norm}\\2 cycles};
   \draw[ugarrow] ($(u.west)-(9mm,0)$) node[above right,font=\footnotesize\ttfamily,xshift=-1mm] {op} -- (u);
-  \draw[ugarrow] (u) -- (a); \draw[ugarrow] (a) -- (n); \draw[ugarrow] (n) -- (p);
+  \draw[ugarrow] (u) -- (a); \draw[ugarrow] (a) -- (p);
   \draw[ugarrow] (p) -- ($(p.east)+(9mm,0)$) node[above left,font=\footnotesize\ttfamily,xshift=1mm] {res};
 \end{tikzpicture}
 \caption{\sig{fadd} Block Diagram}

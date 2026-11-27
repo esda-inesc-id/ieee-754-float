@@ -22,7 +22,6 @@ module fmul #(
 
    // mantissa width, including the hidden bit
    localparam MAN_W = DATA_W - EXP_W;
-   localparam EXTRA = 3;
 
    wire             op_a_sign;
    wire [EXP_W-1:0] op_a_exp;
@@ -105,39 +104,8 @@ module fmul #(
       .res_exp (mul_exp),
       .res_man (mul_man)
    );
-   wire [          2:0] res_special_int = mul_res_special;
-
-   wire                   norm_valid_i = mul_valid_o;
-   wire                   norm_valid_o;
-   wire [          2:0] norm_res_special;
-   wire                   norm_sign;
-   wire [        EXP_W:0] norm_exp;
-   wire [MAN_W+EXTRA-1:0] norm_man;
-   norm #(
-      .DATA_W(DATA_W),
-      .EXP_W (EXP_W),
-      .LZC_W (1)
-   ) norm0 (
-      .clk(clk),
-      .rst(rst),
-
-      .valid_i(norm_valid_i),
-      .valid_o(norm_valid_o),
-
-      .sign_i(mul_sign),
-      .exp_i (mul_exp),
-      .man_i (mul_man),
-      .res_special_i(res_special_int),
-      .res_special_o(norm_res_special),
-
-      .sign_o(norm_sign),
-      .exp_o (norm_exp),
-      .man_o (norm_man)
-   );
-
-   wire pack_valid_i = norm_valid_o;
-   // Rounding mode, delayed to the pack input (mul and norm)
-   localparam RND_DLY = 3;
+   // Rounding mode, delayed to the pack input (mul)
+   localparam RND_DLY = 2;
    reg [3*RND_DLY-1:0] rnd_pipe;
    always @(posedge clk, posedge rst) begin
       if (rst) begin
@@ -150,19 +118,21 @@ module fmul #(
 
    pack #(
       .DATA_W(DATA_W),
-      .EXP_W (EXP_W)
+      .EXP_W (EXP_W),
+      .NORM  (1),
+      .LZC_W (1)
    ) pack0 (
       .clk(clk),
       .rst(rst),
 
-      .valid_i(pack_valid_i),
+      .valid_i(mul_valid_o),
       .valid_o(valid_o),
       .rnd_mode(pack_rnd_mode),
-      .res_special_i(norm_res_special),
+      .res_special_i(mul_res_special),
 
-      .sign_i(norm_sign),
-      .exp_i (norm_exp),
-      .man_i (norm_man),
+      .sign_i(mul_sign),
+      .exp_i (mul_exp),
+      .man_i (mul_man),
 
       .data_o(res)
    );

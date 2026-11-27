@@ -11,7 +11,7 @@ compile them with it (Section~\ref{sec:files}).
 \begin{threetable}{Shared Modules and the Units That Use Them}{tab:lib_use}{Module}{Clocked}{Used by}{2.4cm}{1.8cm}
 \sig{unpack} & No & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{ffma}, \sig{fpu} \\ \hline
 \sig{cls} & No & \sig{norm}, and the \sig{fdiv\_core}, \sig{fmac\_core} and \sig{ffma\_core} datapaths \\ \hline
-\sig{norm} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fpu}; \sig{fmac} and \sig{ffma} normalize inside their cores \\ \hline
+\sig{norm} & Yes & \sig{pack} with \sig{NORM}=1 (\sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fpu}); \sig{fmac} and \sig{ffma} normalize inside their cores \\ \hline
 \sig{round} & No & \sig{pack} \\ \hline
 \sig{pack} & Yes & \sig{fadd}, \sig{fmul}, \sig{fdiv}, \sig{fmac}, \sig{ffma}, \sig{fpu} \\
 \end{threetable}
@@ -120,7 +120,13 @@ round & Output & 1 & The mantissa was incremented. \\
 \label{sec:pack}
 
 \sig{pack} instantiates \sig{round}, assembles the result word and registers it,
-so it adds one clock cycle. If the rounded mantissa has a zero top bit, it writes
+so it adds one clock cycle. With \sig{NORM}=1 it first normalizes its input with
+\sig{norm} (Section~\ref{sec:norm}), in a stage of its own, so it adds two clock
+cycles; the rounding mode is delayed with the input. \sig{fadd}, \sig{fmul},
+\sig{fdiv} and \sig{fpu} set \sig{NORM} to 1 and pass \sig{norm}'s parameters
+\sig{IN\_W}, \sig{RSHIFT} and \sig{LZC\_W}; \sig{fmac} and \sig{ffma}, whose
+cores normalize, keep it at 0. The posit units of the posit repository use Float's
+cores in the same way, with a posit \sig{pack} that also holds \sig{norm}. If the rounded mantissa has a zero top bit, it writes
 a zero exponent field (a subnormal or zero result). A zero from the datapath is an
 exact cancellation, so it is $+0$, or $-0$ when \sig{rnd\_mode} is 2; the cores send
 zero operands as special zero codes with their sign. A special result code other
@@ -132,11 +138,11 @@ passed to \sig{round}; \sig{fmac} and \sig{ffma} set it to 1. Its signals are li
 clk & Input & 1 & Clock. \\ \hline
 rst & Input & 1 & Asynchronous reset, active high. \\ \hline
 valid\_i & Input & 1 & Input data valid. \\ \hline
-valid\_o & Output & 1 & \sig{valid\_i} delayed by one clock cycle. \\ \hline
+valid\_o & Output & 1 & \sig{valid\_i} delayed by one clock cycle, or two with \sig{NORM}=1. \\ \hline
 rnd\_mode & Input & 3 & Rounding mode, passed to \sig{round}. \\ \hline
 res\_special\_i & Input & 3 & Special result code \{kind, sign\}. Kind 0: the computed result; 1: the canonical NaN; 2: an infinity; 3: a zero, with the sign. \\ \hline
 sign\_i & Input & 1 & Sign. \\ \hline
-exp\_i & Input & EXP\_I\_W & Exponent, never negative; see \sig{round}. \\ \hline
-man\_i & Input & MAN\_W+3 & Mantissa with guard, round and sticky bits. \\ \hline
+exp\_i & Input & EXP\_I\_W & Exponent, never negative; see \sig{round}. With \sig{NORM}=1, the exponent input of \sig{norm}. \\ \hline
+man\_i & Input & MAN\_W+3 & Mantissa with guard, round and sticky bits. With \sig{NORM}=1, \sig{IN\_W} bits, the mantissa input of \sig{norm}. \\ \hline
 data\_o & Output & DATA\_W & Result word. \\
 \end{sigtable}
